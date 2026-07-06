@@ -232,10 +232,15 @@ export default function JarvisPage() {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-black font-sans">
       {/* Atmosphere */}
-      <div className="pointer-events-none absolute inset-0 hud-grid" />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden hud-grid-3d">
+        <div className="hud-grid hud-grid-plane" />
+      </div>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.08),transparent_62%)]" />
-      <div className="pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full bg-sky-500/5 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-amber-500/5 blur-3xl" />
+      {/* Deep nebula glows in the far corners */}
+      <div className="hud-nebula-indigo pointer-events-none absolute -left-52 -top-52 h-[34rem] w-[34rem] rounded-full blur-3xl" />
+      <div className="hud-nebula-teal pointer-events-none absolute -bottom-52 -right-52 h-[34rem] w-[34rem] rounded-full blur-3xl" />
+      <div className="hud-nebula-teal pointer-events-none absolute -bottom-44 -left-44 h-[26rem] w-[26rem] rounded-full blur-3xl" />
+      <div className="hud-nebula-indigo pointer-events-none absolute -right-44 -top-44 h-[26rem] w-[26rem] rounded-full blur-3xl" />
       <div className="pointer-events-none absolute inset-0 z-40 hud-scanlines opacity-60" />
 
       {/* Top bar */}
@@ -295,8 +300,24 @@ export default function JarvisPage() {
             className="hud-flicker relative flex items-center justify-center rounded-full transition-transform duration-300 hover:scale-[1.02] focus:outline-none"
             style={{ width: 280, height: 280 }}
           >
-            <Orb state={orbState} amplitude={orbAmplitude} size={280} />
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            {/* Breathing core glow — gentle organic pulse while in standby */}
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <span
+                className={`h-[300px] w-[300px] rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.22),transparent_66%)] blur-2xl ${
+                  orbState === 'idle' ? 'hud-breathe' : 'opacity-70'
+                }`}
+              />
+            </span>
+            {/* Layered glass radar rings, counter-rotating behind the core */}
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <span className="hud-ring hud-ring-1" />
+              <span className="hud-ring hud-ring-2" />
+              <span className="hud-ring hud-ring-3" />
+            </span>
+            <span className="relative z-10">
+              <Orb state={orbState} amplitude={orbAmplitude} size={280} />
+            </span>
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
               <span className="font-display text-sm font-normal tracking-[0.4em] text-white/90 sm:text-base [text-shadow:0_0_14px_rgba(255,255,255,0.45)]">
                 JARVIS
               </span>

@@ -9,14 +9,104 @@ body {
   color: #fff;
 }
 
-/* Faint engineering grid that sits behind everything. */
+/* Faint engineering grid — crisper lines, lower overall opacity. */
 .hud-grid {
   background-image:
-    linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
-  background-size: 46px 46px;
-  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 78%);
-  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 78%);
+    linear-gradient(rgba(56, 189, 248, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.09) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 72%);
+}
+
+/* Perspective wrapper that tilts the grid into a receding data plane / floor. */
+.hud-grid-3d {
+  perspective: 900px;
+  perspective-origin: 50% 44%;
+}
+.hud-grid-plane {
+  position: absolute;
+  left: -45%;
+  right: -45%;
+  top: -35%;
+  bottom: -35%;
+  opacity: 0.6;
+  transform: rotateX(32deg) scale(1.12);
+  transform-origin: 50% 62%;
+  animation: hud-grid-flow 18s linear infinite;
+}
+@keyframes hud-grid-flow {
+  from { background-position: 0 0; }
+  to { background-position: 0 42px; }
+}
+
+/* Deep ambient nebulas that keep the far corners from looking dead. */
+.hud-nebula-indigo {
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.16), transparent 70%);
+  animation: hud-drift-a 26s ease-in-out infinite;
+}
+.hud-nebula-teal {
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.13), transparent 70%);
+  animation: hud-drift-b 32s ease-in-out infinite;
+}
+@keyframes hud-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(24px, 18px, 0) scale(1.08); }
+}
+@keyframes hud-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50% { transform: translate3d(-22px, -16px, 0) scale(1); }
+}
+
+/* Layered glass radar rings framing the core, counter-rotating at slow speeds. */
+.hud-ring {
+  position: absolute;
+  border-radius: 9999px;
+}
+.hud-ring-1 {
+  width: 346px;
+  height: 346px;
+  background:
+    conic-gradient(from 200deg, rgba(56, 189, 248, 0.1), transparent 70deg, transparent 300deg, rgba(56, 189, 248, 0.06) 360deg),
+    rgba(125, 185, 240, 0.025);
+  border: 1px solid rgba(125, 195, 250, 0.1);
+  box-shadow: inset 0 0 22px rgba(56, 189, 248, 0.05);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 15px), #000 calc(100% - 15px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 15px), #000 calc(100% - 15px));
+  animation: hud-spin-cw 80s linear infinite;
+}
+.hud-ring-2 {
+  width: 316px;
+  height: 316px;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.28) 34deg, transparent 88deg, transparent 360deg);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  animation: hud-spin-ccw 46s linear infinite;
+}
+.hud-ring-3 {
+  width: 300px;
+  height: 300px;
+  background: conic-gradient(from 140deg, transparent 0deg, rgba(125, 211, 252, 0.22) 22deg, transparent 60deg, transparent 360deg);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px));
+  animation: hud-spin-cw 66s linear infinite;
+}
+@keyframes hud-spin-cw {
+  to { transform: rotate(360deg); }
+}
+@keyframes hud-spin-ccw {
+  to { transform: rotate(-360deg); }
+}
+
+/* Organic breathing glow behind the core while in standby. */
+.hud-breathe {
+  animation: hud-breathe 6s ease-in-out infinite;
+}
+@keyframes hud-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.06); }
 }
 
 /* Moving scanlines overlay for a CRT/hologram feel. */
