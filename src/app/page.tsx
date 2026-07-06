@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Send, Volume2, Download, Upload, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, Download, Upload, PanelLeftOpen, PanelRightOpen, UserRound } from 'lucide-react';
 import { Orb, type OrbState } from '@/components/Orb';
 import { Clock } from '@/components/Clock';
 import { TrainingHud } from '@/components/TrainingHud';
 import { NutritionHud } from '@/components/NutritionHud';
+import { Onboarding } from '@/components/Onboarding';
+import { ProfilePanel } from '@/components/ProfilePanel';
 import { useVoice } from '@/components/useVoice';
 import {
   loadStore,
@@ -14,6 +16,7 @@ import {
   parseImportedStore,
   DEFAULT_STORE,
   type JarvisStore,
+  type Profile,
 } from '@/lib/store';
 
 interface ChatTurn {
@@ -28,6 +31,7 @@ interface Caption {
 
 export default function JarvisPage() {
   const [store, setStore] = useState<JarvisStore>(DEFAULT_STORE);
+  const [hydrated, setHydrated] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [thinkingAmp, setThinkingAmp] = useState(0);
   const [caption, setCaption] = useState<Caption | null>(null);
@@ -35,6 +39,7 @@ export default function JarvisPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const storeRef = useRef<JarvisStore>(DEFAULT_STORE);
   const historyRef = useRef<ChatTurn[]>([]);
@@ -52,7 +57,29 @@ export default function JarvisPage() {
     const loaded = loadStore();
     storeRef.current = loaded;
     setStore(loaded);
+    setHydrated(true);
   }, []);
+
+  const handleOnboardingComplete = useCallback(
+    (patch: Partial<JarvisStore>) => {
+      const cur = storeRef.current;
+      commitStore({
+        ...cur,
+        ...patch,
+        profile: { ...cur.profile, ...(patch.profile ?? {}) },
+        memories: [...cur.memories, ...(patch.memories ?? [])],
+      });
+    },
+    [commitStore]
+  );
+
+  const handleProfileSave = useCallback(
+    (patch: Partial<Profile>) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, profile: { ...cur.profile, ...patch } });
+    },
+    [commitStore]
+  );
 
   const showCaption = useCallback((next: Caption, holdMs = 9000) => {
     if (captionTimeoutRef.current) clearTimeout(captionTimeoutRef.current);
@@ -196,6 +223,12 @@ export default function JarvisPage() {
   const iconBtn =
     'flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-white/60 backdrop-blur-md transition-colors hover:border-sky-400/40 hover:text-sky-300';
 
+  // Avoid a flash of onboarding before localStorage has loaded.
+  if (!hydrated) return <div className="h-[100dvh] w-full bg-black" />;
+
+  // First run — require a profile before the console is accessible.
+  if (!store.profile.onboarded) return <Onboarding onComplete={handleOnboardingComplete} />;
+
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-black font-sans">
       {/* Atmosphere */}
@@ -212,6 +245,9 @@ export default function JarvisPage() {
         </button>
 
         <div className="flex items-center gap-2">
+          <button className={iconBtn} onClick={() => setProfileOpen(true)} title="Edit profile" aria-label="Edit profile">
+            <UserRound className="h-4 w-4" />
+          </button>
           <input ref={fileInputRef} type="file" accept="application/json" onChange={handleImportFile} className="hidden" />
           <button className={iconBtn} onClick={() => fileInputRef.current?.click()} title="Restore backup" aria-label="Import backup">
             <Upload className="h-4 w-4" />
@@ -224,6 +260,10 @@ export default function JarvisPage() {
           </button>
         </div>
       </div>
+
+      {profileOpen && (
+        <ProfilePanel profile={store.profile} onSave={handleProfileSave} onClose={() => setProfileOpen(false)} />
+      )}
 
       {/* Left HUD */}
       <aside
