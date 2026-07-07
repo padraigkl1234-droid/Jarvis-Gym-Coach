@@ -73,7 +73,7 @@ export function NutritionHud({
           </div>
         ) : (
           <div className="text-[12px] italic text-white/35">
-            No meals logged. Tell JARVIS what you eat and it&rsquo;ll track it.
+            No meals logged. Tell VALORIS what you eat and it&rsquo;ll track it.
           </div>
         )}
       </HudSection>

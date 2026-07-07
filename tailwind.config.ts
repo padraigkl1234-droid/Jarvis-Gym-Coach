@@ -8,7 +8,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['var(--font-orbitron)', 'ui-sans-serif', 'sans-serif'],
+        display: ['var(--font-display)', 'ui-sans-serif', 'sans-serif'],
         sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
     },

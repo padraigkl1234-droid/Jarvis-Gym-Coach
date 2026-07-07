@@ -71,7 +71,7 @@ export function Orb({
 
     const R = size / 2;
     const displayFont =
-      getComputedStyle(document.documentElement).getPropertyValue('--font-orbitron').trim() || 'Orbitron';
+      getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim() || '"Exo 2"';
 
     // Build the screen→globe mapping once (independent of rotation).
     const buildGlobe = (tex: Tex) => {
@@ -293,15 +293,15 @@ export function Orb({
       ctx.fillStyle = rim;
       ctx.fill();
 
-      // "JARVIS" ribbon wrapped around the planet's middle, spinning with it.
-      const word = 'JARVIS';
+      // "VALORIS" ribbon wrapped around the planet's middle, spinning with it.
+      const word = 'VALORIS';
       const n = word.length;
       const spread = 2.3;
       const step = spread / n;
       const fs = size * 0.06;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `600 ${fs}px ${displayFont}, Orbitron, sans-serif`;
+      ctx.font = `700 ${fs}px ${displayFont}, "Exo 2", sans-serif`;
       ctx.fillStyle = '#ffffff';
       ctx.shadowColor = 'rgba(0,0,0,0.55)';
       for (let i = 0; i < n; i++) {

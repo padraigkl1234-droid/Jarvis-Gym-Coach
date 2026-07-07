@@ -9,6 +9,11 @@ body {
   color: #fff;
 }
 
+/* Display type runs bold by default — the softer face carries weight well. */
+.font-display {
+  font-weight: 600;
+}
+
 /* Faint engineering grid — crisper lines, lower overall opacity. */
 .hud-grid {
   background-image:
@@ -98,6 +103,25 @@ body {
 }
 @keyframes hud-spin-ccw {
   to { transform: rotate(-360deg); }
+}
+
+/* Wizard step transition — content slides in like a diagnostic readout. */
+.wizard-step {
+  animation: wizard-in 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes wizard-in {
+  from { opacity: 0; transform: translateX(26px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Thin animated scan bar under the wizard tabs. */
+.wizard-scan {
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.9), transparent);
+  animation: wizard-scan 2.6s ease-in-out infinite;
+}
+@keyframes wizard-scan {
+  0%, 100% { transform: translateX(-30%); opacity: 0.4; }
+  50% { transform: translateX(30%); opacity: 1; }
 }
 
 /* Greeny-blue ripple that radiates outward when the orb is tapped. */

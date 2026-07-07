@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('JARVIS chat error:', err);
     return NextResponse.json(
-      { error: 'JARVIS hit a problem processing that request.' },
+      { error: 'VALORIS hit a problem processing that request.' },
       { status: 500 }
     );
   }

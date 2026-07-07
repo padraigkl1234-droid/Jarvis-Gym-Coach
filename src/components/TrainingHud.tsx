@@ -109,7 +109,7 @@ export function TrainingHud({
         </div>
 
         {store.plan.length === 0 ? (
-          <div className="text-[12px] italic text-white/35">No plan yet. Ask JARVIS to build one.</div>
+          <div className="text-[12px] italic text-white/35">No plan yet. Ask VALORIS to build one.</div>
         ) : showFull ? (
           <div className="space-y-4">
             {fullPlan.map((day) => {
@@ -200,7 +200,7 @@ export function TrainingHud({
           </div>
         ) : (
           <div className="text-[12px] italic text-white/35">
-            Tell JARVIS about yourself — injuries, PRs, preferences — and it&rsquo;ll remember.
+            Tell VALORIS about yourself — injuries, PRs, preferences — and it&rsquo;ll remember.
           </div>
         )}
       </HudSection>

@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Send, Volume2, Download, Upload, PanelLeftOpen, PanelRightOpen, UserRound } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, Download, Upload, PanelLeftOpen, PanelRightOpen, UserRound, BarChart3 } from 'lucide-react';
 import { Orb, type OrbState } from '@/components/Orb';
 import { Clock } from '@/components/Clock';
 import { TrainingHud } from '@/components/TrainingHud';
 import { NutritionHud } from '@/components/NutritionHud';
 import { Onboarding } from '@/components/Onboarding';
 import { ProfilePanel } from '@/components/ProfilePanel';
+import { ProgressPanel } from '@/components/ProgressPanel';
 import { useVoice } from '@/components/useVoice';
 import {
   loadStore,
@@ -42,6 +43,7 @@ export default function JarvisPage() {
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [progressOpen, setProgressOpen] = useState(false);
   const [pulse, setPulse] = useState(0);
   const [undo, setUndo] = useState<{ store: JarvisStore; label: string } | null>(null);
 
@@ -205,7 +207,7 @@ export default function JarvisPage() {
           commitStore(parseImportedStore(String(reader.result)));
           flashNotice('Backup restored.');
         } catch {
-          flashNotice('That file could not be read as a JARVIS backup.');
+          flashNotice('That file could not be read as a VALORIS backup.');
         }
       };
       reader.readAsText(file);
@@ -291,6 +293,9 @@ export default function JarvisPage() {
           <button className={iconBtn} onClick={() => setProfileOpen(true)} title="Edit profile" aria-label="Edit profile">
             <UserRound className="h-4 w-4" />
           </button>
+          <button className={iconBtn} onClick={() => setProgressOpen(true)} title="Progress & stats" aria-label="Progress and stats">
+            <BarChart3 className="h-4 w-4" />
+          </button>
           <input ref={fileInputRef} type="file" accept="application/json" onChange={handleImportFile} className="hidden" />
           <button className={iconBtn} onClick={() => fileInputRef.current?.click()} title="Restore backup" aria-label="Import backup">
             <Upload className="h-4 w-4" />
@@ -307,6 +312,8 @@ export default function JarvisPage() {
       {profileOpen && (
         <ProfilePanel profile={store.profile} onSave={handleProfileSave} onClose={() => setProfileOpen(false)} />
       )}
+
+      {progressOpen && <ProgressPanel store={store} onClose={() => setProgressOpen(false)} />}
 
       {/* Left HUD */}
       <aside
@@ -336,7 +343,7 @@ export default function JarvisPage() {
               setPulse((p) => p + 1);
               handleMicToggle();
             }}
-            aria-label={voice.state === 'listening' ? 'Stop listening' : 'Activate JARVIS'}
+            aria-label={voice.state === 'listening' ? 'Stop listening' : 'Activate VALORIS'}
             className="hud-flicker relative flex items-center justify-center rounded-full focus:outline-none"
             style={{ width: 280, height: 280 }}
           >
@@ -410,7 +417,7 @@ export default function JarvisPage() {
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Ask JARVIS…"
+                placeholder="Ask VALORIS…"
                 className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 focus:outline-none"
               />
               <button

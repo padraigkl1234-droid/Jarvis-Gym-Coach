@@ -1,13 +1,13 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Orbitron } from 'next/font/google';
+import { Inter, Exo_2 } from 'next/font/google';
 import './globals.css';
 import { RegisterSW } from '@/components/RegisterSW';
 
 export const metadata: Metadata = {
-  title: 'JARVIS',
+  title: 'VALORIS',
   description: 'Voice-operated AI fitness and diet coach',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'JARVIS' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'VALORIS' },
   icons: {
     icon: [
       { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
@@ -24,11 +24,12 @@ export const viewport: Viewport = {
 };
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
-const orbitron = Orbitron({ subsets: ['latin'], variable: '--font-orbitron', display: 'swap' });
+// Display face: Exo 2 — geometric and modern but softer than a full sci-fi face.
+const exo = Exo_2({ subsets: ['latin'], variable: '--font-display', display: 'swap' });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${orbitron.variable}`}>
+    <html lang="en" className={`${inter.variable} ${exo.variable}`}>
       <body className="bg-black font-sans antialiased">
         {children}
         <RegisterSW />

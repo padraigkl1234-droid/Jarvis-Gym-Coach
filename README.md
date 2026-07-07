@@ -1,4 +1,4 @@
-# JARVIS
+# VALORIS
 
 A voice-operated AI fitness and diet coach. Talk to it; it builds your weekly training plan, knows what today's workout is, guides you through your session set by set, and coaches your nutrition as you log meals by voice.
 

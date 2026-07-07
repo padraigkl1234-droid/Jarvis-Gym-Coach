@@ -91,7 +91,7 @@ export function Onboarding({ onComplete }: { onComplete: (patch: Partial<JarvisS
 
         <div className="mb-6 text-center">
           <div className="font-display text-xl tracking-[0.4em] text-white [text-shadow:0_0_14px_rgba(56,189,248,0.5)]">
-            JARVIS
+            VALORIS
           </div>
           <div className="mt-1 font-display text-[10px] uppercase tracking-[0.3em] text-sky-300/70">
             Athlete Profile · Initialisation
@@ -103,7 +103,7 @@ export function Onboarding({ onComplete }: { onComplete: (patch: Partial<JarvisS
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="What should JARVIS call you?"
+              placeholder="What should VALORIS call you?"
               className={numberInput}
             />
           </Field>
@@ -194,10 +194,10 @@ export function Onboarding({ onComplete }: { onComplete: (patch: Partial<JarvisS
                 : 'cursor-not-allowed border-white/10 bg-white/[0.02] text-white/25'
             }`}
           >
-            Initialise JARVIS ▸
+            Initialise VALORIS ▸
           </button>
           <p className="text-center text-[10px] text-white/30">
-            Everything stays on this device. You can refine any of it later just by talking to JARVIS.
+            Everything stays on this device. You can refine any of it later just by talking to VALORIS.
           </p>
         </div>
       </div>
