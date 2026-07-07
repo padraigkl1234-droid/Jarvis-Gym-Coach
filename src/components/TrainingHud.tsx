@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { HudFrame, HudSection } from '@/components/HudFrame';
 import { type JarvisStore, type PlanDay, type SetEntry, MEMORY_META, todayStr } from '@/lib/store';
 
@@ -37,7 +38,15 @@ function PlanExercises({ plan, todaySets }: { plan: PlanDay; todaySets: SetEntry
   );
 }
 
-export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: () => void }) {
+export function TrainingHud({
+  store,
+  onClose,
+  onDeleteSet,
+}: {
+  store: JarvisStore;
+  onClose?: () => void;
+  onDeleteSet?: (set: SetEntry) => void;
+}) {
   const [showFull, setShowFull] = useState(false);
   const now = new Date();
   const weekday = now.getDay();
@@ -145,6 +154,16 @@ export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: 
                   {s.reps ?? '–'}×{s.weightKg ?? '–'}kg
                   {s.rpe ? <span className="text-white/30"> @{s.rpe}</span> : null}
                 </span>
+                {onDeleteSet && (
+                  <button
+                    onClick={() => onDeleteSet(s)}
+                    className="shrink-0 text-white/25 transition-colors hover:text-red-400"
+                    aria-label={`Delete ${s.exercise} set`}
+                    title="Delete set"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
               </div>
             ))}
           </div>

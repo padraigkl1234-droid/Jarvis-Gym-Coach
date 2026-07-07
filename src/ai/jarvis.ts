@@ -283,6 +283,95 @@ const logBodyMetricTool = ai.defineTool(
   }
 );
 
+const removeSetTool = ai.defineTool(
+  {
+    name: 'removeSet',
+    description:
+      "Deletes a logged workout set that was a mistake or didn't happen. Identify it by exercise name; defaults to today (pass a date for a past day). Removes the most recent matching set unless removeAll is true. Omit exercise to remove the most recently logged set that day.",
+    inputSchema: z.object({
+      exercise: z.string().optional().describe('Exercise name to match; omit to target the most recent set that day'),
+      date: z.string().optional().describe('YYYY-MM-DD; defaults to today'),
+      removeAll: z.boolean().optional().describe('Remove every matching set that day rather than just the most recent'),
+    }),
+    outputSchema: z.object({ removed: z.number() }),
+  },
+  async ({ exercise, date, removeAll }) => {
+    const day = date || todayStr();
+    const needle = (exercise ?? '').trim().toLowerCase();
+    const matches = working.sets
+      .map((s, i) => ({ s, i }))
+      .filter(({ s }) => s.date === day && (!needle || s.exercise.toLowerCase().includes(needle)));
+    const targets = removeAll ? matches : matches.slice(-1);
+    const idx = new Set(targets.map((t) => t.i));
+    working.sets = working.sets.filter((_, i) => !idx.has(i));
+    return { removed: targets.length };
+  }
+);
+
+const editSetTool = ai.defineTool(
+  {
+    name: 'editSet',
+    description:
+      "Corrects a logged set's reps, weight, or RPE. Identify it by exercise name; defaults to the most recent matching set today (pass a date for a past day). Only pass the fields being changed.",
+    inputSchema: z.object({
+      exercise: z.string().optional().describe('Exercise name to match; omit to target the most recent set that day'),
+      date: z.string().optional().describe('YYYY-MM-DD; defaults to today'),
+      reps: z.number().optional(),
+      weightKg: z.number().optional(),
+      rpe: z.number().min(1).max(10).optional(),
+    }),
+    outputSchema: z.object({ edited: z.boolean() }),
+  },
+  async ({ exercise, date, reps, weightKg, rpe }) => {
+    const day = date || todayStr();
+    const needle = (exercise ?? '').trim().toLowerCase();
+    let target = -1;
+    for (let i = 0; i < working.sets.length; i++) {
+      const s = working.sets[i];
+      if (s.date === day && (!needle || s.exercise.toLowerCase().includes(needle))) target = i;
+    }
+    let edited = false;
+    if (target >= 0) {
+      const s = working.sets[target];
+      if (reps !== undefined) s.reps = reps;
+      if (weightKg !== undefined) s.weightKg = weightKg;
+      if (rpe !== undefined) s.rpe = rpe;
+      edited = true;
+    }
+    return { edited };
+  }
+);
+
+const removePlanDayTool = ai.defineTool(
+  {
+    name: 'removePlanDay',
+    description:
+      'Removes a day from the weekly training plan entirely. Pass the weekday (0 = Sunday ... 6 = Saturday). To instead mark a day as an explicit rest day, use setPlanDays with a rest-day entry.',
+    inputSchema: z.object({ weekday: z.number().min(0).max(6) }),
+    outputSchema: z.object({ planDayCount: z.number() }),
+  },
+  async ({ weekday }) => {
+    working.plan = working.plan.filter((p) => p.weekday !== weekday);
+    return { planDayCount: working.plan.length };
+  }
+);
+
+const setWaterTool = ai.defineTool(
+  {
+    name: 'setWaterToday',
+    description:
+      "Sets today's total water intake to an exact amount in millilitres, replacing whatever is logged. Use to correct hydration when the athlete states their actual total or fixes a mistaken log (pass 0 to clear it).",
+    inputSchema: z.object({ totalMl: z.number().min(0) }),
+    outputSchema: z.object({ totalMlToday: z.number() }),
+  },
+  async ({ totalMl }) => {
+    const day = todayStr();
+    working.water = working.water.filter((w) => w.date !== day);
+    if (totalMl > 0) working.water.push({ date: day, ml: totalMl });
+    return { totalMlToday: waterTotal(day) };
+  }
+);
+
 const rememberTool = ai.defineTool(
   {
     name: 'remember',
@@ -378,11 +467,15 @@ const getHistoryTool = ai.defineTool(
 const TOOLS = [
   updateProfileTool,
   setPlanDaysTool,
+  removePlanDayTool,
   logMealTool,
   removeMealTool,
   editMealTool,
   logWaterTool,
+  setWaterTool,
   logSetTool,
+  removeSetTool,
+  editSetTool,
   logBodyMetricTool,
   rememberTool,
   forgetTool,
@@ -519,6 +612,14 @@ Be genuinely perceptive and proactive:
 
 Operating the tools (act, don't just talk about it):
 - CRITICAL: any change to the athlete's data — logging, editing, removing, planning, remembering — only happens when you call the matching tool. NEVER say you have logged, changed, corrected, removed, or updated something unless you actually called the tool for it in this same turn. If a request implies a data change, call the tool first, then confirm using the value the tool returned. Saying "done" without a tool call is a failure.
+- Understand loose, natural change requests and map them to the right tool. The athlete rarely names a tool; they say things like "that's wrong", "take that off", "I didn't do that one", "delete my last meal", "actually it was 90 kilos", "make it 3 sets", "I only had one coffee", "swap Thursday to legs", "scrap Friday", "change my goal to fat loss", "bump my protein target". Infer what they mean and act:
+  · a meal is wrong, a duplicate, or didn't happen → editMeal or removeMeal
+  · a logged set is wrong or didn't happen → editSet or removeSet
+  · hydration is wrong → setWaterToday
+  · a training day should change → setPlanDays (to rewrite it) or removePlanDay (to clear it)
+  · profile details or daily targets → updateProfile
+  · a durable fact changed → remember or forget
+  The current context lists today's meals and sets, so you already know what "that" or "the last one" refers to; for older days call getHistory first, then edit or remove with the date. Only ask a question when you genuinely cannot tell which item is meant — and then name the candidates in one short sentence. Otherwise make the change and confirm it in a few words.
 - No weekly plan yet? Building one is your first priority. Ask only what you genuinely need (goal, experience, days available, equipment, injuries), then create a full 7-day plan with setPlanDays including rest/recovery days, and confirm it in one short summary.
 - Adjust the plan whenever asked with setPlanDays — one day or the whole week. Each day you pass replaces that weekday's session in full.
 - When they report food or drink, log it with logMeal / logWater, estimating calories and macros yourself from the description, then coach how it fits the day.

@@ -18,6 +18,7 @@ import {
   type JarvisStore,
   type Profile,
   type MealEntry,
+  type SetEntry,
 } from '@/lib/store';
 
 interface ChatTurn {
@@ -58,6 +59,14 @@ export default function JarvisPage() {
     (meal: MealEntry) => {
       const cur = storeRef.current;
       commitStore({ ...cur, meals: cur.meals.filter((m) => m !== meal) });
+    },
+    [commitStore]
+  );
+
+  const handleDeleteSet = useCallback(
+    (set: SetEntry) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, sets: cur.sets.filter((s) => s !== set) });
     },
     [commitStore]
   );
@@ -285,7 +294,7 @@ export default function JarvisPage() {
           leftOpen ? 'translate-x-0' : '-translate-x-[130%]'
         }`}
       >
-        <TrainingHud store={store} onClose={() => setLeftOpen(false)} />
+        <TrainingHud store={store} onClose={() => setLeftOpen(false)} onDeleteSet={handleDeleteSet} />
       </aside>
 
       {/* Right HUD */}
