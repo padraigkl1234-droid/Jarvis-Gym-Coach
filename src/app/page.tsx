@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Send, Volume2, Download, Upload, PanelLeftOpen, PanelRightOpen, UserRound, BarChart3 } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, Download, Upload, PanelLeftOpen, PanelRightOpen, UserRound, BarChart3, Sparkles, X } from 'lucide-react';
 import { Orb, type OrbState } from '@/components/Orb';
 import { Clock } from '@/components/Clock';
 import { TrainingHud } from '@/components/TrainingHud';
@@ -9,6 +9,7 @@ import { NutritionHud } from '@/components/NutritionHud';
 import { Onboarding } from '@/components/Onboarding';
 import { ProfilePanel } from '@/components/ProfilePanel';
 import { ProgressPanel } from '@/components/ProgressPanel';
+import { detectInsights, wasSeenToday, markSeen } from '@/lib/insights';
 import { useVoice } from '@/components/useVoice';
 import {
   loadStore,
@@ -46,6 +47,7 @@ export default function JarvisPage() {
   const [progressOpen, setProgressOpen] = useState(false);
   const [pulse, setPulse] = useState(0);
   const [undo, setUndo] = useState<{ store: JarvisStore; label: string } | null>(null);
+  const [insight, setInsight] = useState<{ title: string; message: string } | null>(null);
 
   const storeRef = useRef<JarvisStore>(DEFAULT_STORE);
   const historyRef = useRef<ChatTurn[]>([]);
@@ -99,6 +101,57 @@ export default function JarvisPage() {
     setStore(loaded);
     setHydrated(true);
   }, []);
+
+  // Background insight worker: cron-style analysis of the last few days of
+  // structured data. Runs shortly after launch, every 30 minutes while the
+  // console is open, and whenever the app returns to the foreground. Each
+  // insight kind notifies at most once per day.
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const check = async () => {
+      if (!storeRef.current.profile.onboarded) return;
+      const candidate = detectInsights(storeRef.current).find((i) => !wasSeenToday(i.kind));
+      if (!candidate) return;
+      markSeen(candidate.kind);
+
+      // Let VALORIS phrase the nudge; fall back to the deterministic message.
+      let message = candidate.fallback;
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch('/api/insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: ctrl.signal,
+          body: JSON.stringify({
+            name: storeRef.current.profile.name,
+            goal: storeRef.current.profile.goal,
+            kind: candidate.kind,
+            facts: candidate.facts,
+          }),
+        });
+        clearTimeout(timer);
+        const data = await res.json();
+        if (res.ok && typeof data.message === 'string' && data.message) message = data.message;
+      } catch {
+        // Offline or API unavailable — the deterministic message stands.
+      }
+      setInsight({ title: candidate.title, message });
+    };
+
+    const initial = setTimeout(check, 2500);
+    const interval = setInterval(check, 30 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [hydrated]);
 
   const handleOnboardingComplete = useCallback(
     (patch: Partial<JarvisStore>) => {
@@ -387,6 +440,24 @@ export default function JarvisPage() {
             above it as overlays so accessing the mic never shifts the console. */}
         <div className="relative flex w-full flex-col items-center px-4 pb-6 pt-6">
           <div className="pointer-events-none absolute inset-x-0 bottom-full flex flex-col items-center gap-2 px-4 pb-3">
+            {insight && (
+              <div className="pointer-events-auto flex max-w-xl items-start gap-2.5 rounded-lg border border-teal-400/30 bg-black/80 px-4 py-2.5 backdrop-blur-md shadow-[0_0_24px_rgba(45,212,191,0.15)]">
+                <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-300" />
+                <div className="min-w-0">
+                  <div className="font-display text-[9px] uppercase tracking-[0.25em] text-teal-300/90">
+                    Insight · {insight.title}
+                  </div>
+                  <div className="mt-0.5 text-xs leading-relaxed text-white/85">{insight.message}</div>
+                </div>
+                <button
+                  onClick={() => setInsight(null)}
+                  className="ml-1 shrink-0 text-white/35 transition-colors hover:text-white/80"
+                  aria-label="Dismiss insight"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
             {undo && (
               <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/15 bg-black/70 px-4 py-1.5 backdrop-blur-md">
                 <span className="text-xs text-white/70">{undo.label}</span>
