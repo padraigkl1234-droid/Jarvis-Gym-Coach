@@ -17,6 +17,7 @@ import {
   DEFAULT_STORE,
   type JarvisStore,
   type Profile,
+  type MealEntry,
 } from '@/lib/store';
 
 interface ChatTurn {
@@ -52,6 +53,14 @@ export default function JarvisPage() {
     setStore(next);
     saveStore(next);
   }, []);
+
+  const handleDeleteMeal = useCallback(
+    (meal: MealEntry) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, meals: cur.meals.filter((m) => m !== meal) });
+    },
+    [commitStore]
+  );
 
   useEffect(() => {
     const loaded = loadStore();
@@ -285,7 +294,7 @@ export default function JarvisPage() {
           rightOpen ? 'translate-x-0' : 'translate-x-[130%]'
         }`}
       >
-        <NutritionHud store={store} onClose={() => setRightOpen(false)} />
+        <NutritionHud store={store} onClose={() => setRightOpen(false)} onDeleteMeal={handleDeleteMeal} />
       </aside>
 
       {/* Center column */}

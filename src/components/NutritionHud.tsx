@@ -1,9 +1,18 @@
 'use client';
 
+import { Trash2 } from 'lucide-react';
 import { HudFrame, HudSection, HudBar } from '@/components/HudFrame';
-import { type JarvisStore, todayStr } from '@/lib/store';
+import { type JarvisStore, type MealEntry, todayStr } from '@/lib/store';
 
-export function NutritionHud({ store, onClose }: { store: JarvisStore; onClose?: () => void }) {
+export function NutritionHud({
+  store,
+  onClose,
+  onDeleteMeal,
+}: {
+  store: JarvisStore;
+  onClose?: () => void;
+  onDeleteMeal?: (meal: MealEntry) => void;
+}) {
   const today = todayStr();
   const meals = store.meals.filter((m) => m.date === today);
   const water = store.water.filter((w) => w.date === today).reduce((a, w) => a + w.ml, 0);
@@ -36,10 +45,22 @@ export function NutritionHud({ store, onClose }: { store: JarvisStore; onClose?:
         {meals.length > 0 ? (
           <div className="space-y-2">
             {meals.map((m, i) => (
-              <div key={i} className="border-l border-amber-400/25 pl-2">
-                <div className="flex items-baseline justify-between">
+              <div key={i} className="group border-l border-amber-400/25 pl-2">
+                <div className="flex items-baseline justify-between gap-2">
                   <span className="text-[12px] font-medium text-white/90">{m.name}</span>
-                  <span className="font-display text-[10px] tabular-nums text-white/50">{m.time}</span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="font-display text-[10px] tabular-nums text-white/50">{m.time}</span>
+                    {onDeleteMeal && (
+                      <button
+                        onClick={() => onDeleteMeal(m)}
+                        className="text-white/25 transition-colors hover:text-red-400"
+                        aria-label={`Delete ${m.name}`}
+                        title="Delete meal"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-2 text-[10px] tabular-nums text-white/70">
                   <span className="text-amber-200/70">{Math.round(m.calories)} kcal</span>
