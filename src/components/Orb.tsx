@@ -92,6 +92,10 @@ export function Orb({
       return { x: x0, y: -y1, z: z1 }; // canvas y points down
     };
 
+    // The Orbitron display family (next/font exposes its generated name here).
+    const displayFont =
+      getComputedStyle(document.documentElement).getPropertyValue('--font-orbitron').trim() || 'Orbitron';
+
     let last = performance.now();
 
     const tick = (t: number) => {
@@ -279,6 +283,31 @@ export function Orb({
       ctx.globalAlpha = 0.55 + amp * 0.35;
       ctx.lineWidth = 2;
       ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // "JARVIS" mapped onto the globe, wrapping around and spinning with it.
+      // The band sits at latitude = TILT so the word is centred when it faces
+      // front, then foreshortens and hides as it travels around the back.
+      const word = 'JARVIS';
+      const n = word.length;
+      const arc = 1.75;
+      const step = arc / (n - 1);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i < n; i++) {
+        const lon = (i - (n - 1) / 2) * step + rot;
+        const p = project(TILT, lon);
+        if (p.z <= 0.1) continue; // hide the back hemisphere
+        const depth = p.z;
+        const fs = size * 0.062 * (0.5 + depth * 0.6);
+        ctx.font = `600 ${fs}px ${displayFont}, Orbitron, sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.15 + 0.8 * depth;
+        ctx.shadowColor = 'rgba(255,255,255,0.55)';
+        ctx.shadowBlur = 12 * depth;
+        ctx.fillText(word[i], p.x * geoR, p.y * geoR);
+      }
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
 
       ctx.restore();

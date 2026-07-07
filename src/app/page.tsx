@@ -289,10 +289,9 @@ export default function JarvisPage() {
       </aside>
 
       {/* Center column */}
-      <div className="relative z-10 flex h-full flex-col items-center justify-between">
-        <div className="flex-1" />
-
-        <div className="flex flex-col items-center gap-6 px-4">
+      <div className="relative z-10 flex h-full flex-col items-center">
+        {/* Orb — centred in the upper space */}
+        <div className="flex flex-1 items-center justify-center px-4">
           <button
             type="button"
             onClick={handleMicToggle}
@@ -317,26 +316,20 @@ export default function JarvisPage() {
             <span className="relative z-10">
               <Orb state={orbState} amplitude={orbAmplitude} size={280} />
             </span>
-            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-              <span className="font-display text-sm font-normal tracking-[0.4em] text-white/90 sm:text-base [text-shadow:0_0_14px_rgba(255,255,255,0.45)]">
-                JARVIS
-              </span>
-            </div>
           </button>
+        </div>
 
+        {/* Clock + status — dropped toward the bottom of the screen */}
+        <div className="flex flex-col items-center gap-3 px-4">
           <Clock />
-
-          {/* Status readout */}
           <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 backdrop-blur-md">
             <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${statusColor.split(' ')[0]}`} />
             <span className={`font-display text-[10px] tracking-[0.3em] ${statusColor.split(' ')[1]}`}>{statusLabel}</span>
           </div>
         </div>
 
-        <div className="flex-1" />
-
         {/* Caption + input */}
-        <div className="flex w-full flex-col items-center gap-3 px-4 pb-6">
+        <div className="flex w-full flex-col items-center gap-3 px-4 pb-6 pt-6">
           {liveCaptionText && (
             <div
               className={`max-w-xl text-center text-sm transition-opacity duration-300 ${
