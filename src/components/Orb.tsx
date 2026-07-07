@@ -1,18 +1,26 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { LAND } from '@/data/earthLand';
 
 export type OrbState = 'idle' | 'listening' | 'speaking';
 
-// A surface feature living on the sphere: fixed latitude, drifting longitude.
-interface SpherePoint {
-  lat: number;
-  lon: number;
-  size: number;
-  phase: number;
+// Precompute the continent points (lon,lat → radians) once, so each frame just
+// rotates and projects them onto the sphere to draw the Earth's landmasses.
+const D2R = Math.PI / 180;
+const LAND_COUNT = LAND.length / 2;
+const LAND_LON = new Float32Array(LAND_COUNT);
+const LAND_LAT = new Float32Array(LAND_COUNT);
+for (let i = 0, j = 0; i < LAND.length; i += 2, j++) {
+  LAND_LON[j] = LAND[i] * D2R;
+  LAND_LAT[j] = LAND[i + 1] * D2R;
 }
 
-const BLUE_CORE = [4, 14, 34];
+// Land colour (idle blue-green vs. speaking gold), lerped like the rest of the orb.
+const LAND_BLUE = [86, 214, 158];
+const LAND_GOLD = [242, 204, 120];
+
+const BLUE_CORE = [3, 16, 40];
 const BLUE_ACCENT = [56, 189, 248];
 const GOLD_CORE = [44, 30, 4];
 const GOLD_ACCENT = [251, 191, 36];
@@ -46,7 +54,6 @@ export function Orb({
   size?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pointsRef = useRef<SpherePoint[]>([]);
   const colorMixRef = useRef(0);
   const ampSmoothRef = useRef(0);
   const rotRef = useRef(0);
@@ -66,16 +73,6 @@ export function Orb({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.scale(dpr, dpr);
-
-    if (pointsRef.current.length === 0) {
-      // Distribute surface points evenly-ish over the sphere.
-      pointsRef.current = Array.from({ length: 108 }, () => ({
-        lat: Math.asin(Math.random() * 2 - 1), // uniform over the sphere
-        lon: Math.random() * Math.PI * 2,
-        size: Math.random() * 1.5 + 0.5,
-        phase: Math.random() * Math.PI * 2,
-      }));
-    }
 
     const ct = Math.cos(TILT);
     const st = Math.sin(TILT);
@@ -234,28 +231,39 @@ export function Orb({
           }
         }
         ctx.strokeStyle = accent;
-        ctx.globalAlpha = 0.12;
+        ctx.globalAlpha = 0.07;
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
 
-      // Glowing surface points.
-      ctx.shadowColor = accent;
-      for (const p of pointsRef.current) {
-        const proj = project(p.lat, p.lon + rot);
-        if (proj.z <= 0) continue;
-        const depth = proj.z; // 0 at limb, 1 facing viewer
-        const twinkle = 0.75 + 0.25 * Math.sin((t / 1000) * 1.6 + p.phase);
-        const sx = proj.x * geoR;
-        const sy = proj.y * geoR;
-        ctx.beginPath();
-        ctx.arc(sx, sy, p.size * (0.5 + depth * 0.7) * (1 + amp * 0.7), 0, Math.PI * 2);
-        ctx.fillStyle = accent;
-        ctx.globalAlpha = (0.18 + amp * 0.4) * (0.25 + 0.75 * depth) * twinkle;
-        ctx.shadowBlur = 5;
-        ctx.fill();
+      // The continents: real coastline data, rotated with the globe and lit from
+      // the upper-left, drawn only on the front-facing hemisphere.
+      const lr = Math.round(lerp(LAND_BLUE[0], LAND_GOLD[0], mix));
+      const lg = Math.round(lerp(LAND_BLUE[1], LAND_GOLD[1], mix));
+      const lb = Math.round(lerp(LAND_BLUE[2], LAND_GOLD[2], mix));
+      const dotR = geoR * 0.011;
+      const dotSize = Math.max(1, dotR * 2);
+      const cosLon = Math.cos(rot);
+      const sinLon = Math.sin(rot);
+      ctx.fillStyle = `rgb(${lr}, ${lg}, ${lb})`;
+      for (let j = 0; j < LAND_COUNT; j++) {
+        const lat = LAND_LAT[j];
+        const cl = Math.cos(lat);
+        const sl = Math.sin(lat);
+        // longitude + rotation, expanded so cos/sin of rot are computed once
+        const lo = LAND_LON[j];
+        const sinLo = Math.sin(lo) * cosLon + Math.cos(lo) * sinLon;
+        const cosLo = Math.cos(lo) * cosLon - Math.sin(lo) * sinLon;
+        const x0 = cl * sinLo;
+        const z0 = cl * cosLo;
+        const y1 = sl * ct - z0 * st;
+        const z1 = sl * st + z0 * ct; // depth: >0 front
+        if (z1 <= 0.03) continue;
+        // diffuse light from upper-left-front; normal = (x0, y1, z1)
+        const bright = x0 * -0.45 + y1 * 0.55 + z1 * 0.7;
+        ctx.globalAlpha = (0.25 + amp * 0.3) + Math.max(0, bright) * 0.6;
+        ctx.fillRect(x0 * geoR - dotR, -y1 * geoR - dotR, dotSize, dotSize);
       }
-      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
 
       // Specular highlight near the light source for a glossy read.
