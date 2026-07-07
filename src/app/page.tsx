@@ -376,33 +376,33 @@ export default function JarvisPage() {
           </div>
         </div>
 
-        {/* Undo toast for deletions */}
-        {undo && (
-          <div className="pointer-events-auto mb-2 flex items-center gap-3 rounded-full border border-white/15 bg-black/70 px-4 py-1.5 backdrop-blur-md">
-            <span className="text-xs text-white/70">{undo.label}</span>
-            <button
-              onClick={handleUndo}
-              className="font-display text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-300 transition-colors hover:text-emerald-200"
-            >
-              Undo
-            </button>
+        {/* Input row. Transient elements (caption, notice, undo) are floated
+            above it as overlays so accessing the mic never shifts the console. */}
+        <div className="relative flex w-full flex-col items-center px-4 pb-6 pt-6">
+          <div className="pointer-events-none absolute inset-x-0 bottom-full flex flex-col items-center gap-2 px-4 pb-3">
+            {undo && (
+              <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/15 bg-black/70 px-4 py-1.5 backdrop-blur-md">
+                <span className="text-xs text-white/70">{undo.label}</span>
+                <button
+                  onClick={handleUndo}
+                  className="font-display text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-300 transition-colors hover:text-emerald-200"
+                >
+                  Undo
+                </button>
+              </div>
+            )}
+            {liveCaptionText && (
+              <div
+                className={`max-w-xl text-center text-sm transition-opacity duration-300 ${
+                  liveCaptionRole === 'jarvis' ? 'text-sky-200' : 'text-white/70'
+                }`}
+              >
+                {liveCaptionRole === 'jarvis' && <Volume2 className="mr-1.5 inline-block h-3.5 w-3.5 -translate-y-0.5" />}
+                {liveCaptionText}
+              </div>
+            )}
+            {notice && <div className="max-w-xl text-center text-xs text-amber-300">{notice}</div>}
           </div>
-        )}
-
-        {/* Caption + input */}
-        <div className="flex w-full flex-col items-center gap-3 px-4 pb-6 pt-6">
-          {liveCaptionText && (
-            <div
-              className={`max-w-xl text-center text-sm transition-opacity duration-300 ${
-                liveCaptionRole === 'jarvis' ? 'text-sky-200' : 'text-white/70'
-              }`}
-            >
-              {liveCaptionRole === 'jarvis' && <Volume2 className="mr-1.5 inline-block h-3.5 w-3.5 -translate-y-0.5" />}
-              {liveCaptionText}
-            </div>
-          )}
-
-          {notice && <div className="max-w-xl text-center text-xs text-amber-300">{notice}</div>}
 
           <form onSubmit={handleSubmitText} className="flex w-full max-w-xl items-center gap-2">
             <div className="flex flex-1 items-center gap-2 rounded-full border border-sky-400/20 bg-white/[0.03] px-4 py-2.5 backdrop-blur-md focus-within:border-sky-400/50">
