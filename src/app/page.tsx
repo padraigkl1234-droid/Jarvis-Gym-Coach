@@ -42,10 +42,13 @@ export default function JarvisPage() {
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [pulse, setPulse] = useState(0);
+  const [undo, setUndo] = useState<{ store: JarvisStore; label: string } | null>(null);
 
   const storeRef = useRef<JarvisStore>(DEFAULT_STORE);
   const historyRef = useRef<ChatTurn[]>([]);
   const captionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const thinkingRafRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,20 +58,37 @@ export default function JarvisPage() {
     saveStore(next);
   }, []);
 
+  // Offer a brief window to undo a deletion by snapshotting the prior store.
+  const offerUndo = useCallback((prev: JarvisStore, label: string) => {
+    setUndo({ store: prev, label });
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    undoTimeoutRef.current = setTimeout(() => setUndo(null), 6000);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    setUndo((u) => {
+      if (u) commitStore(u.store);
+      return null;
+    });
+  }, [commitStore]);
+
   const handleDeleteMeal = useCallback(
     (meal: MealEntry) => {
       const cur = storeRef.current;
       commitStore({ ...cur, meals: cur.meals.filter((m) => m !== meal) });
+      offerUndo(cur, 'Meal removed');
     },
-    [commitStore]
+    [commitStore, offerUndo]
   );
 
   const handleDeleteSet = useCallback(
     (set: SetEntry) => {
       const cur = storeRef.current;
       commitStore({ ...cur, sets: cur.sets.filter((s) => s !== set) });
+      offerUndo(cur, 'Set removed');
     },
-    [commitStore]
+    [commitStore, offerUndo]
   );
 
   useEffect(() => {
@@ -312,11 +332,21 @@ export default function JarvisPage() {
         <div className="flex flex-1 items-center justify-center px-4">
           <button
             type="button"
-            onClick={handleMicToggle}
+            onClick={() => {
+              setPulse((p) => p + 1);
+              handleMicToggle();
+            }}
             aria-label={voice.state === 'listening' ? 'Stop listening' : 'Activate JARVIS'}
-            className="hud-flicker relative flex items-center justify-center rounded-full transition-transform duration-300 hover:scale-[1.02] focus:outline-none"
+            className="hud-flicker relative flex items-center justify-center rounded-full focus:outline-none"
             style={{ width: 280, height: 280 }}
           >
+            {/* Greeny-blue ripple confirming a tap */}
+            {pulse > 0 && (
+              <span
+                key={pulse}
+                className="orb-click-glow pointer-events-none absolute inset-0 rounded-full"
+              />
+            )}
             {/* Breathing core glow — gentle organic pulse while in standby */}
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span
@@ -345,6 +375,19 @@ export default function JarvisPage() {
             <span className={`font-display text-[11px] font-semibold tracking-[0.3em] ${statusColor.split(' ')[1]}`}>{statusLabel}</span>
           </div>
         </div>
+
+        {/* Undo toast for deletions */}
+        {undo && (
+          <div className="pointer-events-auto mb-2 flex items-center gap-3 rounded-full border border-white/15 bg-black/70 px-4 py-1.5 backdrop-blur-md">
+            <span className="text-xs text-white/70">{undo.label}</span>
+            <button
+              onClick={handleUndo}
+              className="font-display text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-300 transition-colors hover:text-emerald-200"
+            >
+              Undo
+            </button>
+          </div>
+        )}
 
         {/* Caption + input */}
         <div className="flex w-full flex-col items-center gap-3 px-4 pb-6 pt-6">

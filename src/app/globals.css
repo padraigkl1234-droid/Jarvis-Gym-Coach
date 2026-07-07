@@ -100,6 +100,20 @@ body {
   to { transform: rotate(-360deg); }
 }
 
+/* Greeny-blue ripple that radiates outward when the orb is tapped. */
+.orb-click-glow {
+  border: 2px solid rgba(100, 235, 205, 0.85);
+  box-shadow:
+    0 0 60px 20px rgba(60, 225, 195, 0.5),
+    inset 0 0 40px rgba(60, 225, 195, 0.3);
+  animation: orb-click 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+@keyframes orb-click {
+  0% { transform: scale(0.7); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
 /* Organic breathing glow behind the core while in standby. */
 .hud-breathe {
   animation: hud-breathe 6s ease-in-out infinite;
