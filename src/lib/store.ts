@@ -4,10 +4,13 @@
  * copy and return it, and the client persists whatever comes back.
  */
 
+export type SubscriptionTier = 'free' | 'premium';
+
 export interface Profile {
   name: string;
   goal: string;
   onboarded: boolean;
+  subscriptionTier?: SubscriptionTier; // gates premium features (proactive coaching, vision logging)
   experience?: string; // Beginner | Intermediate | Advanced
   daysPerWeek?: number;
   equipment?: string[];
@@ -140,6 +143,7 @@ export const DEFAULT_STORE: JarvisStore = {
     name: 'Athlete',
     goal: '',
     onboarded: false,
+    subscriptionTier: 'free',
     calorieTarget: 2500,
     proteinTargetG: 160,
     carbsTargetG: 280,
@@ -251,6 +255,10 @@ function normalize(parsed: any): JarvisStore {
   }));
   // Backfill sessions (added after the first release).
   store.sessions = store.sessions ?? [];
+  // Grandfather devices onboarded before tiers existed onto premium.
+  if (parsed?.profile?.onboarded && parsed.profile.subscriptionTier === undefined) {
+    store.profile.subscriptionTier = 'premium';
+  }
   return store;
 }
 

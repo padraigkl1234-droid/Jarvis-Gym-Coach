@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Send, Volume2, Download, Upload, PanelLeftOpen, PanelRightOpen, UserRound, BarChart3, Sparkles, X } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, Download, Upload, PanelLeftOpen, PanelRightOpen, UserRound, BarChart3, Sparkles, X, FileText, ImagePlus } from 'lucide-react';
 import { Orb, type OrbState } from '@/components/Orb';
 import { Clock } from '@/components/Clock';
 import { TrainingHud } from '@/components/TrainingHud';
@@ -21,6 +21,8 @@ import {
   type Profile,
   type MealEntry,
   type SetEntry,
+  todayStr,
+  timeStr,
 } from '@/lib/store';
 
 interface ChatTurn {
@@ -48,6 +50,15 @@ export default function JarvisPage() {
   const [pulse, setPulse] = useState(0);
   const [undo, setUndo] = useState<{ store: JarvisStore; label: string } | null>(null);
   const [insight, setInsight] = useState<{ title: string; message: string } | null>(null);
+  const [foodConfirm, setFoodConfirm] = useState<{
+    name: string;
+    calories: number;
+    proteinG: number;
+    carbsG: number;
+    fatG: number;
+    note: string;
+  } | null>(null);
+  const [analysingPhoto, setAnalysingPhoto] = useState(false);
 
   const storeRef = useRef<JarvisStore>(DEFAULT_STORE);
   const historyRef = useRef<ChatTurn[]>([]);
@@ -55,6 +66,7 @@ export default function JarvisPage() {
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const thinkingRafRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const commitStore = useCallback((next: JarvisStore) => {
     storeRef.current = next;
@@ -95,6 +107,104 @@ export default function JarvisPage() {
     [commitStore, offerUndo]
   );
 
+  // Weekly Blueprint PDF: server aggregates the week + writes the debrief.
+  const handleExportBlueprint = useCallback(async () => {
+    try {
+      const res = await fetch('/api/export-blueprint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ store: storeRef.current }),
+      });
+      if (!res.ok) throw new Error('export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `valoris-blueprint-${todayStr()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      flashNotice('Could not generate the weekly blueprint right now.');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Photo meal logging: downscale, send to vision, then ask before logging.
+  const handleImageSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setAnalysingPhoto(true);
+    try {
+      const image = await new Promise<string>((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.width * scale));
+          c.height = Math.max(1, Math.round(img.height * scale));
+          c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          resolve(c.toDataURL('image/jpeg', 0.8));
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('unreadable image'));
+        };
+        img.src = url;
+      });
+
+      const res = await fetch('/api/vision-food', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image, subscriptionTier: storeRef.current.profile.subscriptionTier }),
+      });
+      const data = await res.json();
+      if (res.status === 403) {
+        flashNotice('Photo meal logging is a Premium feature — upgrade to unlock it.');
+      } else if (!res.ok) {
+        flashNotice('VALORIS could not analyse that photo. Try again or log it by voice.');
+      } else if (!data.found) {
+        flashNotice(data.note || 'No food detected in that photo.');
+      } else {
+        setFoodConfirm(data);
+      }
+    } catch {
+      flashNotice('That image could not be read.');
+    } finally {
+      setAnalysingPhoto(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleLogDetectedMeal = useCallback(() => {
+    const meal = foodConfirm;
+    if (!meal) return;
+    const cur = storeRef.current;
+    const now = new Date();
+    commitStore({
+      ...cur,
+      meals: [
+        ...cur.meals,
+        {
+          date: todayStr(now),
+          time: timeStr(now),
+          name: meal.name,
+          calories: meal.calories,
+          proteinG: meal.proteinG,
+          carbsG: meal.carbsG,
+          fatG: meal.fatG,
+        },
+      ],
+    });
+    setFoodConfirm(null);
+    voice.speak(`Logged ${meal.name}, about ${meal.calories} calories.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [foodConfirm, commitStore]);
+
   useEffect(() => {
     const loaded = loadStore();
     storeRef.current = loaded;
@@ -127,12 +237,20 @@ export default function JarvisPage() {
           body: JSON.stringify({
             name: storeRef.current.profile.name,
             goal: storeRef.current.profile.goal,
+            subscriptionTier: storeRef.current.profile.subscriptionTier,
             kind: candidate.kind,
             facts: candidate.facts,
           }),
         });
         clearTimeout(timer);
         const data = await res.json();
+        if (res.status === 403) {
+          setInsight({
+            title: 'Premium',
+            message: 'VALORIS spotted a pattern in your week. Proactive coaching insights are a Premium feature — upgrade to unlock them.',
+          });
+          return;
+        }
         if (res.ok && typeof data.message === 'string' && data.message) message = data.message;
       } catch {
         // Offline or API unavailable — the deterministic message stands.
@@ -356,6 +474,9 @@ export default function JarvisPage() {
           <button className={iconBtn} onClick={() => downloadStore(storeRef.current)} title="Download backup" aria-label="Download backup">
             <Download className="h-4 w-4" />
           </button>
+          <button className={iconBtn} onClick={handleExportBlueprint} title="Export weekly blueprint (PDF)" aria-label="Export weekly blueprint">
+            <FileText className="h-4 w-4" />
+          </button>
           <button className={`${iconBtn} xl:hidden`} onClick={() => setRightOpen((v) => !v)} aria-label="Toggle nutrition panel">
             <PanelRightOpen className="h-4 w-4" />
           </button>
@@ -440,6 +561,32 @@ export default function JarvisPage() {
             above it as overlays so accessing the mic never shifts the console. */}
         <div className="relative flex w-full flex-col items-center px-4 pb-6 pt-6">
           <div className="pointer-events-none absolute inset-x-0 bottom-full flex flex-col items-center gap-2 px-4 pb-3">
+            {foodConfirm && (
+              <div className="pointer-events-auto flex max-w-xl flex-col gap-2 rounded-lg border border-amber-400/35 bg-black/85 px-4 py-3 backdrop-blur-md shadow-[0_0_24px_rgba(251,191,36,0.12)]">
+                <div className="font-display text-[9px] uppercase tracking-[0.25em] text-amber-300/90">
+                  Vision · Meal detected
+                </div>
+                <div className="text-sm text-white/90">
+                  I detected <span className="font-medium text-amber-200">{foodConfirm.name}</span> (~{foodConfirm.calories} kcal
+                  <span className="text-white/55"> · P{foodConfirm.proteinG} C{foodConfirm.carbsG} F{foodConfirm.fatG}</span>). Log this?
+                </div>
+                {foodConfirm.note && <div className="text-[11px] text-white/45">{foodConfirm.note}</div>}
+                <div className="flex gap-2 pt-0.5">
+                  <button
+                    onClick={handleLogDetectedMeal}
+                    className="rounded-full border border-amber-400/60 bg-amber-400/15 px-4 py-1 font-display text-[10px] uppercase tracking-[0.2em] text-amber-200 transition-colors hover:bg-amber-400/25"
+                  >
+                    Log it
+                  </button>
+                  <button
+                    onClick={() => setFoodConfirm(null)}
+                    className="rounded-full border border-white/15 px-4 py-1 font-display text-[10px] uppercase tracking-[0.2em] text-white/50 transition-colors hover:text-white/80"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
             {insight && (
               <div className="pointer-events-auto flex max-w-xl items-start gap-2.5 rounded-lg border border-teal-400/30 bg-black/80 px-4 py-2.5 backdrop-blur-md shadow-[0_0_24px_rgba(45,212,191,0.15)]">
                 <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-300" />
@@ -500,6 +647,21 @@ export default function JarvisPage() {
                 <Send className="h-4 w-4" />
               </button>
             </div>
+            <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={analysingPhoto}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                analysingPhoto
+                  ? 'animate-pulse border-amber-400/60 bg-amber-400/10 text-amber-300'
+                  : 'border-white/10 bg-white/[0.03] text-white/60 hover:text-amber-300'
+              }`}
+              aria-label="Log a meal from a photo"
+              title="Snap or upload a meal photo"
+            >
+              <ImagePlus className="h-4 w-4" />
+            </button>
             <button
               type="button"
               onClick={handleMicToggle}

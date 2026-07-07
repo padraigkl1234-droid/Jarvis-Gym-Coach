@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ai } from '@/ai/genkit';
+import { requirePremium } from '@/lib/tier';
 
 /**
  * Phrases a detected insight as a short proactive coaching nudge in VALORIS's
@@ -10,6 +11,10 @@ import { ai } from '@/ai/genkit';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    const gate = requirePremium(body?.subscriptionTier);
+    if (gate) return gate;
+
     const name: string = typeof body?.name === 'string' ? body.name : 'Athlete';
     const goal: string = typeof body?.goal === 'string' ? body.goal : '';
     const kind: string = typeof body?.kind === 'string' ? body.kind : '';
