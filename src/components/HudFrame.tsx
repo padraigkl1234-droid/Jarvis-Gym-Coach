@@ -65,7 +65,7 @@ export function HudFrame({
 export function HudSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-4">
-      <div className="mb-2 font-display text-[9px] uppercase tracking-[0.25em] text-white/35">{label}</div>
+      <div className="mb-2 font-display text-[9px] font-medium uppercase tracking-[0.25em] text-white/55">{label}</div>
       {children}
     </div>
   );
@@ -99,7 +99,7 @@ export function HudBar({
         <span className="text-[11px] uppercase tracking-wider text-white/55">{label}</span>
         <span className="font-display text-[11px] tabular-nums text-white/80">
           {Math.round(value)}
-          <span className="text-white/35"> / {target}{unit}</span>
+          <span className="text-white/50"> / {target}{unit}</span>
         </span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">

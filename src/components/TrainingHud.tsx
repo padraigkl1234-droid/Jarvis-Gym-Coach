@@ -22,9 +22,9 @@ function PlanExercises({ plan, todaySets }: { plan: PlanDay; todaySets: SetEntry
             >
               ✓
             </span>
-            <span className={done ? 'text-white/85' : 'text-white/65'}>{ex.name}</span>
+            <span className={done ? 'text-white/95' : 'text-white/80'}>{ex.name}</span>
             {(ex.sets || ex.reps) && (
-              <span className="ml-auto font-display text-[10px] tabular-nums text-white/35">
+              <span className="ml-auto font-display text-[10px] tabular-nums text-white/55">
                 {ex.sets ?? ''}
                 {ex.sets && ex.reps ? '×' : ''}
                 {ex.reps ?? ''}
@@ -57,7 +57,7 @@ export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: 
             const planned = plannedWeekdays.has(i);
             return (
               <div key={i} className="flex flex-col items-center gap-1">
-                <span className={`text-[10px] ${isToday ? 'text-sky-300' : 'text-white/40'}`}>{d}</span>
+                <span className={`text-[10px] ${isToday ? 'text-sky-300' : 'text-white/60'}`}>{d}</span>
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
                     isToday
@@ -76,7 +76,7 @@ export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: 
       {/* Session plan — today by default, full week on toggle */}
       <div className="mb-4">
         <div className="mb-2 flex items-center justify-between">
-          <span className="font-display text-[9px] uppercase tracking-[0.25em] text-white/35">
+          <span className="font-display text-[9px] font-medium uppercase tracking-[0.25em] text-white/55">
             {showFull ? 'Full Plan' : `Today · ${WEEKDAYS[weekday]}`}
           </span>
           {store.plan.length > 0 && (
@@ -87,8 +87,8 @@ export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: 
                   <button
                     key={mode}
                     onClick={() => setShowFull(mode === 'Week')}
-                    className={`px-2 py-0.5 font-display text-[9px] uppercase tracking-[0.15em] transition-colors ${
-                      active ? 'bg-sky-400/20 text-sky-200' : 'text-white/40 hover:text-white/70'
+                    className={`px-2 py-0.5 font-display text-[9px] font-medium uppercase tracking-[0.15em] transition-colors ${
+                      active ? 'bg-sky-400/20 text-sky-200' : 'text-white/55 hover:text-white/85'
                     }`}
                   >
                     {mode}
@@ -112,11 +112,11 @@ export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: 
                 >
                   <div className="mb-0.5 flex items-baseline justify-between">
                     <span className="font-display text-sm text-sky-200">{day.label}</span>
-                    <span className={`text-[9px] uppercase tracking-widest ${isToday ? 'text-sky-300' : 'text-white/35'}`}>
+                    <span className={`text-[9px] uppercase tracking-widest ${isToday ? 'text-sky-300' : 'text-white/55'}`}>
                       {WEEKDAYS[day.weekday]}
                     </span>
                   </div>
-                  {day.focus && <div className="mb-2 text-[11px] leading-relaxed text-white/50">{day.focus}</div>}
+                  {day.focus && <div className="mb-2 text-[11px] leading-relaxed text-white/70">{day.focus}</div>}
                   <PlanExercises plan={day} todaySets={isToday ? todaySets : null} />
                 </div>
               );
@@ -125,7 +125,7 @@ export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: 
         ) : todayPlan ? (
           <div>
             <div className="mb-1 font-display text-sm text-sky-200">{todayPlan.label}</div>
-            <div className="mb-3 text-[11px] leading-relaxed text-white/50">{todayPlan.focus}</div>
+            <div className="mb-3 text-[11px] leading-relaxed text-white/70">{todayPlan.focus}</div>
             <PlanExercises plan={todayPlan} todaySets={todaySets} />
           </div>
         ) : (
@@ -139,7 +139,7 @@ export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: 
           <div className="space-y-1">
             {todaySets.map((s, i) => (
               <div key={i} className="flex items-baseline gap-2 text-[11px]">
-                <span className="font-display text-white/30">{s.time}</span>
+                <span className="font-display text-white/50">{s.time}</span>
                 <span className="text-white/75">{s.exercise}</span>
                 <span className="ml-auto font-display tabular-nums text-sky-200/80">
                   {s.reps ?? '–'}×{s.weightKg ?? '–'}kg
@@ -174,7 +174,7 @@ export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: 
                     >
                       {meta.glyph}
                     </span>
-                    <span className={isWarn ? 'text-amber-100/80' : 'text-white/60'}>{m.note}</span>
+                    <span className={isWarn ? 'text-amber-100/90' : 'text-white/80'}>{m.note}</span>
                   </div>
                 );
               })}

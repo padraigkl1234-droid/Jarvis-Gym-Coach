@@ -28,7 +28,7 @@ export function Clock() {
       <span className="font-display text-4xl font-normal tabular-nums tracking-[0.08em] text-white sm:text-5xl [text-shadow:0_0_18px_rgba(255,255,255,0.35)]">
         {formatTime(now)}
       </span>
-      <span className="font-display text-xs font-normal tracking-[0.3em] text-white/70 sm:text-sm">
+      <span className="font-display text-xs font-medium tracking-[0.3em] text-white/90 sm:text-sm">
         {formatDate(now)}
       </span>
     </div>
