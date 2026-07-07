@@ -3,10 +3,13 @@ import { ai } from '@/ai/genkit';
 import {
   type JarvisStore,
   type PlanDay,
+  type WorkoutSession,
   DEFAULT_STORE,
+  newId,
   todayStr,
   timeStr,
 } from '@/lib/store';
+import { buildStats } from '@/lib/stats';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -38,6 +41,27 @@ function waterTotal(date: string): number {
 
 function setsForDate(date: string) {
   return working.sets.filter((s) => s.date === date);
+}
+
+/** Returns today's active workout session, creating one from the plan if needed. */
+function ensureTodaySession(): WorkoutSession {
+  const date = todayStr();
+  const existing = working.sessions.find((s) => s.date === date && s.status === 'in_progress');
+  if (existing) return existing;
+  const weekday = new Date().getDay();
+  const planDay = working.plan.find((p) => p.weekday === weekday);
+  const session: WorkoutSession = {
+    id: newId(),
+    date,
+    weekday,
+    label: planDay?.label ?? 'Workout',
+    focus: planDay?.focus,
+    startedAt: timeStr(),
+    completedAt: null,
+    status: 'in_progress',
+  };
+  working.sessions.push(session);
+  return session;
 }
 
 const updateProfileTool = ai.defineTool(
@@ -248,6 +272,7 @@ const logSetTool = ai.defineTool(
   async ({ exercise, reps, weightKg, rpe }) => {
     const now = new Date();
     const date = todayStr(now);
+    const session = ensureTodaySession();
     const priorSets = working.sets.filter(
       (s) => s.date === date && s.exercise.toLowerCase() === exercise.toLowerCase()
     );
@@ -260,8 +285,48 @@ const logSetTool = ai.defineTool(
       reps: reps ?? null,
       weightKg: weightKg ?? null,
       rpe: rpe ?? null,
+      sessionId: session.id,
     });
     return { setNumber };
+  }
+);
+
+const startWorkoutTool = ai.defineTool(
+  {
+    name: 'startWorkout',
+    description:
+      "Starts (or resumes) today's training session so the sets that follow are grouped into one completed_session. Call this when the athlete says they are beginning their workout. Reuses an already-active session if one exists.",
+    inputSchema: z.object({
+      label: z.string().optional().describe("Session title; defaults to today's plan day, e.g. \"Pull\""),
+      focus: z.string().optional(),
+    }),
+    outputSchema: z.object({ sessionId: z.string(), label: z.string() }),
+  },
+  async ({ label, focus }) => {
+    const session = ensureTodaySession();
+    if (label) session.label = label;
+    if (focus) session.focus = focus;
+    return { sessionId: session.id, label: session.label };
+  }
+);
+
+const completeWorkoutTool = ai.defineTool(
+  {
+    name: 'completeWorkout',
+    description:
+      "Marks today's training session complete once the athlete has finished their workout, recording it as a completed_session. Optionally attach a short note about how it went.",
+    inputSchema: z.object({ notes: z.string().optional() }),
+    outputSchema: z.object({ completed: z.boolean(), totalSets: z.number() }),
+  },
+  async ({ notes }) => {
+    const date = todayStr();
+    const session = working.sessions.find((s) => s.date === date && s.status === 'in_progress');
+    if (!session) return { completed: false, totalSets: 0 };
+    session.status = 'completed';
+    session.completedAt = timeStr();
+    if (notes) session.notes = notes;
+    const totalSets = working.sets.filter((s) => s.sessionId === session.id).length;
+    return { completed: true, totalSets };
   }
 );
 
@@ -428,38 +493,36 @@ const getHistoryTool = ai.defineTool(
   {
     name: 'getHistory',
     description:
-      'Retrieves day-by-day history of workouts, nutrition, hydration, and body metrics for the last N days, for progress and trend analysis.',
-    inputSchema: z.object({ days: z.number().min(1).max(90).default(7) }),
+      'Retrieves structured historical stats for progress and trend analysis: completed workout sessions, per-exercise progression (best weights, estimated 1RMs, volume), and daily macros vs targets, plus an overall summary. Optionally filter the exercise breakdown to one lift.',
+    inputSchema: z.object({
+      days: z.number().min(1).max(180).default(30),
+      exercise: z.string().optional().describe('Restrict exercise progression to lifts matching this name'),
+    }),
     outputSchema: z.any(),
   },
-  async ({ days }) => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const since = todayStr(cutoff);
-
-    const byDate: Record<string, { meals: typeof working.meals; sets: typeof working.sets; waterMl: number }> = {};
-    for (const m of working.meals.filter((x) => x.date >= since)) {
-      (byDate[m.date] ??= { meals: [], sets: [], waterMl: 0 }).meals.push(m);
-    }
-    for (const s of working.sets.filter((x) => x.date >= since)) {
-      (byDate[s.date] ??= { meals: [], sets: [], waterMl: 0 }).sets.push(s);
-    }
-    for (const w of working.water.filter((x) => x.date >= since)) {
-      (byDate[w.date] ??= { meals: [], sets: [], waterMl: 0 }).waterMl += w.ml;
-    }
-
+  async ({ days, exercise }) => {
+    const stats = buildStats(working, { days, exercise });
+    // Trim to keep the tool response compact for the model.
     return {
-      days: Object.entries(byDate)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, d]) => ({
-          date,
-          calories: Math.round(d.meals.reduce((acc, m) => acc + m.calories, 0)),
-          proteinG: Math.round(d.meals.reduce((acc, m) => acc + m.proteinG, 0)),
-          waterMl: d.waterMl,
-          setCount: d.sets.length,
-          exercises: [...new Set(d.sets.map((s) => s.exercise))],
-        })),
-      bodyMetrics: working.metrics.filter((x) => x.date >= since),
+      range: stats.range,
+      summary: stats.summary,
+      completedSessions: stats.completedSessions.slice(0, 12).map((s) => ({
+        date: s.date,
+        label: s.label,
+        status: s.status,
+        totalSets: s.totalSets,
+        totalVolumeKg: s.totalVolumeKg,
+        exercises: s.exercises.map((e) => `${e.name} ${e.sets}x (top ${e.topWeightKg ?? '–'}kg)`),
+      })),
+      exerciseHistory: stats.exerciseHistory.slice(0, 12).map((e) => ({
+        exercise: e.exercise,
+        totalSets: e.totalSets,
+        sessions: e.sessions,
+        bestWeightKg: e.bestWeightKg,
+        best1RM: e.best1RM,
+        lastPerformed: e.lastPerformed,
+      })),
+      dailyMacros: stats.dailyMacros.slice(0, 14),
     };
   }
 );
@@ -476,6 +539,8 @@ const TOOLS = [
   logSetTool,
   removeSetTool,
   editSetTool,
+  startWorkoutTool,
+  completeWorkoutTool,
   logBodyMetricTool,
   rememberTool,
   forgetTool,
@@ -624,10 +689,10 @@ Operating the tools (act, don't just talk about it):
 - Adjust the plan whenever asked with setPlanDays — one day or the whole week. Each day you pass replaces that weekday's session in full.
 - When they report food or drink, log it with logMeal / logWater, estimating calories and macros yourself from the description, then coach how it fits the day.
 - CORRECT MISTAKES GRACEFULLY. If the athlete says a logged meal was wrong, a duplicate, didn't happen, or had different amounts, fix the data — use removeMeal to delete it or editMeal to correct its name, calories, or macros — then confirm the updated total. The individual meals logged today are listed in CURRENT CONTEXT; for a past day, call getHistory first to find the entry, then edit or remove it with its date. Never tell them you can't change a past log — you can.
-- During a workout, guide it live: give the first exercise with target sets and reps, log each set with logSet as they report it, and tell them what's next — one step at a time, a real conversation, not an essay.
+- During a workout, guide it live: when they begin, call startWorkout so the session is tracked; give the first exercise with target sets and reps, log each set with logSet as they report it, and tell them what's next — one step at a time, a real conversation, not an essay. When they finish, call completeWorkout so it is recorded as a completed session.
+- For progress questions (PRs, are my lifts going up, how's my week), call getHistory — it returns completed sessions, per-exercise best weights and estimated 1RMs, and daily macros — and reason over those real numbers.
 - Log body weight, body fat, resting heart rate, and sleep with logBodyMetric when mentioned.
 - Build the relationship: whenever they tell you something durable — an injury, an allergy or food they hate, equipment they own, a personal record, a scheduling constraint, a preference — save it with remember, and weave those memories naturally into your coaching. Use forget when something is no longer true.
-- For deeper progress questions, call getHistory and reason over the real numbers rather than guessing.
 
 Voice and delivery:
 - Everything you say is read aloud by text-to-speech. No markdown, no bullet points, no headings, no emoji, no numbered lists. Speak in short, natural, confident sentences — usually two to four.

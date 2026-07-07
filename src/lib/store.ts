@@ -54,6 +54,23 @@ export interface SetEntry {
   reps: number | null;
   weightKg: number | null;
   rpe: number | null;
+  sessionId?: string; // links this set to a WorkoutSession
+}
+
+/**
+ * A workout instance for a given day — the "completed_sessions" record.
+ * Sets performed during the session link back to it via SetEntry.sessionId.
+ */
+export interface WorkoutSession {
+  id: string;
+  date: string; // YYYY-MM-DD
+  weekday: number; // 0 = Sunday ... 6 = Saturday
+  label: string; // e.g. "Pull" — from the plan day, or ad-hoc
+  focus?: string;
+  startedAt: string; // HH:MM
+  completedAt: string | null; // HH:MM once finished
+  status: 'in_progress' | 'completed';
+  notes?: string;
 }
 
 export interface WaterEntry {
@@ -112,6 +129,7 @@ export interface JarvisStore {
   plan: PlanDay[];
   meals: MealEntry[];
   sets: SetEntry[];
+  sessions: WorkoutSession[];
   water: WaterEntry[];
   metrics: MetricEntry[];
   memories: MemoryEntry[];
@@ -131,10 +149,17 @@ export const DEFAULT_STORE: JarvisStore = {
   plan: [],
   meals: [],
   sets: [],
+  sessions: [],
   water: [],
   metrics: [],
   memories: [],
 };
+
+/** Compact unique id for sessions (works in browser and Node runtimes). */
+export function newId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
 
 export interface OnboardingInput {
   name: string;
@@ -224,6 +249,8 @@ function normalize(parsed: any): JarvisStore {
     note: m.note ?? '',
     category: (m.category as MemoryCategory) ?? 'general',
   }));
+  // Backfill sessions (added after the first release).
+  store.sessions = store.sessions ?? [];
   return store;
 }
 
