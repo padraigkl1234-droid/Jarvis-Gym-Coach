@@ -285,27 +285,33 @@ export function Orb({
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // "JARVIS" mapped onto the globe, wrapping around and spinning with it.
-      // The band sits at latitude = TILT so the word is centred when it faces
-      // front, then foreshortens and hides as it travels around the back.
+      // "JARVIS" as a ribbon wrapped around the globe's middle, spinning with
+      // it. Each letter's longitude drives a steady horizontal slide; near a
+      // limb it foreshortens (squishes) and fades, so it wraps smoothly with
+      // no pop-in and no wobble.
       const word = 'JARVIS';
       const n = word.length;
-      const arc = 1.75;
-      const step = arc / (n - 1);
+      const spread = 2.3; // angular width of the word band (radians)
+      const step = spread / n;
+      const fs = size * 0.06;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      ctx.font = `600 ${fs}px ${displayFont}, Orbitron, sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(255,255,255,0.5)';
       for (let i = 0; i < n; i++) {
         const lon = (i - (n - 1) / 2) * step + rot;
-        const p = project(TILT, lon);
-        if (p.z <= 0.1) continue; // hide the back hemisphere
-        const depth = p.z;
-        const fs = size * 0.062 * (0.5 + depth * 0.6);
-        ctx.font = `600 ${fs}px ${displayFont}, Orbitron, sans-serif`;
-        ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = 0.15 + 0.8 * depth;
-        ctx.shadowColor = 'rgba(255,255,255,0.55)';
-        ctx.shadowBlur = 12 * depth;
-        ctx.fillText(word[i], p.x * geoR, p.y * geoR);
+        const depth = Math.cos(lon); // 1 facing front, 0 at the limb, <0 behind
+        if (depth <= 0.03) continue; // on the far side — hidden
+        const sx = Math.sin(lon) * geoR * 0.98;
+        const fade = Math.min(1, (depth - 0.03) / 0.4); // smooth edge fade
+        ctx.save();
+        ctx.translate(sx, 0);
+        ctx.scale(depth, 1); // horizontal foreshortening toward the limb
+        ctx.globalAlpha = 0.92 * fade;
+        ctx.shadowBlur = 8 * depth;
+        ctx.fillText(word[i], 0, 0);
+        ctx.restore();
       }
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
