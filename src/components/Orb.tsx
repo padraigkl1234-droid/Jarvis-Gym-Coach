@@ -1,40 +1,47 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { LAND } from '@/data/earthLand';
 
 export type OrbState = 'idle' | 'listening' | 'speaking';
 
+// Precompute the continent points (lon,lat → radians) once, so each frame just
+// rotates and projects them onto the sphere to draw the Earth's landmasses.
+const D2R = Math.PI / 180;
+const LAND_COUNT = LAND.length / 2;
+const LAND_LON = new Float32Array(LAND_COUNT);
+const LAND_LAT = new Float32Array(LAND_COUNT);
+for (let i = 0, j = 0; i < LAND.length; i += 2, j++) {
+  LAND_LON[j] = LAND[i] * D2R;
+  LAND_LAT[j] = LAND[i + 1] * D2R;
+}
+
+// Land colour (idle blue-green vs. speaking gold), lerped like the rest of the orb.
+const LAND_BLUE = [86, 214, 158];
+const LAND_GOLD = [242, 204, 120];
+
+const BLUE_CORE = [3, 16, 40];
 const BLUE_ACCENT = [56, 189, 248];
+const GOLD_CORE = [44, 30, 4];
 const GOLD_ACCENT = [251, 191, 36];
-// Warm tint blended into the texture while JARVIS speaks.
-const GOLD_TINT = [255, 196, 110];
-// Greeny-blue atmosphere halo around the planet.
-const ATMO = [80, 220, 200];
-// Axial tilt so the globe reads as 3D.
-const TILT = 0.41;
+const BLUE_LIT = [125, 205, 255];
+const GOLD_LIT = [255, 224, 150];
+const BLUE_DARK = [1, 5, 14];
+const GOLD_DARK = [12, 8, 1];
+
+// Latitudes (deg) that get a wireframe ring drawn.
+const LAT_LINES = [-60, -40, -20, 0, 20, 40, 60].map((d) => (d * Math.PI) / 180);
+// Base longitudes (deg) for the rotating meridians.
+const MERIDIANS = [0, 30, 60, 90, 120, 150].map((d) => (d * Math.PI) / 180);
+// Axial tilt so latitude rings read as ellipses and the globe feels 3D.
+const TILT = 0.42;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-interface Tex {
-  data: Uint8ClampedArray;
-  w: number;
-  h: number;
-}
-
-interface Globe {
-  off: HTMLCanvasElement;
-  offCtx: CanvasRenderingContext2D;
-  img: ImageData;
-  D: number;
-  baseR: number; // CSS-px radius the mapping was built for
-  count: number;
-  PX: Int32Array; // byte offset into the image buffer
-  ROW: Int32Array; // texture row offset (row * texW)
-  LON: Float32Array; // base longitude before rotation
-  SHADE: Float32Array; // baked diffuse shading
-  ALPHA: Uint8ClampedArray; // edge-antialiased coverage
+function lerpColor(c1: number[], c2: number[], t: number): string {
+  return `rgb(${Math.round(lerp(c1[0], c2[0], t))}, ${Math.round(lerp(c1[1], c2[1], t))}, ${Math.round(lerp(c1[2], c2[2], t))})`;
 }
 
 export function Orb({
@@ -47,8 +54,6 @@ export function Orb({
   size?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const texRef = useRef<Tex | null>(null);
-  const globeRef = useRef<Globe | null>(null);
   const colorMixRef = useRef(0);
   const ampSmoothRef = useRef(0);
   const rotRef = useRef(0);
@@ -69,134 +74,24 @@ export function Orb({
     if (!ctx) return;
     ctx.scale(dpr, dpr);
 
-    const R = size / 2;
+    const ct = Math.cos(TILT);
+    const st = Math.sin(TILT);
+
+    // Project a (lat, lon) on the unit sphere to screen space + depth.
+    // Rotation happens about the polar axis; the whole sphere is tilted about x.
+    const project = (lat: number, lon: number) => {
+      const cl = Math.cos(lat);
+      const x0 = cl * Math.sin(lon);
+      const y0 = Math.sin(lat);
+      const z0 = cl * Math.cos(lon);
+      const y1 = y0 * ct - z0 * st;
+      const z1 = y0 * st + z0 * ct;
+      return { x: x0, y: -y1, z: z1 }; // canvas y points down
+    };
+
+    // The display family (next/font exposes its generated name here).
     const displayFont =
       getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim() || '"Exo 2"';
-
-    // Build the screen→globe mapping once (independent of rotation).
-    const buildGlobe = (tex: Tex) => {
-      const ct = Math.cos(TILT);
-      const st = Math.sin(TILT);
-      // Light from the upper-left-front, in view space.
-      let lx = -0.45,
-        ly = 0.55,
-        lz = 0.72;
-      const ll = Math.hypot(lx, ly, lz);
-      lx /= ll;
-      ly /= ll;
-      lz /= ll;
-
-      const baseR = R * 0.72; // CSS-px radius
-      const Rg = Math.round(baseR * dpr); // device-px radius
-      const D = Rg * 2 + 2;
-      const off = document.createElement('canvas');
-      off.width = D;
-      off.height = D;
-      const offCtx = off.getContext('2d')!;
-      const img = offCtx.createImageData(D, D);
-
-      const max = D * D;
-      const PX = new Int32Array(max);
-      const ROW = new Int32Array(max);
-      const LON = new Float32Array(max);
-      const SHADE = new Float32Array(max);
-      const ALPHA = new Uint8ClampedArray(max);
-      let k = 0;
-
-      for (let iy = 0; iy < D; iy++) {
-        for (let ix = 0; ix < D; ix++) {
-          const nx = (ix - Rg) / Rg;
-          const ny = (iy - Rg) / Rg;
-          const r2 = nx * nx + ny * ny;
-          if (r2 > 1) continue;
-          const d = Math.sqrt(r2);
-          const nz = Math.sqrt(1 - r2);
-          const vx = nx;
-          const vyUp = -ny; // canvas y is down
-          const vz = nz;
-          // Undo the axial tilt to recover sphere coordinates.
-          const y0 = vyUp * ct + vz * st;
-          const z0 = -vyUp * st + vz * ct;
-          const x0 = vx;
-          const lat = Math.asin(Math.max(-1, Math.min(1, y0)));
-          const lon = Math.atan2(x0, z0);
-          const v = (Math.PI / 2 - lat) / Math.PI;
-          const row = Math.min(tex.h - 1, Math.max(0, (v * tex.h) | 0));
-          const diff = vx * lx + vyUp * ly + vz * lz;
-          PX[k] = (iy * D + ix) * 4;
-          ROW[k] = row * tex.w;
-          LON[k] = lon;
-          SHADE[k] = 0.28 + Math.max(0, diff) * 0.95;
-          ALPHA[k] = Math.max(0, Math.min(1, (1 - d) * Rg)) * 255;
-          k++;
-        }
-      }
-      globeRef.current = {
-        off,
-        offCtx,
-        img,
-        D,
-        baseR,
-        count: k,
-        PX: PX.subarray(0, k),
-        ROW: ROW.subarray(0, k),
-        LON: LON.subarray(0, k),
-        SHADE: SHADE.subarray(0, k),
-        ALPHA: ALPHA.subarray(0, k),
-      };
-    };
-
-    // Load the Earth texture, then build the mapping.
-    const texImg = new Image();
-    texImg.onload = () => {
-      const tc = document.createElement('canvas');
-      tc.width = texImg.width;
-      tc.height = texImg.height;
-      const tctx = tc.getContext('2d');
-      if (!tctx) return;
-      tctx.drawImage(texImg, 0, 0);
-      const id = tctx.getImageData(0, 0, tc.width, tc.height);
-      const tex: Tex = { data: id.data, w: tc.width, h: tc.height };
-      texRef.current = tex;
-      buildGlobe(tex);
-    };
-    texImg.src = '/earth.jpg';
-
-    const renderGlobe = (mix: number, amp: number, rot: number) => {
-      const tex = texRef.current;
-      const g = globeRef.current;
-      if (!tex || !g) return false;
-      const td = tex.data;
-      const tw = tex.w;
-      const out = g.img.data;
-      const { PX, ROW, LON, SHADE, ALPHA, count } = g;
-      const tint = mix * 0.5;
-      const g0 = GOLD_TINT[0],
-        g1 = GOLD_TINT[1],
-        g2 = GOLD_TINT[2];
-      const INV = 1 / (Math.PI * 2);
-      for (let k = 0; k < count; k++) {
-        let u = (LON[k] - rot) * INV;
-        u -= Math.floor(u);
-        const ti = (ROW[k] + ((u * tw) | 0)) * 4;
-        let r = td[ti];
-        let gg = td[ti + 1];
-        let b = td[ti + 2];
-        if (tint > 0) {
-          r += (g0 - r) * tint;
-          gg += (g1 - gg) * tint;
-          b += (g2 - b) * tint;
-        }
-        const sh = SHADE[k];
-        const px = PX[k];
-        out[px] = r * sh;
-        out[px + 1] = gg * sh;
-        out[px + 2] = b * sh;
-        out[px + 3] = ALPHA[k];
-      }
-      g.offCtx.putImageData(g.img, 0, 0);
-      return true;
-    };
 
     let last = performance.now();
 
@@ -213,17 +108,20 @@ export function Orb({
 
       const mix = colorMixRef.current;
       const amp = ampSmoothRef.current;
-      rotRef.current += dt * (0.16 + amp * 0.35);
+      // Steady, planetary rotation — a little faster while active.
+      rotRef.current += dt * (0.24 + amp * 0.55);
       const rot = rotRef.current;
 
+      const core = lerpColor(BLUE_CORE, GOLD_CORE, mix);
+      const lit = lerpColor(BLUE_LIT, GOLD_LIT, mix);
+      const dark = lerpColor(BLUE_DARK, GOLD_DARK, mix);
+      const accent = lerpColor(BLUE_ACCENT, GOLD_ACCENT, mix);
       const ar = Math.round(lerp(BLUE_ACCENT[0], GOLD_ACCENT[0], mix));
       const ag = Math.round(lerp(BLUE_ACCENT[1], GOLD_ACCENT[1], mix));
       const ab = Math.round(lerp(BLUE_ACCENT[2], GOLD_ACCENT[2], mix));
-      const accent = `rgb(${ar}, ${ag}, ${ab})`;
       const rgba = (a: number) => `rgba(${ar}, ${ag}, ${ab}, ${a})`;
-      const atmo = (a: number) =>
-        `rgba(${Math.round(lerp(ATMO[0], GOLD_ACCENT[0], mix))}, ${Math.round(lerp(ATMO[1], GOLD_ACCENT[1], mix))}, ${Math.round(lerp(ATMO[2], GOLD_ACCENT[2], mix))}, ${a})`;
 
+      const R = size / 2;
       ctx.clearRect(0, 0, size, size);
       ctx.save();
       ctx.translate(R, R);
@@ -240,10 +138,10 @@ export function Orb({
       }
       ctx.globalAlpha = 1;
 
-      // Counter-rotating radar sweep.
+      // Counter-rotating radar sweep — a soft trailing wedge of light.
       if (typeof ctx.createConicGradient === 'function') {
         const sweep = ctx.createConicGradient(-(t / 1000) * 0.9, 0, 0);
-        sweep.addColorStop(0, rgba(0.12));
+        sweep.addColorStop(0, rgba(0.16));
         sweep.addColorStop(0.08, rgba(0));
         sweep.addColorStop(1, rgba(0));
         ctx.beginPath();
@@ -254,67 +152,172 @@ export function Orb({
         ctx.globalAlpha = 1;
       }
 
+      // --- The 3D globe ---
       const geoR = R * 0.72 * (1 + amp * 0.05);
+      const lightX = -geoR * 0.4;
+      const lightY = -geoR * 0.4;
 
-      // Soft outer atmosphere glow behind the planet.
-      const bloom = ctx.createRadialGradient(0, 0, geoR * 0.85, 0, 0, geoR * 1.3);
-      bloom.addColorStop(0, atmo(0.22 + amp * 0.15));
-      bloom.addColorStop(1, atmo(0));
+      // Outer atmospheric bloom.
+      const bloom = ctx.createRadialGradient(0, 0, geoR * 0.2, 0, 0, geoR * 1.35);
+      bloom.addColorStop(0, rgba(0.3 + amp * 0.25));
+      bloom.addColorStop(0.55, rgba(0.08));
+      bloom.addColorStop(1, rgba(0));
       ctx.beginPath();
-      ctx.arc(0, 0, geoR * 1.3, 0, Math.PI * 2);
+      ctx.arc(0, 0, geoR * 1.35, 0, Math.PI * 2);
       ctx.fillStyle = bloom;
       ctx.fill();
 
-      // The textured, rotating Earth.
-      if (renderGlobe(mix, amp, rot)) {
-        const g = globeRef.current!;
-        const scale = geoR / g.baseR;
-        const Dcss = (g.D / dpr) * scale;
-        ctx.drawImage(g.off, -Dcss / 2, -Dcss / 2, Dcss, Dcss);
-      } else {
-        // Placeholder while the texture loads.
-        const ph = ctx.createRadialGradient(-geoR * 0.3, -geoR * 0.3, geoR * 0.1, 0, 0, geoR);
-        ph.addColorStop(0, 'rgba(30,80,140,1)');
-        ph.addColorStop(1, 'rgba(2,10,26,1)');
-        ctx.beginPath();
-        ctx.arc(0, 0, geoR, 0, Math.PI * 2);
-        ctx.fillStyle = ph;
-        ctx.fill();
-      }
-
-      // Atmospheric rim light on the limb.
-      const rim = ctx.createRadialGradient(0, 0, geoR * 0.86, 0, 0, geoR * 1.14);
-      rim.addColorStop(0, atmo(0));
-      rim.addColorStop(0.72, atmo(0));
-      rim.addColorStop(0.9, atmo(0.5 + amp * 0.25));
-      rim.addColorStop(1, atmo(0));
+      // Shaded sphere body — lit from the upper-left, dark terminator lower-right.
+      const body = ctx.createRadialGradient(lightX, lightY, geoR * 0.08, lightX, lightY, geoR * 1.95);
+      body.addColorStop(0, lit);
+      body.addColorStop(0.4, core);
+      body.addColorStop(1, dark);
       ctx.beginPath();
-      ctx.arc(0, 0, geoR * 1.14, 0, Math.PI * 2);
-      ctx.fillStyle = rim;
+      ctx.arc(0, 0, geoR, 0, Math.PI * 2);
+      ctx.fillStyle = body;
       ctx.fill();
 
-      // "VALORIS" ribbon wrapped around the planet's middle, spinning with it.
+      // Draw the surface (wireframe + points), clipped to the sphere and
+      // showing only the front-facing hemisphere.
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, geoR, 0, Math.PI * 2);
+      ctx.clip();
+
+      // Latitude rings (static — invariant under polar rotation).
+      ctx.lineWidth = 0.8;
+      for (const lat of LAT_LINES) {
+        let started = false;
+        ctx.beginPath();
+        for (let s = 0; s <= 64; s++) {
+          const lon = (s / 64) * Math.PI * 2;
+          const p = project(lat, lon);
+          if (p.z <= 0.02) {
+            started = false;
+            continue;
+          }
+          const sx = p.x * geoR;
+          const sy = p.y * geoR;
+          if (!started) {
+            ctx.moveTo(sx, sy);
+            started = true;
+          } else {
+            ctx.lineTo(sx, sy);
+          }
+        }
+        ctx.strokeStyle = accent;
+        ctx.globalAlpha = 0.1;
+        ctx.stroke();
+      }
+
+      // Meridians (rotate with the globe → the visible spin).
+      for (const m of MERIDIANS) {
+        let started = false;
+        ctx.beginPath();
+        for (let s = 0; s <= 48; s++) {
+          const lat = -Math.PI / 2 + (s / 48) * Math.PI;
+          const p = project(lat, m + rot);
+          if (p.z <= 0.02) {
+            started = false;
+            continue;
+          }
+          const sx = p.x * geoR;
+          const sy = p.y * geoR;
+          if (!started) {
+            ctx.moveTo(sx, sy);
+            started = true;
+          } else {
+            ctx.lineTo(sx, sy);
+          }
+        }
+        ctx.strokeStyle = accent;
+        ctx.globalAlpha = 0.07;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // The continents: real coastline data, rotated with the globe and lit from
+      // the upper-left, drawn only on the front-facing hemisphere.
+      const lr = Math.round(lerp(LAND_BLUE[0], LAND_GOLD[0], mix));
+      const lg = Math.round(lerp(LAND_BLUE[1], LAND_GOLD[1], mix));
+      const lb = Math.round(lerp(LAND_BLUE[2], LAND_GOLD[2], mix));
+      const dotR = geoR * 0.011;
+      const dotSize = Math.max(1, dotR * 2);
+      const cosLon = Math.cos(rot);
+      const sinLon = Math.sin(rot);
+      ctx.fillStyle = `rgb(${lr}, ${lg}, ${lb})`;
+      for (let j = 0; j < LAND_COUNT; j++) {
+        const lat = LAND_LAT[j];
+        const cl = Math.cos(lat);
+        const sl = Math.sin(lat);
+        // longitude + rotation, expanded so cos/sin of rot are computed once
+        const lo = LAND_LON[j];
+        const sinLo = Math.sin(lo) * cosLon + Math.cos(lo) * sinLon;
+        const cosLo = Math.cos(lo) * cosLon - Math.sin(lo) * sinLon;
+        const x0 = cl * sinLo;
+        const z0 = cl * cosLo;
+        const y1 = sl * ct - z0 * st;
+        const z1 = sl * st + z0 * ct; // depth: >0 front
+        if (z1 <= 0.03) continue;
+        // diffuse light from upper-left-front; normal = (x0, y1, z1)
+        const bright = x0 * -0.45 + y1 * 0.55 + z1 * 0.7;
+        ctx.globalAlpha = (0.25 + amp * 0.3) + Math.max(0, bright) * 0.6;
+        ctx.fillRect(x0 * geoR - dotR, -y1 * geoR - dotR, dotSize, dotSize);
+      }
+      ctx.globalAlpha = 1;
+
+      // Specular highlight near the light source for a glossy read.
+      const spec = ctx.createRadialGradient(lightX, lightY, 0, lightX, lightY, geoR * 0.55);
+      spec.addColorStop(0, rgba(0.22 + amp * 0.2));
+      spec.addColorStop(1, rgba(0));
+      ctx.beginPath();
+      ctx.arc(lightX, lightY, geoR * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = spec;
+      ctx.fill();
+
+      ctx.restore();
+
+      // Base limb + bright lit crescent on the upper-left edge.
+      ctx.beginPath();
+      ctx.arc(0, 0, geoR, 0, Math.PI * 2);
+      ctx.strokeStyle = accent;
+      ctx.globalAlpha = 0.32 + amp * 0.2;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, geoR, Math.PI * 0.95, Math.PI * 1.62);
+      ctx.strokeStyle = lit;
+      ctx.globalAlpha = 0.55 + amp * 0.35;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // "VALORIS" as a ribbon wrapped around the globe's middle, spinning with
+      // it. Each letter's longitude drives a steady horizontal slide; near a
+      // limb it foreshortens (squishes) and fades, so it wraps smoothly with
+      // no pop-in and no wobble.
       const word = 'VALORIS';
       const n = word.length;
-      const spread = 2.3;
+      const spread = 1.85; // angular width of the word band (radians)
       const step = spread / n;
-      const fs = size * 0.06;
+      const fs = size * 0.062;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `700 ${fs}px ${displayFont}, "Exo 2", sans-serif`;
+      ctx.font = `800 ${fs}px ${displayFont}, "Exo 2", sans-serif`;
       ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = 'rgba(0,0,0,0.55)';
+      ctx.shadowColor = 'rgba(255,255,255,0.6)';
       for (let i = 0; i < n; i++) {
         const lon = (i - (n - 1) / 2) * step + rot;
-        const depth = Math.cos(lon);
-        if (depth <= 0.03) continue;
+        const depth = Math.cos(lon); // 1 facing front, 0 at the limb, <0 behind
+        if (depth <= 0.03) continue; // on the far side — hidden
         const sx = Math.sin(lon) * geoR * 0.98;
-        const fade = Math.min(1, (depth - 0.03) / 0.4);
+        const fade = Math.min(1, (depth - 0.03) / 0.4); // smooth edge fade
         ctx.save();
         ctx.translate(sx, 0);
-        ctx.scale(depth, 1);
-        ctx.globalAlpha = 0.95 * fade;
-        ctx.shadowBlur = 6 * depth;
+        ctx.scale(depth, 1); // horizontal foreshortening toward the limb
+        ctx.globalAlpha = 0.98 * fade;
+        ctx.shadowBlur = 10 * depth;
         ctx.fillText(word[i], 0, 0);
         ctx.restore();
       }
