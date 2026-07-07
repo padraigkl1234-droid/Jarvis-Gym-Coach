@@ -143,6 +143,77 @@ const logMealTool = ai.defineTool(
   }
 );
 
+const removeMealTool = ai.defineTool(
+  {
+    name: 'removeMeal',
+    description:
+      "Deletes a previously logged meal that was a mistake or is no longer wanted. Identify it by part of its name. Defaults to today; pass a date (YYYY-MM-DD) to remove one from a past day (use getHistory first to see past meals). If several match, the most recent is removed unless removeAll is true.",
+    inputSchema: z.object({
+      nameContains: z.string().describe('Text identifying the meal to remove, matched against the logged name'),
+      date: z.string().optional().describe('YYYY-MM-DD; defaults to today'),
+      removeAll: z.boolean().optional().describe('Remove every match on that day rather than just the most recent'),
+    }),
+    outputSchema: z.object({
+      removed: z.number(),
+      totalsToday: z.object({ calories: z.number(), proteinG: z.number(), carbsG: z.number(), fatG: z.number() }),
+    }),
+  },
+  async ({ nameContains, date, removeAll }) => {
+    const day = date || todayStr();
+    const needle = nameContains.trim().toLowerCase();
+    const matches = working.meals
+      .map((m, i) => ({ m, i }))
+      .filter(({ m }) => m.date === day && m.name.toLowerCase().includes(needle));
+    const targets = removeAll ? matches : matches.slice(-1);
+    const removeIdx = new Set(targets.map((t) => t.i));
+    working.meals = working.meals.filter((_, i) => !removeIdx.has(i));
+    const t = mealTotals(todayStr());
+    return { removed: targets.length, totalsToday: { calories: t.calories, proteinG: t.proteinG, carbsG: t.carbsG, fatG: t.fatG } };
+  }
+);
+
+const editMealTool = ai.defineTool(
+  {
+    name: 'editMeal',
+    description:
+      "Corrects a previously logged meal — its name and/or its calorie and macro values. Identify it by part of its current name; only pass the fields being changed. Defaults to today; pass a date (YYYY-MM-DD) for a past day. If several match, the most recent is edited.",
+    inputSchema: z.object({
+      nameContains: z.string().describe('Text identifying the meal to edit, matched against its current name'),
+      date: z.string().optional().describe('YYYY-MM-DD; defaults to today'),
+      name: z.string().optional().describe('New name for the meal'),
+      calories: z.number().optional(),
+      proteinG: z.number().optional(),
+      carbsG: z.number().optional(),
+      fatG: z.number().optional(),
+    }),
+    outputSchema: z.object({
+      edited: z.boolean(),
+      totalsToday: z.object({ calories: z.number(), proteinG: z.number(), carbsG: z.number(), fatG: z.number() }),
+    }),
+  },
+  async ({ nameContains, date, name, calories, proteinG, carbsG, fatG }) => {
+    const day = date || todayStr();
+    const needle = nameContains.trim().toLowerCase();
+    let target = -1;
+    for (let i = 0; i < working.meals.length; i++) {
+      const m = working.meals[i];
+      if (m.date === day && m.name.toLowerCase().includes(needle)) target = i;
+    }
+    let edited = false;
+    if (target >= 0) {
+      const m = working.meals[target];
+      if (name !== undefined) m.name = name;
+      if (calories !== undefined) m.calories = calories;
+      if (proteinG !== undefined) m.proteinG = proteinG;
+      if (carbsG !== undefined) m.carbsG = carbsG;
+      if (fatG !== undefined) m.fatG = fatG;
+      edited = true;
+    }
+    const t = mealTotals(todayStr());
+    return { edited, totalsToday: { calories: t.calories, proteinG: t.proteinG, carbsG: t.carbsG, fatG: t.fatG } };
+  }
+);
+
 const logWaterTool = ai.defineTool(
   {
     name: 'logWater',
@@ -302,6 +373,8 @@ const TOOLS = [
   updateProfileTool,
   setPlanDaysTool,
   logMealTool,
+  removeMealTool,
+  editMealTool,
   logWaterTool,
   logSetTool,
   logBodyMetricTool,
@@ -356,6 +429,58 @@ function buildContextBlock(now: Date): string {
           .join('; ')
       : 'None yet today.';
 
+  // Individual meals logged today, so specific entries can be discussed or corrected.
+  const todaysMeals = working.meals.filter((m) => m.date === date);
+  const mealList =
+    todaysMeals.length > 0
+      ? todaysMeals
+          .map((m) => `${m.time} ${m.name} (${Math.round(m.calories)} kcal, P${Math.round(m.proteinG)}/C${Math.round(m.carbsG)}/F${Math.round(m.fatG)})`)
+          .join('; ')
+      : 'No individual meals logged yet today.';
+
+  // A rolling 7-day picture so coaching can reason over recent trends unprompted.
+  const trendStart = new Date(now);
+  trendStart.setDate(trendStart.getDate() - 6);
+  const sinceStr = todayStr(trendStart);
+  const dayMap: Record<string, { kcal: number; protein: number; water: number; sets: number; exercises: Set<string> }> = {};
+  const bucket = (d: string) => (dayMap[d] ??= { kcal: 0, protein: 0, water: 0, sets: 0, exercises: new Set<string>() });
+  for (const m of working.meals.filter((x) => x.date >= sinceStr)) {
+    const b = bucket(m.date);
+    b.kcal += m.calories;
+    b.protein += m.proteinG;
+  }
+  for (const s of working.sets.filter((x) => x.date >= sinceStr)) {
+    const b = bucket(s.date);
+    b.sets += 1;
+    b.exercises.add(s.exercise);
+  }
+  for (const w of working.water.filter((x) => x.date >= sinceStr)) {
+    bucket(w.date).water += w.ml;
+  }
+  const trendDates = Object.keys(dayMap).sort();
+  const loggedDays = trendDates.length || 1;
+  const trendLines = trendDates.map((d) => {
+    const x = dayMap[d];
+    const wd = WEEKDAYS[new Date(`${d}T00:00:00`).getDay()].slice(0, 3);
+    const ex = x.sets ? ` [${[...x.exercises].slice(0, 6).join(', ')}]` : '';
+    return `  ${wd} ${d}: ${Math.round(x.kcal)} kcal, ${Math.round(x.protein)}g protein, ${x.water}ml water, ${x.sets} sets${ex}`;
+  });
+  const trainingDays = trendDates.filter((d) => dayMap[d].sets > 0).length;
+  const avgKcal = Math.round(trendDates.reduce((a, d) => a + dayMap[d].kcal, 0) / loggedDays);
+  const avgProtein = Math.round(trendDates.reduce((a, d) => a + dayMap[d].protein, 0) / loggedDays);
+  const weighIns = working.metrics
+    .filter((x) => x.weightKg != null)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const weightTrend =
+    weighIns.length >= 2
+      ? `${weighIns[0].weightKg}kg → ${weighIns[weighIns.length - 1].weightKg}kg`
+      : weighIns.length === 1
+      ? `${weighIns[0].weightKg}kg`
+      : 'no weigh-ins yet';
+  const recentTrend = trendLines.length
+    ? `${trendLines.join('\n')}\n  Summary: over ${loggedDays} logged day(s), avg ${avgKcal} kcal & ${avgProtein}g protein/day; trained ${trainingDays} day(s); bodyweight ${weightTrend}.`
+    : '  No activity logged in the last 7 days.';
+
   return `
 CURRENT CONTEXT (ground truth — trust this over anything that contradicts it):
 - Right now: ${now.toLocaleString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -364,7 +489,11 @@ CURRENT CONTEXT (ground truth — trust this over anything that contradicts it):
 - Today's session: ${todayPlan ? describePlanDay(todayPlan) : 'No session planned for today.'}
 - Sets logged today: ${setsSummary}
 - Nutrition today: ${Math.round(meals.calories)} kcal / ${Math.round(meals.proteinG)}g protein / ${Math.round(meals.carbsG)}g carbs / ${Math.round(meals.fatG)}g fat across ${meals.count} entries (targets: ${p.calorieTarget} kcal, ${p.proteinTargetG}g protein, ${p.carbsTargetG}g carbs, ${p.fatTargetG}g fat).
+- Meals logged today (each entry, for reference or correction): ${mealList}
 - Hydration today: ${water}ml of ${p.hydrationTargetMl}ml target.
+
+RECENT TREND (last 7 days — use this to spot patterns and coach proactively):
+${recentTrend}
 
 LONG-TERM MEMORY (durable facts you have saved about this athlete — always respect these):
 ${memorySummary}
@@ -372,18 +501,30 @@ ${memorySummary}
 }
 
 const SYSTEM_PERSONA = `
-You are JARVIS — a personal, voice-operated AI fitness and diet coach. You combine the expertise of an elite strength & conditioning coach, a sports nutritionist, and a sleep and recovery specialist. You know the athlete personally: their plan, their goal, and everything they have logged.
+You are JARVIS — a personal, voice-operated AI performance coach for one athlete you know intimately. You hold, at once, the judgement of an elite strength & conditioning coach, a registered sports nutritionist, and a sleep and recovery specialist, and you speak as a single trusted voice. You are not a generic chatbot; you are THIS athlete's coach, and everything you say is tailored to their goal, their body, their history, and what they have logged.
 
-How you operate:
-- If the athlete has NO weekly plan yet, your first priority is to build one. Ask the few questions you actually need (goal, training experience, days per week available, equipment access, injuries), then create a complete 7-day plan with the setPlanDays tool — including rest or recovery days — and confirm it back in one short summary.
-- You always know the current day, date and time from the CURRENT CONTEXT block. When asked "what's my workout today", answer directly from today's session in context. Never ask the athlete what day it is.
-- When the athlete starts their workout, guide it live: give them the first exercise with target sets/reps, and as they report each set, log it with logSet and tell them what's next. One step at a time — this is a conversation mid-workout, not an essay.
-- When the athlete tells you what they ate or drank, log it with logMeal or logWater (estimate calories and macros yourself from the description), then coach: how it fits today's targets and what to prioritise in the next meal.
-- Log body weight, sleep, and resting heart rate with logBodyMetric when mentioned.
-- Build a real relationship over time: whenever the athlete tells you something durable about themselves — an injury, an allergy, equipment they have, a personal record, a scheduling constraint, a preference — save it with the remember tool so you never forget it. Weave saved memories naturally into your coaching. If something you remembered is no longer true, use forget to remove it.
-- For questions about progress or trends, call getHistory and reason over the real numbers.
-- Be precise and data-driven: sets, reps, %1RM, grams, kcal, hours. Ground advice in progressive overload, periodization, protein distribution, energy balance, and recovery science.
-- Responses are read aloud by text-to-speech: no markdown, no bullet lists, no headings. Short, confident, conversational sentences — usually 2-4 of them. Address the athlete directly, with warmth and authority.
+Think before you speak. Every turn, silently read the CURRENT CONTEXT, the RECENT TREND, and LONG-TERM MEMORY, and reason about the athlete's whole picture — where they are against their goal, what the last few days show, what today's session and nutrition demand, and what actually matters right now. Then say the one or two things that will help most. Never give textbook advice you'd give anyone; give the advice that fits this person today.
+
+Be genuinely perceptive and proactive:
+- Notice patterns and name them: protein consistently short, calories drifting over or under the goal, hydration low, a lift that keeps stalling, training days being missed, RPE creeping up, weight trending the wrong way for the goal. Surface the most important one unprompted, briefly.
+- Connect the dots across domains — training load, fuelling, and recovery are one system. If they trained hard and under-ate protein, say so and fix it. If sleep is short before a heavy day, adjust.
+- Anticipate. Suggest the next meal's macros to hit the day's target, flag when a deload or lighter day is due, propose a concrete progression on a lift that's ready to move up.
+- Ask a sharp question only when the answer would change your advice — one at a time, never a checklist.
+
+Operating the tools (act, don't just talk about it):
+- No weekly plan yet? Building one is your first priority. Ask only what you genuinely need (goal, experience, days available, equipment, injuries), then create a full 7-day plan with setPlanDays including rest/recovery days, and confirm it in one short summary.
+- Adjust the plan whenever asked with setPlanDays — one day or the whole week. Each day you pass replaces that weekday's session in full.
+- When they report food or drink, log it with logMeal / logWater, estimating calories and macros yourself from the description, then coach how it fits the day.
+- CORRECT MISTAKES GRACEFULLY. If the athlete says a logged meal was wrong, a duplicate, didn't happen, or had different amounts, fix the data — use removeMeal to delete it or editMeal to correct its name, calories, or macros — then confirm the updated total. The individual meals logged today are listed in CURRENT CONTEXT; for a past day, call getHistory first to find the entry, then edit or remove it with its date. Never tell them you can't change a past log — you can.
+- During a workout, guide it live: give the first exercise with target sets and reps, log each set with logSet as they report it, and tell them what's next — one step at a time, a real conversation, not an essay.
+- Log body weight, body fat, resting heart rate, and sleep with logBodyMetric when mentioned.
+- Build the relationship: whenever they tell you something durable — an injury, an allergy or food they hate, equipment they own, a personal record, a scheduling constraint, a preference — save it with remember, and weave those memories naturally into your coaching. Use forget when something is no longer true.
+- For deeper progress questions, call getHistory and reason over the real numbers rather than guessing.
+
+Voice and delivery:
+- Everything you say is read aloud by text-to-speech. No markdown, no bullet points, no headings, no emoji, no numbered lists. Speak in short, natural, confident sentences — usually two to four.
+- Be precise and specific — real numbers (sets, reps, %1RM, grams, kcal, ml, hours) — but wrapped in plain spoken language, not a data dump.
+- Warm, direct, and authoritative, like a great coach who respects the athlete's time. Encouraging when earned, honest when needed. Address them directly.
 `.trim();
 
 export interface ChatTurn {
