@@ -1,18 +1,51 @@
 'use client';
 
+import { useState } from 'react';
 import { HudFrame, HudSection } from '@/components/HudFrame';
-import { type JarvisStore, MEMORY_META, todayStr } from '@/lib/store';
+import { type JarvisStore, type PlanDay, type SetEntry, MEMORY_META, todayStr } from '@/lib/store';
 
 const WEEKDAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+/** The exercise checklist for a single planned day. Done ticks only apply to today. */
+function PlanExercises({ plan, todaySets }: { plan: PlanDay; todaySets: SetEntry[] | null }) {
+  return (
+    <div className="space-y-1.5">
+      {plan.exercises.map((ex, i) => {
+        const done = todaySets?.some((s) => s.exercise.toLowerCase() === ex.name.toLowerCase()) ?? false;
+        return (
+          <div key={i} className="flex items-center gap-2 text-[12px]">
+            <span
+              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border text-[9px] ${
+                done ? 'border-sky-400/60 bg-sky-400/15 text-sky-300' : 'border-white/15 text-transparent'
+              }`}
+            >
+              ✓
+            </span>
+            <span className={done ? 'text-white/85' : 'text-white/65'}>{ex.name}</span>
+            {(ex.sets || ex.reps) && (
+              <span className="ml-auto font-display text-[10px] tabular-nums text-white/35">
+                {ex.sets ?? ''}
+                {ex.sets && ex.reps ? '×' : ''}
+                {ex.reps ?? ''}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: () => void }) {
+  const [showFull, setShowFull] = useState(false);
   const now = new Date();
   const weekday = now.getDay();
   const today = todayStr(now);
   const todayPlan = store.plan.find((p) => p.weekday === weekday);
   const todaySets = store.sets.filter((s) => s.date === today);
   const plannedWeekdays = new Set(store.plan.map((p) => p.weekday));
+  const fullPlan = [...store.plan].sort((a, b) => a.weekday - b.weekday);
 
   return (
     <HudFrame title="Training Log" side="left" accent="sky" onClose={onClose}>
@@ -40,45 +73,65 @@ export function TrainingHud({ store, onClose }: { store: JarvisStore; onClose?: 
         </div>
       </HudSection>
 
-      {/* Today's session */}
-      <HudSection label={`Today · ${WEEKDAYS[weekday]}`}>
-        {todayPlan ? (
-          <div>
-            <div className="mb-1 font-display text-sm text-sky-200">{todayPlan.label}</div>
-            <div className="mb-3 text-[11px] leading-relaxed text-white/50">{todayPlan.focus}</div>
-            <div className="space-y-1.5">
-              {todayPlan.exercises.map((ex, i) => {
-                const done = todaySets.some((s) => s.exercise.toLowerCase() === ex.name.toLowerCase());
+      {/* Session plan — today by default, full week on toggle */}
+      <div className="mb-4">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="font-display text-[9px] uppercase tracking-[0.25em] text-white/35">
+            {showFull ? 'Full Plan' : `Today · ${WEEKDAYS[weekday]}`}
+          </span>
+          {store.plan.length > 0 && (
+            <div className="flex overflow-hidden rounded-sm border border-sky-400/20">
+              {(['Today', 'Week'] as const).map((mode) => {
+                const active = (mode === 'Week') === showFull;
                 return (
-                  <div key={i} className="flex items-center gap-2 text-[12px]">
-                    <span
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border text-[9px] ${
-                        done ? 'border-sky-400/60 bg-sky-400/15 text-sky-300' : 'border-white/15 text-transparent'
-                      }`}
-                    >
-                      ✓
-                    </span>
-                    <span className={done ? 'text-white/85' : 'text-white/65'}>{ex.name}</span>
-                    {(ex.sets || ex.reps) && (
-                      <span className="ml-auto font-display text-[10px] tabular-nums text-white/35">
-                        {ex.sets ?? ''}
-                        {ex.sets && ex.reps ? '×' : ''}
-                        {ex.reps ?? ''}
-                      </span>
-                    )}
-                  </div>
+                  <button
+                    key={mode}
+                    onClick={() => setShowFull(mode === 'Week')}
+                    className={`px-2 py-0.5 font-display text-[9px] uppercase tracking-[0.15em] transition-colors ${
+                      active ? 'bg-sky-400/20 text-sky-200' : 'text-white/40 hover:text-white/70'
+                    }`}
+                  >
+                    {mode}
+                  </button>
                 );
               })}
             </div>
+          )}
+        </div>
+
+        {store.plan.length === 0 ? (
+          <div className="text-[12px] italic text-white/35">No plan yet. Ask JARVIS to build one.</div>
+        ) : showFull ? (
+          <div className="space-y-4">
+            {fullPlan.map((day) => {
+              const isToday = day.weekday === weekday;
+              return (
+                <div
+                  key={day.weekday}
+                  className={`rounded-sm border-l-2 pl-2.5 ${isToday ? 'border-sky-400/70' : 'border-white/10'}`}
+                >
+                  <div className="mb-0.5 flex items-baseline justify-between">
+                    <span className="font-display text-sm text-sky-200">{day.label}</span>
+                    <span className={`text-[9px] uppercase tracking-widest ${isToday ? 'text-sky-300' : 'text-white/35'}`}>
+                      {WEEKDAYS[day.weekday]}
+                    </span>
+                  </div>
+                  {day.focus && <div className="mb-2 text-[11px] leading-relaxed text-white/50">{day.focus}</div>}
+                  <PlanExercises plan={day} todaySets={isToday ? todaySets : null} />
+                </div>
+              );
+            })}
+          </div>
+        ) : todayPlan ? (
+          <div>
+            <div className="mb-1 font-display text-sm text-sky-200">{todayPlan.label}</div>
+            <div className="mb-3 text-[11px] leading-relaxed text-white/50">{todayPlan.focus}</div>
+            <PlanExercises plan={todayPlan} todaySets={todaySets} />
           </div>
         ) : (
-          <div className="text-[12px] italic text-white/35">
-            {store.plan.length === 0
-              ? 'No plan yet. Ask JARVIS to build one.'
-              : 'Rest day — no session scheduled.'}
-          </div>
+          <div className="text-[12px] italic text-white/35">Rest day — no session scheduled.</div>
         )}
-      </HudSection>
+      </div>
 
       {/* Sets logged today */}
       <HudSection label={`Sets Logged · ${todaySets.length}`}>

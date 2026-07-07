@@ -4,10 +4,10 @@ import { useEffect, useRef } from 'react';
 
 export type OrbState = 'idle' | 'listening' | 'speaking';
 
-interface Particle {
-  angle: number;
-  baseRadius: number;
-  speed: number;
+// A surface feature living on the sphere: fixed latitude, drifting longitude.
+interface SpherePoint {
+  lat: number;
+  lon: number;
   size: number;
   phase: number;
 }
@@ -16,6 +16,17 @@ const BLUE_CORE = [4, 14, 34];
 const BLUE_ACCENT = [56, 189, 248];
 const GOLD_CORE = [44, 30, 4];
 const GOLD_ACCENT = [251, 191, 36];
+const BLUE_LIT = [125, 205, 255];
+const GOLD_LIT = [255, 224, 150];
+const BLUE_DARK = [1, 5, 14];
+const GOLD_DARK = [12, 8, 1];
+
+// Latitudes (deg) that get a wireframe ring drawn.
+const LAT_LINES = [-60, -40, -20, 0, 20, 40, 60].map((d) => (d * Math.PI) / 180);
+// Base longitudes (deg) for the rotating meridians.
+const MERIDIANS = [0, 30, 60, 90, 120, 150].map((d) => (d * Math.PI) / 180);
+// Axial tilt so latitude rings read as ellipses and the globe feels 3D.
+const TILT = 0.42;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -35,9 +46,10 @@ export function Orb({
   size?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<Particle[]>([]);
+  const pointsRef = useRef<SpherePoint[]>([]);
   const colorMixRef = useRef(0);
   const ampSmoothRef = useRef(0);
+  const rotRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const stateRef = useRef(state);
   const ampRef = useRef(amplitude);
@@ -55,16 +67,30 @@ export function Orb({
     if (!ctx) return;
     ctx.scale(dpr, dpr);
 
-    if (particlesRef.current.length === 0) {
-      const R = size / 2;
-      particlesRef.current = Array.from({ length: 64 }, () => ({
-        angle: Math.random() * Math.PI * 2,
-        baseRadius: R * (0.12 + Math.random() * 0.74),
-        speed: (Math.random() * 0.45 + 0.12) * (Math.random() < 0.5 ? 1 : -1),
-        size: Math.random() * 1.7 + 0.6,
+    if (pointsRef.current.length === 0) {
+      // Distribute surface points evenly-ish over the sphere.
+      pointsRef.current = Array.from({ length: 108 }, () => ({
+        lat: Math.asin(Math.random() * 2 - 1), // uniform over the sphere
+        lon: Math.random() * Math.PI * 2,
+        size: Math.random() * 1.5 + 0.5,
         phase: Math.random() * Math.PI * 2,
       }));
     }
+
+    const ct = Math.cos(TILT);
+    const st = Math.sin(TILT);
+
+    // Project a (lat, lon) on the unit sphere to screen space + depth.
+    // Rotation happens about the polar axis; the whole sphere is tilted about x.
+    const project = (lat: number, lon: number) => {
+      const cl = Math.cos(lat);
+      const x0 = cl * Math.sin(lon);
+      const y0 = Math.sin(lat);
+      const z0 = cl * Math.cos(lon);
+      const y1 = y0 * ct - z0 * st;
+      const z1 = y0 * st + z0 * ct;
+      return { x: x0, y: -y1, z: z1 }; // canvas y points down
+    };
 
     let last = performance.now();
 
@@ -81,7 +107,13 @@ export function Orb({
 
       const mix = colorMixRef.current;
       const amp = ampSmoothRef.current;
+      // Steady, planetary rotation — a little faster while active.
+      rotRef.current += dt * (0.24 + amp * 0.55);
+      const rot = rotRef.current;
+
       const core = lerpColor(BLUE_CORE, GOLD_CORE, mix);
+      const lit = lerpColor(BLUE_LIT, GOLD_LIT, mix);
+      const dark = lerpColor(BLUE_DARK, GOLD_DARK, mix);
       const accent = lerpColor(BLUE_ACCENT, GOLD_ACCENT, mix);
       const ar = Math.round(lerp(BLUE_ACCENT[0], GOLD_ACCENT[0], mix));
       const ag = Math.round(lerp(BLUE_ACCENT[1], GOLD_ACCENT[1], mix));
@@ -93,6 +125,7 @@ export function Orb({
       ctx.save();
       ctx.translate(R, R);
 
+      // Outer decorative rings.
       for (let i = 0; i < 3; i++) {
         const ringR = R * (0.8 + i * 0.07) * (1 + amp * 0.05);
         ctx.beginPath();
@@ -138,47 +171,138 @@ export function Orb({
         ctx.beginPath();
         ctx.arc(0, 0, R * 0.9, 0, Math.PI * 2);
         ctx.fillStyle = sweep;
-        ctx.globalAlpha = 0.6 + amp * 0.3;
+        ctx.globalAlpha = 0.5 + amp * 0.3;
         ctx.fill();
         ctx.globalAlpha = 1;
       }
 
-      const coreR = R * 0.9 * (1 + amp * 0.06);
-      const gradient = ctx.createRadialGradient(0, 0, coreR * 0.05, 0, 0, coreR);
-      gradient.addColorStop(0, accent);
-      gradient.addColorStop(0.42, core);
-      gradient.addColorStop(1, 'rgba(2,4,8,0.04)');
+      // --- The 3D globe ---
+      const geoR = R * 0.72 * (1 + amp * 0.05);
+      const lightX = -geoR * 0.4;
+      const lightY = -geoR * 0.4;
+
+      // Outer atmospheric bloom.
+      const bloom = ctx.createRadialGradient(0, 0, geoR * 0.2, 0, 0, geoR * 1.35);
+      bloom.addColorStop(0, rgba(0.3 + amp * 0.25));
+      bloom.addColorStop(0.55, rgba(0.08));
+      bloom.addColorStop(1, rgba(0));
       ctx.beginPath();
-      ctx.arc(0, 0, coreR, 0, Math.PI * 2);
-      ctx.fillStyle = gradient;
+      ctx.arc(0, 0, geoR * 1.35, 0, Math.PI * 2);
+      ctx.fillStyle = bloom;
       ctx.fill();
 
+      // Shaded sphere body — lit from the upper-left, dark terminator lower-right.
+      const body = ctx.createRadialGradient(lightX, lightY, geoR * 0.08, lightX, lightY, geoR * 1.95);
+      body.addColorStop(0, lit);
+      body.addColorStop(0.4, core);
+      body.addColorStop(1, dark);
+      ctx.beginPath();
+      ctx.arc(0, 0, geoR, 0, Math.PI * 2);
+      ctx.fillStyle = body;
+      ctx.fill();
+
+      // Draw the surface (wireframe + points), clipped to the sphere and
+      // showing only the front-facing hemisphere.
       ctx.save();
       ctx.beginPath();
-      ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+      ctx.arc(0, 0, geoR, 0, Math.PI * 2);
       ctx.clip();
 
-      for (const p of particlesRef.current) {
-        p.angle += p.speed * dt * (1 + amp * 2.4);
-        const wobble = Math.sin((t / 1000) * 1.3 + p.phase) * (4 + amp * 14);
-        const r = p.baseRadius + wobble;
+      // Latitude rings (static — invariant under polar rotation).
+      ctx.lineWidth = 0.8;
+      for (const lat of LAT_LINES) {
+        let started = false;
         ctx.beginPath();
-        ctx.arc(Math.cos(p.angle) * r, Math.sin(p.angle) * r, p.size * (1 + amp * 0.9), 0, Math.PI * 2);
+        for (let s = 0; s <= 64; s++) {
+          const lon = (s / 64) * Math.PI * 2;
+          const p = project(lat, lon);
+          if (p.z <= 0.02) {
+            started = false;
+            continue;
+          }
+          const sx = p.x * geoR;
+          const sy = p.y * geoR;
+          if (!started) {
+            ctx.moveTo(sx, sy);
+            started = true;
+          } else {
+            ctx.lineTo(sx, sy);
+          }
+        }
+        ctx.strokeStyle = accent;
+        ctx.globalAlpha = 0.1;
+        ctx.stroke();
+      }
+
+      // Meridians (rotate with the globe → the visible spin).
+      for (const m of MERIDIANS) {
+        let started = false;
+        ctx.beginPath();
+        for (let s = 0; s <= 48; s++) {
+          const lat = -Math.PI / 2 + (s / 48) * Math.PI;
+          const p = project(lat, m + rot);
+          if (p.z <= 0.02) {
+            started = false;
+            continue;
+          }
+          const sx = p.x * geoR;
+          const sy = p.y * geoR;
+          if (!started) {
+            ctx.moveTo(sx, sy);
+            started = true;
+          } else {
+            ctx.lineTo(sx, sy);
+          }
+        }
+        ctx.strokeStyle = accent;
+        ctx.globalAlpha = 0.12;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // Glowing surface points.
+      ctx.shadowColor = accent;
+      for (const p of pointsRef.current) {
+        const proj = project(p.lat, p.lon + rot);
+        if (proj.z <= 0) continue;
+        const depth = proj.z; // 0 at limb, 1 facing viewer
+        const twinkle = 0.75 + 0.25 * Math.sin((t / 1000) * 1.6 + p.phase);
+        const sx = proj.x * geoR;
+        const sy = proj.y * geoR;
+        ctx.beginPath();
+        ctx.arc(sx, sy, p.size * (0.5 + depth * 0.7) * (1 + amp * 0.7), 0, Math.PI * 2);
         ctx.fillStyle = accent;
-        ctx.globalAlpha = 0.32 + amp * 0.45;
-        ctx.shadowColor = accent;
-        ctx.shadowBlur = 6;
+        ctx.globalAlpha = (0.18 + amp * 0.4) * (0.25 + 0.75 * depth) * twinkle;
+        ctx.shadowBlur = 5;
         ctx.fill();
       }
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
+
+      // Specular highlight near the light source for a glossy read.
+      const spec = ctx.createRadialGradient(lightX, lightY, 0, lightX, lightY, geoR * 0.55);
+      spec.addColorStop(0, rgba(0.22 + amp * 0.2));
+      spec.addColorStop(1, rgba(0));
+      ctx.beginPath();
+      ctx.arc(lightX, lightY, geoR * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = spec;
+      ctx.fill();
+
       ctx.restore();
 
+      // Base limb + bright lit crescent on the upper-left edge.
       ctx.beginPath();
-      ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+      ctx.arc(0, 0, geoR, 0, Math.PI * 2);
       ctx.strokeStyle = accent;
+      ctx.globalAlpha = 0.32 + amp * 0.2;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, geoR, Math.PI * 0.95, Math.PI * 1.62);
+      ctx.strokeStyle = lit;
       ctx.globalAlpha = 0.55 + amp * 0.35;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2;
       ctx.stroke();
       ctx.globalAlpha = 1;
 
