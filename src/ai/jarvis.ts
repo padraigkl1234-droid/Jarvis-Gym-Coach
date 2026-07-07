@@ -149,7 +149,10 @@ const removeMealTool = ai.defineTool(
     description:
       "Deletes a previously logged meal that was a mistake or is no longer wanted. Identify it by part of its name. Defaults to today; pass a date (YYYY-MM-DD) to remove one from a past day (use getHistory first to see past meals). If several match, the most recent is removed unless removeAll is true.",
     inputSchema: z.object({
-      nameContains: z.string().describe('Text identifying the meal to remove, matched against the logged name'),
+      nameContains: z
+        .string()
+        .optional()
+        .describe('Text identifying the meal to remove, matched against the logged name. Omit to target the most recently logged meal on that day.'),
       date: z.string().optional().describe('YYYY-MM-DD; defaults to today'),
       removeAll: z.boolean().optional().describe('Remove every match on that day rather than just the most recent'),
     }),
@@ -160,10 +163,10 @@ const removeMealTool = ai.defineTool(
   },
   async ({ nameContains, date, removeAll }) => {
     const day = date || todayStr();
-    const needle = nameContains.trim().toLowerCase();
+    const needle = (nameContains ?? '').trim().toLowerCase();
     const matches = working.meals
       .map((m, i) => ({ m, i }))
-      .filter(({ m }) => m.date === day && m.name.toLowerCase().includes(needle));
+      .filter(({ m }) => m.date === day && (!needle || m.name.toLowerCase().includes(needle)));
     const targets = removeAll ? matches : matches.slice(-1);
     const removeIdx = new Set(targets.map((t) => t.i));
     working.meals = working.meals.filter((_, i) => !removeIdx.has(i));
@@ -178,7 +181,10 @@ const editMealTool = ai.defineTool(
     description:
       "Corrects a previously logged meal — its name and/or its calorie and macro values. Identify it by part of its current name; only pass the fields being changed. Defaults to today; pass a date (YYYY-MM-DD) for a past day. If several match, the most recent is edited.",
     inputSchema: z.object({
-      nameContains: z.string().describe('Text identifying the meal to edit, matched against its current name'),
+      nameContains: z
+        .string()
+        .optional()
+        .describe('Text identifying the meal to edit, matched against its current name. Omit to target the most recently logged meal on that day.'),
       date: z.string().optional().describe('YYYY-MM-DD; defaults to today'),
       name: z.string().optional().describe('New name for the meal'),
       calories: z.number().optional(),
@@ -193,11 +199,11 @@ const editMealTool = ai.defineTool(
   },
   async ({ nameContains, date, name, calories, proteinG, carbsG, fatG }) => {
     const day = date || todayStr();
-    const needle = nameContains.trim().toLowerCase();
+    const needle = (nameContains ?? '').trim().toLowerCase();
     let target = -1;
     for (let i = 0; i < working.meals.length; i++) {
       const m = working.meals[i];
-      if (m.date === day && m.name.toLowerCase().includes(needle)) target = i;
+      if (m.date === day && (!needle || m.name.toLowerCase().includes(needle))) target = i;
     }
     let edited = false;
     if (target >= 0) {
@@ -512,6 +518,7 @@ Be genuinely perceptive and proactive:
 - Ask a sharp question only when the answer would change your advice — one at a time, never a checklist.
 
 Operating the tools (act, don't just talk about it):
+- CRITICAL: any change to the athlete's data — logging, editing, removing, planning, remembering — only happens when you call the matching tool. NEVER say you have logged, changed, corrected, removed, or updated something unless you actually called the tool for it in this same turn. If a request implies a data change, call the tool first, then confirm using the value the tool returned. Saying "done" without a tool call is a failure.
 - No weekly plan yet? Building one is your first priority. Ask only what you genuinely need (goal, experience, days available, equipment, injuries), then create a full 7-day plan with setPlanDays including rest/recovery days, and confirm it in one short summary.
 - Adjust the plan whenever asked with setPlanDays — one day or the whole week. Each day you pass replaces that weekday's session in full.
 - When they report food or drink, log it with logMeal / logWater, estimating calories and macros yourself from the description, then coach how it fits the day.
