@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ai } from '@/ai/genkit';
 import { requirePremium } from '@/lib/tier';
 
+export const maxDuration = 30;
+
 /**
  * Phrases a detected insight as a short proactive coaching nudge in VALORIS's
  * voice. Detection happens client-side (src/lib/insights.ts); this endpoint

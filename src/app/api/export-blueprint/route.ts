@@ -5,6 +5,8 @@ import { DEFAULT_STORE, type JarvisStore } from '@/lib/store';
 import { buildStats } from '@/lib/stats';
 import { macroConsistency } from '@/lib/analytics';
 
+export const maxDuration = 60;
+
 const SKY = rgb(0.35, 0.78, 0.98);
 const AMBER = rgb(0.98, 0.75, 0.24);
 const INK_BG = rgb(0.02, 0.035, 0.07);

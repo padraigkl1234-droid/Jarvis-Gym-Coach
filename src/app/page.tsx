@@ -138,42 +138,67 @@ export default function JarvisPage() {
     if (!file) return;
     setAnalysingPhoto(true);
     try {
-      const image = await new Promise<string>((resolve, reject) => {
-        const url = URL.createObjectURL(file);
-        const img = new Image();
-        img.onload = () => {
-          const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
-          const c = document.createElement('canvas');
-          c.width = Math.max(1, Math.round(img.width * scale));
-          c.height = Math.max(1, Math.round(img.height * scale));
-          c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
-          URL.revokeObjectURL(url);
-          resolve(c.toDataURL('image/jpeg', 0.8));
-        };
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
-          reject(new Error('unreadable image'));
-        };
-        img.src = url;
-      });
+      // Preferred path: decode + downscale to a small JPEG.
+      const downscale = () =>
+        new Promise<string>((resolve, reject) => {
+          const url = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+              const c = document.createElement('canvas');
+              c.width = Math.max(1, Math.round(img.width * scale));
+              c.height = Math.max(1, Math.round(img.height * scale));
+              c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+              resolve(c.toDataURL('image/jpeg', 0.8));
+            } catch (err) {
+              reject(err);
+            } finally {
+              URL.revokeObjectURL(url);
+            }
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('undecodable'));
+          };
+          img.src = url;
+        });
+      // Fallback for formats the browser can't decode (e.g. HEIC from an
+      // iPhone): send the original bytes — the vision model reads HEIC fine.
+      const rawDataUrl = () =>
+        new Promise<string>((resolve, reject) => {
+          if (!file.type.startsWith('image/')) return reject(new Error('not an image'));
+          if (file.size > 3_000_000) return reject(new Error('image too large to send un-compressed'));
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result));
+          r.onerror = () => reject(new Error('unreadable file'));
+          r.readAsDataURL(file);
+        });
+
+      let image: string;
+      try {
+        image = await downscale();
+      } catch {
+        image = await rawDataUrl();
+      }
 
       const res = await fetch('/api/vision-food', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image, subscriptionTier: storeRef.current.profile.subscriptionTier }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
         flashNotice('Photo meal logging is a Premium feature — upgrade to unlock it.');
       } else if (!res.ok) {
-        flashNotice('VALORIS could not analyse that photo. Try again or log it by voice.');
+        flashNotice(`Photo analysis failed (${res.status})${data?.error ? `: ${data.error}` : ''}`);
       } else if (!data.found) {
         flashNotice(data.note || 'No food detected in that photo.');
       } else {
         setFoodConfirm(data);
       }
-    } catch {
-      flashNotice('That image could not be read.');
+    } catch (err) {
+      flashNotice(`That image could not be read${err instanceof Error && err.message ? ` (${err.message})` : ''}.`);
     } finally {
       setAnalysingPhoto(false);
     }

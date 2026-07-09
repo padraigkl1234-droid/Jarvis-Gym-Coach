@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runJarvisChat, type ChatTurn } from '@/ai/jarvis';
 import { DEFAULT_STORE, type JarvisStore } from '@/lib/store';
 
+// Multi-tool coaching turns can run long; don't let the platform cut them off.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

@@ -8,6 +8,11 @@ import { googleAI } from '@genkit-ai/google-genai';
 const MODEL = process.env.JARVIS_MODEL || 'googleai/gemini-2.5-flash';
 
 export const ai = genkit({
-  plugins: [googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY })],
+  plugins: [
+    googleAI({
+      apiKey:
+        process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+    }),
+  ],
   model: MODEL,
 });
