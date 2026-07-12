@@ -167,14 +167,6 @@ export function PlanPage({
     todaySets.filter((s) => s.exercise.toLowerCase() === exercise.toLowerCase()).length;
 
   const p = store.profile;
-  const memories = useMemo(
-    () =>
-      [...store.memories].sort((a, b) => {
-        const rank = (c: string) => (c === 'injury' ? 0 : c === 'record' ? 1 : 2);
-        return rank(a.category) - rank(b.category);
-      }),
-    [store.memories]
-  );
 
   return (
     <div className="space-y-6">
@@ -360,8 +352,8 @@ export function PlanPage({
         </section>
       )}
 
-      {/* 3 · Training parameters / memory bank */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* 3 · Training parameters */}
+      <div>
         <section className="border-2 border-black bg-white">
           <div className="flex items-center justify-between border-b-2 border-black px-4 py-2.5">
             <h2 className="font-display text-xs uppercase tracking-[0.2em] text-black">Training Parameters</h2>
@@ -401,33 +393,6 @@ export function PlanPage({
           </div>
         </section>
 
-        <section className="border-2 border-black bg-white">
-          <div className="flex items-center justify-between border-b-2 border-black px-4 py-2.5">
-            <h2 className="font-display text-xs uppercase tracking-[0.2em] text-black">Memory Bank</h2>
-            <span className="font-display text-xs tabular-nums text-red-600">{memories.length}</span>
-          </div>
-          {memories.length > 0 ? (
-            <ul className="divide-y divide-neutral-200">
-              {memories.map((m, i) => {
-                const warn = m.category === 'injury';
-                return (
-                  <li key={i} className="flex items-start gap-3 px-4 py-2.5">
-                    <span
-                      className={`mt-0.5 shrink-0 px-1.5 py-0.5 font-display text-[8px] uppercase tracking-widest ${
-                        warn ? 'bg-red-600 text-white' : 'border border-black text-black'
-                      }`}
-                    >
-                      {m.category}
-                    </span>
-                    <span className="text-[13px] font-medium leading-snug text-neutral-800">{m.note}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="px-4 py-4 text-sm font-medium text-neutral-500">Tell VALORIS about injuries, PRs, and preferences — they land here.</p>
-          )}
-        </section>
       </div>
     </div>
   );

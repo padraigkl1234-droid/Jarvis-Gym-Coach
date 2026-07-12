@@ -1,26 +1,41 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Calculator, ChevronLeft, ChevronRight } from 'lucide-react';
-import { type Profile, computeTargets } from '@/lib/store';
+import { X, Calculator, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import {
+  type Profile,
+  type MemoryEntry,
+  type MemoryCategory,
+  MEMORY_CATEGORIES,
+  computeTargets,
+} from '@/lib/store';
 import { Chip, Field, inputClass, GOALS, LEVELS, DAYS, EQUIPMENT, SEXES } from '@/components/formBits';
 
 const STEPS = [
   { id: 'vitals', num: '01', label: 'Vitals', blurb: 'Identity & body metrics' },
   { id: 'blueprint', num: '02', label: 'Blueprint', blurb: 'Goals, experience & targets' },
   { id: 'arsenal', num: '03', label: 'Arsenal', blurb: 'Training loadout' },
+  { id: 'memory', num: '04', label: 'Memory', blurb: 'What VALORIS remembers' },
 ] as const;
 
 export function ProfilePanel({
   profile,
+  memories,
   onSave,
+  onAddMemory,
+  onRemoveMemory,
   onClose,
 }: {
   profile: Profile;
+  memories: MemoryEntry[];
   onSave: (patch: Partial<Profile>) => void;
+  onAddMemory: (note: string, category: MemoryCategory) => void;
+  onRemoveMemory: (memory: MemoryEntry) => void;
   onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
+  const [memNote, setMemNote] = useState('');
+  const [memCat, setMemCat] = useState<MemoryCategory>('injury');
 
   const [name, setName] = useState(profile.name === 'Athlete' ? '' : profile.name);
   const [sex, setSex] = useState(profile.sex ?? '');
@@ -109,7 +124,7 @@ export function ProfilePanel({
 
         {/* Step rail */}
         <div className="mt-5 px-6 sm:px-7">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {STEPS.map((s, i) => {
               const active = i === step;
               const done = i < step;
@@ -241,6 +256,81 @@ export function ProfilePanel({
               </div>
             </div>
           )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <Field label="Add a memory">
+                <textarea
+                  value={memNote}
+                  onChange={(e) => setMemNote(e.target.value)}
+                  rows={2}
+                  placeholder='e.g. "Left knee — avoid deep loaded flexion"'
+                  className={`${inputClass} resize-none`}
+                />
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {MEMORY_CATEGORIES.map((c) => (
+                    <Chip key={c} active={memCat === c} onClick={() => setMemCat(c)}>
+                      {c}
+                    </Chip>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    const note = memNote.trim();
+                    if (!note) return;
+                    onAddMemory(note, memCat);
+                    setMemNote('');
+                  }}
+                  disabled={!memNote.trim()}
+                  className="mt-2 w-full bg-red-600 py-2.5 font-display text-[11px] uppercase tracking-[0.15em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                >
+                  Add Memory
+                </button>
+              </Field>
+
+              <div className="border-2 border-black">
+                <div className="flex items-center justify-between border-b-2 border-black px-3 py-2">
+                  <span className="font-display text-[10px] uppercase tracking-[0.25em] text-black">Stored</span>
+                  <span className="font-display text-xs tabular-nums text-red-600">{memories.length}</span>
+                </div>
+                {memories.length > 0 ? (
+                  <ul className="max-h-56 divide-y divide-neutral-200 overflow-y-auto">
+                    {[...memories]
+                      .sort((a, b) => {
+                        const rank = (c: string) => (c === 'injury' ? 0 : c === 'record' ? 1 : 2);
+                        return rank(a.category) - rank(b.category);
+                      })
+                      .map((m, i) => (
+                        <li key={`${m.note}-${i}`} className="flex items-start gap-2.5 px-3 py-2.5">
+                          <span
+                            className={`mt-0.5 shrink-0 px-1.5 py-0.5 font-display text-[8px] uppercase tracking-widest ${
+                              m.category === 'injury' ? 'bg-red-600 text-white' : 'border border-black text-black'
+                            }`}
+                          >
+                            {m.category}
+                          </span>
+                          <span className="min-w-0 flex-1 text-[13px] font-medium leading-snug text-neutral-800">{m.note}</span>
+                          <button
+                            onClick={() => onRemoveMemory(m)}
+                            className="shrink-0 p-1 text-neutral-300 transition-colors hover:text-red-600"
+                            aria-label={`Remove memory: ${m.note.slice(0, 40)}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                ) : (
+                  <p className="px-3 py-3 text-xs font-medium text-neutral-400">
+                    Nothing stored yet — add facts here or just tell VALORIS in chat.
+                  </p>
+                )}
+              </div>
+              <p className="text-[11px] font-medium leading-relaxed text-neutral-400">
+                Changes here apply immediately. VALORIS reads these every conversation — injuries, records, preferences, schedule.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer nav */}
@@ -264,7 +354,7 @@ export function ProfilePanel({
             onClick={() => (last ? save() : setStep(step + 1))}
             className="flex items-center gap-1 bg-red-600 px-5 py-2.5 font-display text-[11px] uppercase tracking-[0.2em] text-white transition-colors hover:bg-red-700"
           >
-            {last ? 'Save Profile' : (
+            {last ? 'Save & Close' : (
               <>
                 Next <ChevronRight className="h-3.5 w-3.5" />
               </>

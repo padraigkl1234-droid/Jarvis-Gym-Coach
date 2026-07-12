@@ -35,6 +35,8 @@ import {
   type Profile,
   type MealEntry,
   type MealSlot,
+  type MemoryCategory,
+  type MemoryEntry,
   type PlanDay,
   type SetEntry,
   type WorkoutSession,
@@ -217,6 +219,24 @@ export default function ValorisPage() {
       const cur = storeRef.current;
       commitStore({ ...cur, plan: cur.plan.filter((p) => p.weekday !== weekday) });
       offerUndo(cur, 'Day cleared');
+    },
+    [commitStore, offerUndo]
+  );
+
+  // Memory bank editing from the profile/settings panel — applies immediately.
+  const handleAddMemory = useCallback(
+    (note: string, category: MemoryCategory) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, memories: [...cur.memories, { date: todayStr(), note, category }] });
+    },
+    [commitStore]
+  );
+
+  const handleRemoveMemory = useCallback(
+    (memory: MemoryEntry) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, memories: cur.memories.filter((m) => m !== memory) });
+      offerUndo(cur, 'Memory removed');
     },
     [commitStore, offerUndo]
   );
@@ -814,7 +834,16 @@ export default function ValorisPage() {
         })}
       </nav>
 
-      {profileOpen && <ProfilePanel profile={store.profile} onSave={handleProfileSave} onClose={() => setProfileOpen(false)} />}
+      {profileOpen && (
+        <ProfilePanel
+          profile={store.profile}
+          memories={store.memories}
+          onSave={handleProfileSave}
+          onAddMemory={handleAddMemory}
+          onRemoveMemory={handleRemoveMemory}
+          onClose={() => setProfileOpen(false)}
+        />
+      )}
     </div>
   );
 }
