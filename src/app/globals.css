@@ -5,13 +5,22 @@
 html,
 body {
   height: 100%;
-  background: #000;
-  color: #fff;
+  background: #fff;
+  color: #0a0a0a;
 }
 
 /* Display type runs bold by default — the softer face carries weight well. */
 .font-display {
-  font-weight: 600;
+  font-weight: 700;
+}
+
+/* Tab/page content entrance — quick, physical, no float. */
+.view-in {
+  animation: view-in 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Faint engineering grid — crisper lines, lower overall opacity. */

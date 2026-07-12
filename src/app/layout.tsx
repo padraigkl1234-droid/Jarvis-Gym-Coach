@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#000000',
+  themeColor: '#ffffff',
 };
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -30,7 +30,7 @@ const exo = Exo_2({ subsets: ['latin'], variable: '--font-display', display: 'sw
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${exo.variable}`}>
-      <body className="bg-black font-sans antialiased">
+      <body className="bg-white font-sans text-black antialiased">
         {children}
         <RegisterSW />
       </body>
