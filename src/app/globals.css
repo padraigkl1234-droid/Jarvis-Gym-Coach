@@ -28,6 +28,60 @@ button:not(:disabled):active {
   transform: translateY(1.5px) scale(0.985);
 }
 
+/* ---- Boot splash: stamp, rise, sweep, lift ---- */
+.splash-square {
+  opacity: 0;
+  animation: splash-square 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) 0.06s forwards;
+}
+@keyframes splash-square {
+  from { opacity: 0; transform: scale(2.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.splash-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(112%);
+  animation: splash-letter 0.44s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+@keyframes splash-letter {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.splash-rule {
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: splash-rule 0.5s cubic-bezier(0.7, 0, 0.3, 1) 0.8s forwards;
+}
+@keyframes splash-rule {
+  to { transform: scaleX(1); }
+}
+
+.splash-sub {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: splash-sub 0.45s ease-out 1.05s forwards;
+}
+@keyframes splash-sub {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.splash-progress {
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: splash-progress 1.65s cubic-bezier(0.4, 0, 0.2, 1) 0.1s forwards;
+}
+@keyframes splash-progress {
+  to { transform: scaleX(1); }
+}
+
+.splash-exit {
+  animation: splash-exit 0.55s cubic-bezier(0.7, 0, 0.3, 1) forwards;
+}
+@keyframes splash-exit {
+  to { transform: translateY(-100%); }
+}
+
 /* Faint engineering grid — crisper lines, lower overall opacity. */
 .hud-grid {
   background-image:

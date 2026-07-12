@@ -20,6 +20,7 @@ import {
 import { Onboarding } from '@/components/Onboarding';
 import { ProfilePanel } from '@/components/ProfilePanel';
 import { Dashboard } from '@/components/Dashboard';
+import { SplashIntro } from '@/components/SplashIntro';
 import { PlanPage } from '@/components/PlanPage';
 import { DietPage } from '@/components/DietPage';
 import { detectInsights, wasSeenToday, markSeen } from '@/lib/insights';
@@ -65,6 +66,7 @@ const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: st
 export default function ValorisPage() {
   const [store, setStore] = useState<JarvisStore>(DEFAULT_STORE);
   const [hydrated, setHydrated] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const [view, setView] = useState<View>('dashboard');
   const [isThinking, setIsThinking] = useState(false);
   const [caption, setCaption] = useState<Caption | null>(null);
@@ -95,6 +97,8 @@ export default function ValorisPage() {
     setStore(next);
     saveStore(next);
   }, []);
+
+  const dismissSplash = useCallback(() => setShowSplash(false), []);
 
   // Offer a brief window to undo a deletion by snapshotting the prior store.
   const offerUndo = useCallback((prev: JarvisStore, label: string) => {
@@ -565,11 +569,26 @@ export default function ValorisPage() {
   const utilityBtn =
     'flex h-9 w-9 items-center justify-center border-2 border-black bg-white text-black transition-colors hover:bg-red-600 hover:border-red-600 hover:text-white';
 
+  // Branded boot animation overlays everything, then lifts away.
+  const splashEl = showSplash ? <SplashIntro onDone={dismissSplash} /> : null;
+
   // Avoid a flash of onboarding before localStorage has loaded.
-  if (!hydrated) return <div className="h-[100dvh] w-full bg-white" />;
+  if (!hydrated)
+    return (
+      <>
+        {splashEl}
+        <div className="h-[100dvh] w-full bg-white" />
+      </>
+    );
 
   // First run — require a profile before the app is accessible.
-  if (!store.profile.onboarded) return <Onboarding onComplete={handleOnboardingComplete} />;
+  if (!store.profile.onboarded)
+    return (
+      <>
+        {splashEl}
+        <Onboarding onComplete={handleOnboardingComplete} />
+      </>
+    );
 
   const activeNav = NAV.find((n) => n.id === view)!;
 
@@ -592,6 +611,7 @@ export default function ValorisPage() {
 
   return (
     <div className="min-h-[100dvh] bg-white font-sans text-black">
+      {splashEl}
       <input ref={fileInputRef} type="file" accept="application/json" onChange={handleImportFile} className="hidden" />
 
       {/* Desktop sidebar */}
