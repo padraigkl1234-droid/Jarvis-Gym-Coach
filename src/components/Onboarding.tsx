@@ -9,7 +9,7 @@ import {
   computeTargets,
   todayStr,
 } from '@/lib/store';
-import { Chip, Field, inputClass as numberInput, GOALS, LEVELS, DAYS, EQUIPMENT, SEXES } from '@/components/formBits';
+import { Chip, Field, inputClass, GOALS, LEVELS, DAYS, EQUIPMENT, SEXES } from '@/components/formBits';
 
 function splitItems(text: string): string[] {
   return text
@@ -75,36 +75,25 @@ export function Onboarding({ onComplete }: { onComplete: (patch: Partial<JarvisS
   };
 
   return (
-    <div className="relative flex h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black px-4 py-10 font-sans">
-      <div className="pointer-events-none absolute inset-0 hud-grid" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.08),transparent_62%)]" />
-      <div className="pointer-events-none absolute inset-0 z-40 hud-scanlines opacity-50" />
-
-      <div
-        className="relative z-10 w-full max-w-lg rounded-lg border border-sky-400/25 bg-black/50 p-6 backdrop-blur-md sm:p-8"
-        style={{ boxShadow: 'inset 0 0 60px rgba(0,0,0,0.6), 0 0 40px rgba(56,189,248,0.06)' }}
-      >
-        <span className="pointer-events-none absolute left-0 top-0 h-5 w-5 border-l-2 border-t-2 border-sky-400/60" />
-        <span className="pointer-events-none absolute right-0 top-0 h-5 w-5 border-r-2 border-t-2 border-sky-400/60" />
-        <span className="pointer-events-none absolute bottom-0 left-0 h-5 w-5 border-b-2 border-l-2 border-sky-400/60" />
-        <span className="pointer-events-none absolute bottom-0 right-0 h-5 w-5 border-b-2 border-r-2 border-sky-400/60" />
-
-        <div className="mb-6 text-center">
-          <div className="font-display text-xl tracking-[0.4em] text-white [text-shadow:0_0_14px_rgba(56,189,248,0.5)]">
-            VALORIS
+    <div className="flex min-h-[100dvh] w-full items-start justify-center overflow-y-auto bg-neutral-100 px-4 py-10 font-sans">
+      <div className="w-full max-w-lg border-2 border-black bg-white shadow-[8px_8px_0_0_rgba(0,0,0,0.2)]">
+        <div className="border-b-2 border-black px-6 py-6 sm:px-8">
+          <div className="flex items-center gap-2.5">
+            <span className="h-3.5 w-3.5 bg-red-600" />
+            <span className="font-display text-2xl uppercase tracking-[0.2em] text-black">Valoris</span>
           </div>
-          <div className="mt-1 font-display text-[10px] uppercase tracking-[0.3em] text-sky-300/70">
+          <div className="mt-1 font-display text-[10px] uppercase tracking-[0.3em] text-neutral-500">
             Athlete Profile · Initialisation
           </div>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-5 px-6 py-6 sm:px-8">
           <Field label="Call sign / Name">
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="What should VALORIS call you?"
-              className={numberInput}
+              className={inputClass}
             />
           </Field>
 
@@ -151,9 +140,9 @@ export function Onboarding({ onComplete }: { onComplete: (patch: Partial<JarvisS
 
           <Field label="Body stats (optional — sharpens your targets)">
             <div className="grid grid-cols-3 gap-2">
-              <input value={age} onChange={(e) => setAge(e.target.value)} inputMode="numeric" placeholder="Age" className={numberInput} />
-              <input value={heightCm} onChange={(e) => setHeightCm(e.target.value)} inputMode="numeric" placeholder="Height cm" className={numberInput} />
-              <input value={bodyweightKg} onChange={(e) => setBodyweightKg(e.target.value)} inputMode="numeric" placeholder="Weight kg" className={numberInput} />
+              <input value={age} onChange={(e) => setAge(e.target.value)} inputMode="numeric" placeholder="Age" className={inputClass} />
+              <input value={heightCm} onChange={(e) => setHeightCm(e.target.value)} inputMode="numeric" placeholder="Height cm" className={inputClass} />
+              <input value={bodyweightKg} onChange={(e) => setBodyweightKg(e.target.value)} inputMode="numeric" placeholder="Weight kg" className={inputClass} />
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
               {SEXES.map((s) => (
@@ -170,7 +159,7 @@ export function Onboarding({ onComplete }: { onComplete: (patch: Partial<JarvisS
               onChange={(e) => setInjuries(e.target.value)}
               placeholder="e.g. Left knee — avoid deep loaded flexion; dodgy lower back"
               rows={2}
-              className={`${numberInput} resize-none`}
+              className={`${inputClass} resize-none`}
             />
           </Field>
 
@@ -180,7 +169,7 @@ export function Onboarding({ onComplete }: { onComplete: (patch: Partial<JarvisS
               onChange={(e) => setDietary(e.target.value)}
               placeholder="e.g. Vegetarian; lactose intolerant; hate seafood"
               rows={2}
-              className={`${numberInput} resize-none`}
+              className={`${inputClass} resize-none`}
             />
           </Field>
 
@@ -188,15 +177,13 @@ export function Onboarding({ onComplete }: { onComplete: (patch: Partial<JarvisS
             type="button"
             onClick={submit}
             disabled={!ready}
-            className={`w-full rounded-md border py-3 font-display text-xs uppercase tracking-[0.3em] transition-all ${
-              ready
-                ? 'border-sky-400/60 bg-sky-400/15 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)] hover:bg-sky-400/25'
-                : 'cursor-not-allowed border-white/10 bg-white/[0.02] text-white/25'
+            className={`w-full py-3.5 font-display text-xs uppercase tracking-[0.3em] transition-colors ${
+              ready ? 'bg-red-600 text-white hover:bg-red-700' : 'cursor-not-allowed bg-neutral-200 text-neutral-400'
             }`}
           >
-            Initialise VALORIS ▸
+            Initialise Valoris ▸
           </button>
-          <p className="text-center text-[10px] text-white/30">
+          <p className="text-center text-[11px] font-medium text-neutral-400">
             Everything stays on this device. You can refine any of it later just by talking to VALORIS.
           </p>
         </div>

@@ -5,7 +5,7 @@ import React from 'react';
 /** Shared form primitives used by the onboarding screen and the profile editor. */
 
 export const inputClass =
-  'w-full rounded-md border border-white/12 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/25 focus:border-sky-400/50 focus:outline-none';
+  'w-full border-2 border-black bg-white px-3 py-2 text-sm font-medium text-black placeholder:text-neutral-400 focus:border-red-600 focus:outline-none';
 
 export function Chip({
   active,
@@ -20,10 +20,10 @@ export function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3.5 py-1.5 text-xs tracking-wide transition-all ${
+      className={`border-2 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${
         active
-          ? 'border-sky-400/70 bg-sky-400/15 text-sky-200 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-          : 'border-white/12 bg-white/[0.02] text-white/55 hover:border-sky-400/30 hover:text-white/80'
+          ? 'border-red-600 bg-red-600 text-white'
+          : 'border-black bg-white text-black hover:border-red-600 hover:text-red-600'
       }`}
     >
       {children}
@@ -34,7 +34,7 @@ export function Chip({
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="mb-2 font-display text-[10px] uppercase tracking-[0.25em] text-white/40">{label}</div>
+      <div className="mb-2 font-display text-[10px] uppercase tracking-[0.25em] text-neutral-500">{label}</div>
       {children}
     </div>
   );

@@ -1,11 +1,137 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Check, Trash2, Flag, CheckCircle2 } from 'lucide-react';
-import { type JarvisStore, type SetEntry, todayStr } from '@/lib/store';
+import { Check, Trash2, Flag, CheckCircle2, Pencil, Plus } from 'lucide-react';
+import { type JarvisStore, type PlanDay, type SetEntry, todayStr } from '@/lib/store';
 
 const DAYS_SHORT = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const DAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+interface ExerciseDraft {
+  name: string;
+  sets: string;
+  reps: string;
+}
+
+/** Inline editor for one weekday's session — build, rewrite, or clear it. */
+function DayEditor({
+  weekday,
+  initial,
+  onSave,
+  onClear,
+  onClose,
+}: {
+  weekday: number;
+  initial: PlanDay | undefined;
+  onSave: (day: PlanDay) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const [label, setLabel] = useState(initial?.label ?? '');
+  const [focus, setFocus] = useState(initial?.focus ?? '');
+  const [rows, setRows] = useState<ExerciseDraft[]>(
+    initial && initial.exercises.length > 0
+      ? initial.exercises.map((e) => ({ name: e.name, sets: e.sets?.toString() ?? '', reps: e.reps ?? '' }))
+      : [{ name: '', sets: '3', reps: '8-10' }]
+  );
+
+  const setRow = (i: number, patch: Partial<ExerciseDraft>) =>
+    setRows((cur) => cur.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+
+  const valid = label.trim().length > 0 && rows.some((r) => r.name.trim().length > 0);
+
+  const save = () => {
+    if (!valid) return;
+    onSave({
+      weekday,
+      label: label.trim(),
+      focus: focus.trim(),
+      exercises: rows
+        .filter((r) => r.name.trim())
+        .map((r) => {
+          const sets = parseInt(r.sets, 10);
+          return { name: r.name.trim(), sets: Number.isFinite(sets) && sets > 0 ? sets : undefined, reps: r.reps.trim() || undefined };
+        }),
+    });
+    onClose();
+  };
+
+  const fieldCls =
+    'border-2 border-black bg-white px-2.5 py-2 text-sm font-medium text-black placeholder:text-neutral-400 focus:border-red-600 focus:outline-none';
+
+  return (
+    <div className="space-y-3 p-4">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div>
+          <div className="mb-1 font-display text-[9px] uppercase tracking-[0.2em] text-neutral-500">Session name</div>
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder='e.g. "Push Day A"' className={`${fieldCls} w-full`} />
+        </div>
+        <div>
+          <div className="mb-1 font-display text-[9px] uppercase tracking-[0.2em] text-neutral-500">Focus (optional)</div>
+          <input value={focus} onChange={(e) => setFocus(e.target.value)} placeholder='e.g. "Hypertrophy"' className={`${fieldCls} w-full`} />
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 grid grid-cols-[1fr_64px_88px_36px] gap-2 font-display text-[9px] uppercase tracking-[0.2em] text-neutral-500">
+          <span>Exercise</span>
+          <span className="text-center">Sets</span>
+          <span className="text-center">Reps</span>
+          <span />
+        </div>
+        <div className="space-y-2">
+          {rows.map((r, i) => (
+            <div key={i} className="grid grid-cols-[1fr_64px_88px_36px] items-center gap-2">
+              <input value={r.name} onChange={(e) => setRow(i, { name: e.target.value })} placeholder="Exercise name" className={`${fieldCls} w-full`} />
+              <input value={r.sets} onChange={(e) => setRow(i, { sets: e.target.value })} inputMode="numeric" placeholder="3" className={`${fieldCls} w-full text-center`} />
+              <input value={r.reps} onChange={(e) => setRow(i, { reps: e.target.value })} placeholder="8-10" className={`${fieldCls} w-full text-center`} />
+              <button
+                onClick={() => setRows((cur) => (cur.length > 1 ? cur.filter((_, k) => k !== i) : cur))}
+                className="flex h-9 w-9 items-center justify-center text-neutral-300 transition-colors hover:text-red-600"
+                aria-label={`Remove exercise ${i + 1}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => setRows((cur) => [...cur, { name: '', sets: '3', reps: '8-10' }])}
+          className="mt-2 flex w-full items-center justify-center gap-1.5 border-2 border-dashed border-neutral-300 py-2 font-display text-[10px] uppercase tracking-[0.2em] text-neutral-500 transition-colors hover:border-red-600 hover:text-red-600"
+        >
+          <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Add exercise
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t-2 border-black pt-3">
+        <button
+          onClick={save}
+          disabled={!valid}
+          className="bg-red-600 px-5 py-2.5 font-display text-[11px] uppercase tracking-[0.15em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
+        >
+          Save {DAYS_SHORT[weekday]}
+        </button>
+        <button
+          onClick={onClose}
+          className="border-2 border-black px-4 py-2.5 font-display text-[11px] uppercase tracking-[0.15em] text-black transition-colors hover:bg-neutral-100"
+        >
+          Cancel
+        </button>
+        {initial && (
+          <button
+            onClick={() => {
+              onClear();
+              onClose();
+            }}
+            className="ml-auto border-2 border-red-600 px-4 py-2.5 font-display text-[11px] uppercase tracking-[0.15em] text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+          >
+            Make Rest Day
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function PlanPage({
   store,
@@ -14,6 +140,8 @@ export function PlanPage({
   onDeleteSet,
   onCompleteWorkout,
   onEditProfile,
+  onSavePlanDay,
+  onRemovePlanDay,
 }: {
   store: JarvisStore;
   onLogSet: (exercise: string) => void;
@@ -21,9 +149,12 @@ export function PlanPage({
   onDeleteSet: (set: SetEntry) => void;
   onCompleteWorkout: () => void;
   onEditProfile: () => void;
+  onSavePlanDay: (day: PlanDay) => void;
+  onRemovePlanDay: (weekday: number) => void;
 }) {
   const todayWd = new Date().getDay();
   const [selectedWd, setSelectedWd] = useState(todayWd);
+  const [editing, setEditing] = useState(false);
   const today = todayStr();
 
   const dayPlan = store.plan.find((p) => p.weekday === selectedWd);
@@ -58,7 +189,10 @@ export function PlanPage({
             return (
               <button
                 key={wd}
-                onClick={() => setSelectedWd(wd)}
+                onClick={() => {
+                  setSelectedWd(wd);
+                  setEditing(false);
+                }}
                 aria-current={selected ? 'true' : undefined}
                 className={`relative flex min-h-[72px] flex-col items-center justify-center gap-1 px-1 py-2.5 transition-colors ${
                   selected ? 'bg-black text-white' : 'bg-white hover:bg-neutral-50'
@@ -96,24 +230,42 @@ export function PlanPage({
               {isToday ? "Today's session" : `${DAYS_LONG[selectedWd]} session`}
             </div>
           </div>
-          {isToday && dayPlan && dayPlan.exercises.length > 0 && (
-            sessionDone ? (
-              <span className="flex items-center gap-1.5 bg-black px-3 py-1.5 font-display text-[10px] uppercase tracking-[0.2em] text-white">
-                <CheckCircle2 className="h-3.5 w-3.5 text-red-500" /> Complete
-              </span>
-            ) : (
+          <div className="flex items-center gap-2">
+            {!editing && (
               <button
-                onClick={onCompleteWorkout}
-                disabled={!sessionOpen && todaySets.length === 0}
-                className="flex items-center gap-1.5 bg-red-600 px-4 py-2 font-display text-[11px] uppercase tracking-[0.15em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                onClick={() => setEditing(true)}
+                className="flex items-center gap-1.5 border-2 border-black bg-white px-3 py-2 font-display text-[11px] uppercase tracking-[0.15em] text-black transition-colors hover:border-red-600 hover:text-red-600"
               >
-                <Flag className="h-3.5 w-3.5" /> Finish Session
+                <Pencil className="h-3.5 w-3.5" /> {dayPlan ? 'Edit Day' : 'Build Day'}
               </button>
-            )
-          )}
+            )}
+            {isToday && !editing && dayPlan && dayPlan.exercises.length > 0 && (
+              sessionDone ? (
+                <span className="flex items-center gap-1.5 bg-black px-3 py-2 font-display text-[10px] uppercase tracking-[0.2em] text-white">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-red-500" /> Complete
+                </span>
+              ) : (
+                <button
+                  onClick={onCompleteWorkout}
+                  disabled={!sessionOpen && todaySets.length === 0}
+                  className="flex items-center gap-1.5 bg-red-600 px-4 py-2 font-display text-[11px] uppercase tracking-[0.15em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                >
+                  <Flag className="h-3.5 w-3.5" /> Finish Session
+                </button>
+              )
+            )}
+          </div>
         </div>
 
-        {dayPlan && dayPlan.exercises.length > 0 ? (
+        {editing ? (
+          <DayEditor
+            weekday={selectedWd}
+            initial={dayPlan}
+            onSave={onSavePlanDay}
+            onClear={() => onRemovePlanDay(selectedWd)}
+            onClose={() => setEditing(false)}
+          />
+        ) : dayPlan && dayPlan.exercises.length > 0 ? (
           <div>
             {/* Table header */}
             <div className="grid grid-cols-[1fr_auto] items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-4 py-2 sm:grid-cols-[1fr_90px_auto]">

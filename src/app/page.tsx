@@ -34,6 +34,7 @@ import {
   type Profile,
   type MealEntry,
   type MealSlot,
+  type PlanDay,
   type SetEntry,
   type WorkoutSession,
   newId,
@@ -194,6 +195,27 @@ export default function ValorisPage() {
       ),
     });
   }, [commitStore]);
+
+  // Hand-editing the weekly plan from the Fitness Plan page.
+  const handleSavePlanDay = useCallback(
+    (day: PlanDay) => {
+      const cur = storeRef.current;
+      const plan = cur.plan.filter((p) => p.weekday !== day.weekday);
+      plan.push(day);
+      plan.sort((a, b) => a.weekday - b.weekday);
+      commitStore({ ...cur, plan });
+    },
+    [commitStore]
+  );
+
+  const handleRemovePlanDay = useCallback(
+    (weekday: number) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, plan: cur.plan.filter((p) => p.weekday !== weekday) });
+      offerUndo(cur, 'Day cleared');
+    },
+    [commitStore, offerUndo]
+  );
 
   const handleAddMeal = useCallback(
     (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; slot: MealSlot }) => {
@@ -636,6 +658,8 @@ export default function ValorisPage() {
                 onDeleteSet={handleDeleteSet}
                 onCompleteWorkout={handleCompleteWorkout}
                 onEditProfile={() => setProfileOpen(true)}
+                onSavePlanDay={handleSavePlanDay}
+                onRemovePlanDay={handleRemovePlanDay}
               />
             )}
             {view === 'diet' && (

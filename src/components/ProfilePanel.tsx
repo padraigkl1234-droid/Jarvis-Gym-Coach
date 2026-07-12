@@ -92,26 +92,18 @@ export function ProfilePanel({
   const last = step === STEPS.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-8 backdrop-blur-sm">
-      <div
-        className="relative w-full max-w-lg overflow-hidden rounded-lg border border-sky-400/25 bg-black/80 backdrop-blur-md"
-        style={{ boxShadow: 'inset 0 0 60px rgba(0,0,0,0.6), 0 0 40px rgba(56,189,248,0.08)' }}
-      >
-        <span className="pointer-events-none absolute left-0 top-0 z-10 h-5 w-5 border-l-2 border-t-2 border-sky-400/60" />
-        <span className="pointer-events-none absolute right-0 top-0 z-10 h-5 w-5 border-r-2 border-t-2 border-sky-400/60" />
-        <span className="pointer-events-none absolute bottom-0 left-0 z-10 h-5 w-5 border-b-2 border-l-2 border-sky-400/60" />
-        <span className="pointer-events-none absolute bottom-0 right-0 z-10 h-5 w-5 border-b-2 border-r-2 border-sky-400/60" />
-
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-8">
+      <div className="relative w-full max-w-lg border-2 border-black bg-white shadow-[8px_8px_0_0_rgba(0,0,0,0.2)]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 sm:px-7">
           <div>
-            <div className="font-display text-base tracking-[0.3em] text-white">ATHLETE PROFILE</div>
-            <div className="mt-0.5 font-display text-[9px] uppercase tracking-[0.3em] text-sky-300/70">
+            <div className="font-display text-lg uppercase tracking-[0.15em] text-black">Athlete Profile</div>
+            <div className="mt-0.5 font-display text-[9px] uppercase tracking-[0.3em] text-red-600">
               Diagnostic sequence · {STEPS[step].num}/{String(STEPS.length).padStart(2, '0')}
             </div>
           </div>
-          <button onClick={onClose} className="text-white/40 transition-colors hover:text-white/80" aria-label="Close">
-            <X className="h-5 w-5" />
+          <button onClick={onClose} className="border-2 border-black p-1.5 text-black transition-colors hover:bg-black hover:text-white" aria-label="Close">
+            <X className="h-4 w-4" />
           </button>
         </div>
 
@@ -125,12 +117,12 @@ export function ProfilePanel({
                 <button
                   key={s.id}
                   onClick={() => setStep(i)}
-                  className={`rounded-t-md border-b-2 px-1 pb-2 pt-1 text-left transition-colors ${
+                  className={`border-b-4 px-1 pb-2 pt-1 text-left transition-colors ${
                     active
-                      ? 'border-sky-400 text-sky-200'
+                      ? 'border-red-600 text-black'
                       : done
-                      ? 'border-sky-400/35 text-white/60'
-                      : 'border-white/10 text-white/35 hover:text-white/60'
+                      ? 'border-black text-neutral-500'
+                      : 'border-neutral-200 text-neutral-400 hover:text-black'
                   }`}
                 >
                   <div className="font-display text-[9px] tracking-[0.2em]">{s.num}</div>
@@ -139,7 +131,7 @@ export function ProfilePanel({
               );
             })}
           </div>
-          <div className="relative h-px overflow-hidden bg-white/10">
+          <div className="relative h-px overflow-hidden bg-neutral-200">
             <div className="wizard-scan absolute inset-y-0 w-full" />
           </div>
         </div>
@@ -147,8 +139,8 @@ export function ProfilePanel({
         {/* Step content */}
         <div key={step} className="wizard-step min-h-[300px] px-6 py-5 sm:px-7">
           <div className="mb-4 flex items-center gap-2">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
-            <span className="font-display text-[10px] uppercase tracking-[0.25em] text-white/50">{STEPS[step].blurb}</span>
+            <span className="h-2 w-2 animate-pulse bg-red-600" />
+            <span className="font-display text-[10px] uppercase tracking-[0.25em] text-neutral-500">{STEPS[step].blurb}</span>
           </div>
 
           {step === 0 && (
@@ -208,10 +200,10 @@ export function ProfilePanel({
               </div>
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="font-display text-[10px] uppercase tracking-[0.25em] text-white/40">Daily targets</span>
+                  <span className="font-display text-[10px] uppercase tracking-[0.25em] text-neutral-500">Daily targets</span>
                   <button
                     onClick={recalc}
-                    className="flex items-center gap-1.5 rounded-full border border-sky-400/30 px-2.5 py-1 text-[10px] uppercase tracking-wider text-sky-300 transition-colors hover:bg-sky-400/10"
+                    className="flex items-center gap-1.5 border-2 border-black px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-black transition-colors hover:border-red-600 hover:text-red-600"
                     title="Recalculate targets from goal and body stats"
                   >
                     <Calculator className="h-3 w-3" />
@@ -242,7 +234,7 @@ export function ProfilePanel({
                   ))}
                 </div>
               </Field>
-              <div className="rounded-md border border-white/10 bg-white/[0.02] px-4 py-3 text-[11px] leading-relaxed text-white/55">
+              <div className="border-2 border-black bg-neutral-50 px-4 py-3 text-[12px] font-medium leading-relaxed text-neutral-700">
                 {equipment.length
                   ? `Loadout registered: ${equipment.join(', ')}. VALORIS will build and adapt your plan around this.`
                   : 'Nothing selected — VALORIS will assume bodyweight-only until you register equipment.'}
@@ -252,10 +244,10 @@ export function ProfilePanel({
         </div>
 
         {/* Footer nav */}
-        <div className="flex items-center justify-between gap-2 border-t border-white/10 px-6 py-4 sm:px-7">
+        <div className="flex items-center justify-between gap-2 border-t-2 border-black px-6 py-4 sm:px-7">
           <button
             onClick={() => (step === 0 ? onClose() : setStep(step - 1))}
-            className="flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.02] px-4 py-2.5 font-display text-[11px] uppercase tracking-[0.2em] text-white/50 transition-colors hover:text-white/80"
+            className="flex items-center gap-1 border-2 border-black bg-white px-4 py-2.5 font-display text-[11px] uppercase tracking-[0.2em] text-black transition-colors hover:bg-neutral-100"
           >
             {step === 0 ? 'Cancel' : (
               <>
@@ -265,15 +257,12 @@ export function ProfilePanel({
           </button>
           <div className="flex items-center gap-1.5">
             {STEPS.map((_, i) => (
-              <span
-                key={i}
-                className={`h-1 rounded-full transition-all ${i === step ? 'w-6 bg-sky-400' : 'w-2 bg-white/15'}`}
-              />
+              <span key={i} className={`h-1.5 transition-all ${i === step ? 'w-6 bg-red-600' : 'w-2 bg-neutral-300'}`} />
             ))}
           </div>
           <button
             onClick={() => (last ? save() : setStep(step + 1))}
-            className="flex items-center gap-1 rounded-md border border-sky-400/60 bg-sky-400/15 px-5 py-2.5 font-display text-[11px] uppercase tracking-[0.2em] text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.25)] transition-colors hover:bg-sky-400/25"
+            className="flex items-center gap-1 bg-red-600 px-5 py-2.5 font-display text-[11px] uppercase tracking-[0.2em] text-white transition-colors hover:bg-red-700"
           >
             {last ? 'Save Profile' : (
               <>
@@ -299,15 +288,15 @@ function TargetInput({
   unit: string;
 }) {
   return (
-    <label className="flex items-center gap-2 rounded-md border border-white/12 bg-white/[0.03] px-3 py-2">
-      <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-white/45">{label}</span>
+    <label className="flex items-center gap-2 border-2 border-black bg-white px-3 py-2 focus-within:border-red-600">
+      <span className="w-16 shrink-0 text-[10px] font-bold uppercase tracking-wider text-neutral-500">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         inputMode="numeric"
-        className="w-full bg-transparent text-right text-sm tabular-nums text-white focus:outline-none"
+        className="w-full bg-transparent text-right text-sm font-bold tabular-nums text-black focus:outline-none"
       />
-      <span className="text-[10px] text-white/30">{unit}</span>
+      <span className="text-[10px] font-bold text-neutral-400">{unit}</span>
     </label>
   );
 }

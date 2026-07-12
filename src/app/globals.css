@@ -23,6 +23,11 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Every button physically depresses on press — universal tactile feedback. */
+button:not(:disabled):active {
+  transform: translateY(1.5px) scale(0.985);
+}
+
 /* Faint engineering grid — crisper lines, lower overall opacity. */
 .hud-grid {
   background-image:
@@ -125,7 +130,7 @@ body {
 
 /* Thin animated scan bar under the wizard tabs. */
 .wizard-scan {
-  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.9), transparent);
+  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.9), transparent);
   animation: wizard-scan 2.6s ease-in-out infinite;
 }
 @keyframes wizard-scan {
