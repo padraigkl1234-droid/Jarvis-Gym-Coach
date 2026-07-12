@@ -6,12 +6,10 @@ import {
   MicOff,
   Send,
   Volume2,
-  Download,
-  Upload,
   UserRound,
+  Settings,
   Sparkles,
   X,
-  FileText,
   ImagePlus,
   LayoutDashboard,
   Dumbbell,
@@ -21,6 +19,7 @@ import { Onboarding } from '@/components/Onboarding';
 import { ProfilePanel } from '@/components/ProfilePanel';
 import { Dashboard } from '@/components/Dashboard';
 import { SplashIntro } from '@/components/SplashIntro';
+import { SettingsPanel, type Prefs } from '@/components/SettingsPanel';
 import { PlanPage } from '@/components/PlanPage';
 import { DietPage } from '@/components/DietPage';
 import { detectInsights, wasSeenToday, markSeen } from '@/lib/insights';
@@ -75,6 +74,8 @@ export default function ValorisPage() {
   const [inputValue, setInputValue] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [prefs, setPrefs] = useState<Prefs>({ voiceReplies: true, bootAnimation: true });
   const [undo, setUndo] = useState<{ store: JarvisStore; label: string } | null>(null);
   const [insight, setInsight] = useState<{ title: string; message: string } | null>(null);
   const [foodConfirm, setFoodConfirm] = useState<{
@@ -88,6 +89,7 @@ export default function ValorisPage() {
   const [analysingPhoto, setAnalysingPhoto] = useState(false);
 
   const storeRef = useRef<JarvisStore>(DEFAULT_STORE);
+  const prefsRef = useRef<Prefs>({ voiceReplies: true, bootAnimation: true });
   const historyRef = useRef<ChatTurn[]>([]);
   const captionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -390,7 +392,7 @@ export default function ValorisPage() {
       ],
     });
     setFoodConfirm(null);
-    voice.speak(`Logged ${meal.name}, about ${meal.calories} calories.`);
+    if (prefsRef.current.voiceReplies) voice.speak(`Logged ${meal.name}, about ${meal.calories} calories.`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [foodConfirm, commitStore]);
 
@@ -398,8 +400,38 @@ export default function ValorisPage() {
     const loaded = loadStore();
     storeRef.current = loaded;
     setStore(loaded);
+    // Load device preferences; skip the boot animation when it's turned off.
+    try {
+      const raw = window.localStorage.getItem('valoris.prefs.v1');
+      if (raw) {
+        const parsed = { voiceReplies: true, bootAnimation: true, ...JSON.parse(raw) } as Prefs;
+        prefsRef.current = parsed;
+        setPrefs(parsed);
+        if (!parsed.bootAnimation) setShowSplash(false);
+      }
+    } catch {
+      /* prefs unavailable — defaults stand */
+    }
     setHydrated(true);
   }, []);
+
+  const handleTogglePref = useCallback((key: keyof Prefs) => {
+    setPrefs((cur) => {
+      const next = { ...cur, [key]: !cur[key] };
+      prefsRef.current = next;
+      try {
+        window.localStorage.setItem('valoris.prefs.v1', JSON.stringify(next));
+      } catch {
+        /* storage unavailable */
+      }
+      return next;
+    });
+  }, []);
+
+  const handleResetAll = useCallback(() => {
+    commitStore(structuredClone(DEFAULT_STORE));
+    setSettingsOpen(false);
+  }, [commitStore]);
 
   // Background insight worker: cron-style analysis of the last few days of
   // structured data. Runs shortly after launch, every 30 minutes while the
@@ -504,13 +536,13 @@ export default function ValorisPage() {
         historyRef.current = [...priorHistory, { role: 'user', text }, { role: 'model', text: data.reply }];
         setIsThinking(false);
         showCaption({ text: data.reply, role: 'jarvis' }, Math.max(6000, data.reply.length * 90));
-        voice.speak(data.reply);
+        if (prefsRef.current.voiceReplies) voice.speak(data.reply);
       } catch (err) {
         console.error('VALORIS chat failed:', err);
         setIsThinking(false);
         const fallback = 'Apologies — I hit a snag processing that. Give me a moment and try again.';
         showCaption({ text: fallback, role: 'jarvis' });
-        voice.speak(fallback);
+        if (prefsRef.current.voiceReplies) voice.speak(fallback);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -614,17 +646,11 @@ export default function ValorisPage() {
 
   const utilities = (
     <>
-      <button className={utilityBtn} onClick={() => setProfileOpen(true)} title="Edit profile" aria-label="Edit profile">
+      <button className={utilityBtn} onClick={() => setProfileOpen(true)} title="Athlete profile" aria-label="Athlete profile">
         <UserRound className="h-4 w-4" />
       </button>
-      <button className={utilityBtn} onClick={handleExportBlueprint} title="Export weekly blueprint (PDF)" aria-label="Export weekly blueprint">
-        <FileText className="h-4 w-4" />
-      </button>
-      <button className={utilityBtn} onClick={() => fileInputRef.current?.click()} title="Restore backup" aria-label="Import backup">
-        <Upload className="h-4 w-4" />
-      </button>
-      <button className={utilityBtn} onClick={() => downloadStore(storeRef.current)} title="Download backup" aria-label="Download backup">
-        <Download className="h-4 w-4" />
+      <button className={utilityBtn} onClick={() => setSettingsOpen(true)} title="Settings" aria-label="Settings">
+        <Settings className="h-4 w-4" />
       </button>
     </>
   );
@@ -834,14 +860,21 @@ export default function ValorisPage() {
         })}
       </nav>
 
-      {profileOpen && (
-        <ProfilePanel
-          profile={store.profile}
+      {profileOpen && <ProfilePanel profile={store.profile} onSave={handleProfileSave} onClose={() => setProfileOpen(false)} />}
+
+      {settingsOpen && (
+        <SettingsPanel
           memories={store.memories}
-          onSave={handleProfileSave}
+          prefs={prefs}
+          subscriptionTier={store.profile.subscriptionTier ?? 'free'}
+          onTogglePref={handleTogglePref}
           onAddMemory={handleAddMemory}
           onRemoveMemory={handleRemoveMemory}
-          onClose={() => setProfileOpen(false)}
+          onExportBlueprint={handleExportBlueprint}
+          onDownloadBackup={() => downloadStore(storeRef.current)}
+          onRestoreBackup={() => fileInputRef.current?.click()}
+          onResetAll={handleResetAll}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
     </div>
