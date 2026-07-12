@@ -39,6 +39,8 @@ export interface PlanDay {
   exercises: PlannedExercise[];
 }
 
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
 export interface MealEntry {
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
@@ -47,6 +49,7 @@ export interface MealEntry {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  slot?: MealSlot; // explicit meal section; derived from time when absent
 }
 
 export interface SetEntry {

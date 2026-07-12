@@ -16,11 +16,12 @@ import {
   LayoutDashboard,
   Dumbbell,
   Salad,
-  Trash2,
 } from 'lucide-react';
 import { Onboarding } from '@/components/Onboarding';
 import { ProfilePanel } from '@/components/ProfilePanel';
 import { Dashboard } from '@/components/Dashboard';
+import { PlanPage } from '@/components/PlanPage';
+import { DietPage } from '@/components/DietPage';
 import { detectInsights, wasSeenToday, markSeen } from '@/lib/insights';
 import { useVoice } from '@/components/useVoice';
 import {
@@ -32,7 +33,10 @@ import {
   type JarvisStore,
   type Profile,
   type MealEntry,
+  type MealSlot,
   type SetEntry,
+  type WorkoutSession,
+  newId,
   todayStr,
   timeStr,
 } from '@/lib/store';
@@ -54,179 +58,6 @@ const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: st
   { id: 'plan', label: 'Fitness Plan', icon: Dumbbell },
   { id: 'diet', label: 'Diet Tracker', icon: Salad },
 ];
-
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-/* ---------- Placeholder views (full builds land in the next step) ---------- */
-
-function PlaceholderCard({ title, note }: { title: string; note: string }) {
-  return (
-    <div className="border-2 border-dashed border-neutral-300 bg-neutral-50 px-6 py-10 text-center">
-      <div className="font-display text-sm uppercase tracking-[0.25em] text-neutral-400">{title}</div>
-      <div className="mx-auto mt-2 h-1 w-10 bg-red-600" />
-      <p className="mt-3 text-xs font-medium text-neutral-500">{note}</p>
-    </div>
-  );
-}
-
-function PlanView({ store, onDeleteSet }: { store: JarvisStore; onDeleteSet: (s: SetEntry) => void }) {
-  const weekday = new Date().getDay();
-  const today = todayStr();
-  const planToday = store.plan.find((p) => p.weekday === weekday);
-  const todaySets = store.sets.filter((s) => s.date === today);
-
-  return (
-    <div className="space-y-6">
-      <section className="border-2 border-black bg-white">
-        <div className="border-b-2 border-black px-4 py-2.5">
-          <h2 className="font-display text-xs uppercase tracking-[0.2em] text-black">Today · {WEEKDAYS[weekday]}</h2>
-        </div>
-        <div className="p-4">
-          {planToday && planToday.exercises.length > 0 ? (
-            <>
-              <div className="font-display text-lg uppercase tracking-wide text-black">{planToday.label}</div>
-              {planToday.focus && <div className="mt-0.5 text-xs font-medium text-neutral-500">{planToday.focus}</div>}
-              <ul className="mt-3 divide-y divide-neutral-200 border-t border-neutral-200">
-                {planToday.exercises.map((ex, i) => {
-                  const done = todaySets.some((s) => s.exercise.toLowerCase() === ex.name.toLowerCase());
-                  return (
-                    <li key={i} className="flex items-center gap-3 py-2.5">
-                      <span className={`h-2.5 w-2.5 shrink-0 ${done ? 'bg-red-600' : 'border-2 border-neutral-300'}`} />
-                      <span className={`flex-1 text-sm font-bold ${done ? 'text-neutral-400 line-through' : 'text-black'}`}>{ex.name}</span>
-                      {(ex.sets || ex.reps) && (
-                        <span className="font-display text-xs tabular-nums text-neutral-500">
-                          {ex.sets ?? ''}
-                          {ex.sets && ex.reps ? '×' : ''}
-                          {ex.reps ?? ''}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          ) : (
-            <p className="text-sm font-medium text-neutral-500">
-              {store.plan.length === 0 ? 'No plan yet — ask VALORIS to build one.' : 'Rest day. Recover hard.'}
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section className="border-2 border-black bg-white">
-        <div className="flex items-center justify-between border-b-2 border-black px-4 py-2.5">
-          <h2 className="font-display text-xs uppercase tracking-[0.2em] text-black">Sets Logged Today</h2>
-          <span className="font-display text-xs tabular-nums text-red-600">{todaySets.length}</span>
-        </div>
-        {todaySets.length > 0 ? (
-          <ul className="divide-y divide-neutral-200">
-            {todaySets.map((s, i) => (
-              <li key={i} className="flex items-center gap-3 px-4 py-2.5">
-                <span className="font-display text-[11px] tabular-nums text-neutral-400">{s.time}</span>
-                <span className="flex-1 text-sm font-bold text-black">{s.exercise}</span>
-                <span className="font-display text-xs tabular-nums text-neutral-600">
-                  {s.reps ?? '–'}×{s.weightKg ?? '–'}kg{s.rpe ? ` @${s.rpe}` : ''}
-                </span>
-                <button onClick={() => onDeleteSet(s)} className="text-neutral-300 transition-colors hover:text-red-600" aria-label={`Delete ${s.exercise} set`}>
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="px-4 py-4 text-sm font-medium text-neutral-500">Nothing logged yet — tell VALORIS as you lift.</p>
-        )}
-      </section>
-
-      <PlaceholderCard title="Full Weekly Planner" note="Editable week grid, per-day sessions, and exercise progressions land here next." />
-    </div>
-  );
-}
-
-function DietView({ store, onDeleteMeal }: { store: JarvisStore; onDeleteMeal: (m: MealEntry) => void }) {
-  const today = todayStr();
-  const meals = store.meals.filter((m) => m.date === today);
-  const water = store.water.filter((w) => w.date === today).reduce((a, w) => a + w.ml, 0);
-  const totals = meals.reduce(
-    (acc, m) => ({
-      calories: acc.calories + m.calories,
-      proteinG: acc.proteinG + m.proteinG,
-      carbsG: acc.carbsG + m.carbsG,
-      fatG: acc.fatG + m.fatG,
-    }),
-    { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 }
-  );
-  const p = store.profile;
-  const rows: { label: string; value: number; target: number; unit: string }[] = [
-    { label: 'Calories', value: Math.round(totals.calories), target: p.calorieTarget, unit: '' },
-    { label: 'Protein', value: Math.round(totals.proteinG), target: p.proteinTargetG, unit: 'g' },
-    { label: 'Carbs', value: Math.round(totals.carbsG), target: p.carbsTargetG, unit: 'g' },
-    { label: 'Fat', value: Math.round(totals.fatG), target: p.fatTargetG, unit: 'g' },
-    { label: 'Water', value: water, target: p.hydrationTargetMl, unit: 'ml' },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <section className="border-2 border-black bg-white">
-        <div className="border-b-2 border-black px-4 py-2.5">
-          <h2 className="font-display text-xs uppercase tracking-[0.2em] text-black">Today&apos;s Intake</h2>
-        </div>
-        <div className="space-y-3 p-4">
-          {rows.map((r) => {
-            const pct = r.target > 0 ? Math.min(100, Math.round((r.value / r.target) * 100)) : 0;
-            return (
-              <div key={r.label}>
-                <div className="mb-1 flex items-baseline justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-black">{r.label}</span>
-                  <span className="font-display text-xs tabular-nums text-neutral-600">
-                    {r.value}
-                    <span className="text-neutral-400">
-                      {' '}
-                      / {r.target}
-                      {r.unit}
-                    </span>
-                  </span>
-                </div>
-                <div className="h-2.5 w-full border border-black bg-white">
-                  <div className="h-full bg-red-600 transition-all duration-500" style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="border-2 border-black bg-white">
-        <div className="flex items-center justify-between border-b-2 border-black px-4 py-2.5">
-          <h2 className="font-display text-xs uppercase tracking-[0.2em] text-black">Meals</h2>
-          <span className="font-display text-xs tabular-nums text-red-600">{meals.length}</span>
-        </div>
-        {meals.length > 0 ? (
-          <ul className="divide-y divide-neutral-200">
-            {meals.map((m, i) => (
-              <li key={i} className="flex items-center gap-3 px-4 py-2.5">
-                <span className="font-display text-[11px] tabular-nums text-neutral-400">{m.time}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold text-black">{m.name}</span>
-                  <span className="block text-[11px] font-medium text-neutral-500">
-                    {Math.round(m.calories)} kcal · P{Math.round(m.proteinG)} C{Math.round(m.carbsG)} F{Math.round(m.fatG)}
-                  </span>
-                </span>
-                <button onClick={() => onDeleteMeal(m)} className="text-neutral-300 transition-colors hover:text-red-600" aria-label={`Delete ${m.name}`}>
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="px-4 py-4 text-sm font-medium text-neutral-500">No meals logged — tell VALORIS what you ate, or snap a photo.</p>
-        )}
-      </section>
-
-      <PlaceholderCard title="Full Diet Command" note="Meal history, macro analytics, and food templates land here next." />
-    </div>
-  );
-}
 
 /* ------------------------------ Page ------------------------------ */
 
@@ -295,6 +126,97 @@ export default function ValorisPage() {
       offerUndo(cur, 'Set removed');
     },
     [commitStore, offerUndo]
+  );
+
+  // One tap on a set box in the Fitness Plan logs a set (and opens today's
+  // session if none exists), mirroring what the voice tools do server-side.
+  const handleQuickLogSet = useCallback(
+    (exercise: string) => {
+      const cur = storeRef.current;
+      const now = new Date();
+      const date = todayStr(now);
+      let sessions = cur.sessions;
+      let session = sessions.find((s) => s.date === date && s.status === 'in_progress') ?? sessions.find((s) => s.date === date);
+      if (!session) {
+        const weekday = now.getDay();
+        const planDay = cur.plan.find((x) => x.weekday === weekday);
+        const fresh: WorkoutSession = {
+          id: newId(),
+          date,
+          weekday,
+          label: planDay?.label ?? 'Workout',
+          focus: planDay?.focus,
+          startedAt: timeStr(now),
+          completedAt: null,
+          status: 'in_progress',
+        };
+        session = fresh;
+        sessions = [...sessions, fresh];
+      }
+      const setNumber = cur.sets.filter((s) => s.date === date && s.exercise.toLowerCase() === exercise.toLowerCase()).length + 1;
+      commitStore({
+        ...cur,
+        sessions,
+        sets: [
+          ...cur.sets,
+          { date, time: timeStr(now), exercise, setNumber, reps: null, weightKg: null, rpe: null, sessionId: session.id },
+        ],
+      });
+    },
+    [commitStore]
+  );
+
+  // Un-ticking a set box removes the most recent set of that exercise today.
+  const handleUnlogSet = useCallback(
+    (exercise: string) => {
+      const cur = storeRef.current;
+      const date = todayStr();
+      let target = -1;
+      for (let i = 0; i < cur.sets.length; i++) {
+        const s = cur.sets[i];
+        if (s.date === date && s.exercise.toLowerCase() === exercise.toLowerCase()) target = i;
+      }
+      if (target < 0) return;
+      commitStore({ ...cur, sets: cur.sets.filter((_, i) => i !== target) });
+    },
+    [commitStore]
+  );
+
+  const handleCompleteWorkout = useCallback(() => {
+    const cur = storeRef.current;
+    const date = todayStr();
+    const open = cur.sessions.find((s) => s.date === date && s.status === 'in_progress');
+    if (!open) return;
+    commitStore({
+      ...cur,
+      sessions: cur.sessions.map((s) =>
+        s === open ? { ...s, status: 'completed' as const, completedAt: timeStr() } : s
+      ),
+    });
+  }, [commitStore]);
+
+  const handleAddMeal = useCallback(
+    (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; slot: MealSlot }) => {
+      const cur = storeRef.current;
+      const now = new Date();
+      commitStore({
+        ...cur,
+        meals: [...cur.meals, { date: todayStr(now), time: timeStr(now), ...meal }],
+      });
+    },
+    [commitStore]
+  );
+
+  const handleSetWater = useCallback(
+    (ml: number) => {
+      const cur = storeRef.current;
+      const date = todayStr();
+      commitStore({
+        ...cur,
+        water: [...cur.water.filter((w) => w.date !== date), ...(ml > 0 ? [{ date, ml }] : [])],
+      });
+    },
+    [commitStore]
   );
 
   const flashNotice = useCallback((msg: string) => {
@@ -706,8 +628,19 @@ export default function ValorisPage() {
           </div>
           <div key={view} className="view-in">
             {view === 'dashboard' && <Dashboard store={store} />}
-            {view === 'plan' && <PlanView store={store} onDeleteSet={handleDeleteSet} />}
-            {view === 'diet' && <DietView store={store} onDeleteMeal={handleDeleteMeal} />}
+            {view === 'plan' && (
+              <PlanPage
+                store={store}
+                onLogSet={handleQuickLogSet}
+                onUnlogSet={handleUnlogSet}
+                onDeleteSet={handleDeleteSet}
+                onCompleteWorkout={handleCompleteWorkout}
+                onEditProfile={() => setProfileOpen(true)}
+              />
+            )}
+            {view === 'diet' && (
+              <DietPage store={store} onAddMeal={handleAddMeal} onDeleteMeal={handleDeleteMeal} onSetWater={handleSetWater} />
+            )}
           </div>
         </div>
       </main>
