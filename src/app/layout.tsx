@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Exo_2 } from 'next/font/google';
 import './globals.css';
 import { RegisterSW } from '@/components/RegisterSW';
+import { AuthProvider } from '@/components/AuthProvider';
 
 export const metadata: Metadata = {
   title: 'VALORIS',
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${exo.variable}`}>
       <body className="bg-white font-sans text-black antialiased">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         <RegisterSW />
       </body>
     </html>

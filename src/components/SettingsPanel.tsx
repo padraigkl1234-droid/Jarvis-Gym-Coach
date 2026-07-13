@@ -1,13 +1,82 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Trash2, FileText, Download, Upload, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
+import { X, Trash2, FileText, Download, Upload, AlertTriangle, LogIn, LogOut } from 'lucide-react';
 import { type MemoryEntry, type MemoryCategory, MEMORY_CATEGORIES } from '@/lib/store';
 import { Chip, Field, inputClass } from '@/components/formBits';
 
 export interface Prefs {
   voiceReplies: boolean;
   bootAnimation: boolean;
+}
+
+/** Google account block: sign in / signed-in identity / not-configured note. */
+function AccountSection() {
+  const { data: session, status } = useSession();
+  const [googleReady, setGoogleReady] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/providers')
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((p: Record<string, unknown>) => setGoogleReady(Boolean(p && p.google)))
+      .catch(() => setGoogleReady(false));
+  }, []);
+
+  return (
+    <section className="border-2 border-black">
+      <div className="flex items-center justify-between border-b-2 border-black bg-neutral-50 px-4 py-2">
+        <span className="font-display text-[10px] uppercase tracking-[0.25em] text-black">Account</span>
+        {session?.user && <span className="h-2 w-2 bg-red-600" />}
+      </div>
+      {session?.user ? (
+        <div className="flex items-center gap-3 px-4 py-3">
+          {session.user.image ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={session.user.image} alt="" className="h-10 w-10 shrink-0 border-2 border-black object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-red-600 font-display text-white">
+              {(session.user.name ?? '?').slice(0, 1).toUpperCase()}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-bold text-black">{session.user.name}</div>
+            <div className="truncate text-[11px] font-medium text-neutral-500">{session.user.email}</div>
+          </div>
+          <button
+            onClick={() => signOut()}
+            className="flex shrink-0 items-center gap-1.5 border-2 border-black px-3 py-1.5 font-display text-[10px] uppercase tracking-[0.15em] text-black transition-colors hover:border-red-600 hover:text-red-600"
+          >
+            <LogOut className="h-3.5 w-3.5" /> Sign out
+          </button>
+        </div>
+      ) : googleReady ? (
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold uppercase tracking-wide text-black">Google account</div>
+            <div className="text-[11px] font-medium text-neutral-500">Sign in with your own Google profile</div>
+          </div>
+          <button
+            onClick={() => signIn('google')}
+            disabled={status === 'loading'}
+            className="flex shrink-0 items-center gap-1.5 bg-red-600 px-4 py-2 font-display text-[10px] uppercase tracking-[0.15em] text-white transition-colors hover:bg-red-700 disabled:bg-neutral-300"
+          >
+            <LogIn className="h-3.5 w-3.5" /> Sign in with Google
+          </button>
+        </div>
+      ) : googleReady === false ? (
+        <div className="px-4 py-3">
+          <div className="text-sm font-bold uppercase tracking-wide text-black">Google sign-in — not configured</div>
+          <div className="mt-1 text-[11px] font-medium leading-relaxed text-neutral-500">
+            Add <span className="font-bold text-black">GOOGLE_CLIENT_ID</span>, <span className="font-bold text-black">GOOGLE_CLIENT_SECRET</span> and{' '}
+            <span className="font-bold text-black">AUTH_SECRET</span> in Vercel project settings, redeploy, and the sign-in button appears here.
+          </div>
+        </div>
+      ) : (
+        <div className="px-4 py-3 text-[11px] font-medium text-neutral-400">Checking sign-in availability…</div>
+      )}
+    </section>
+  );
 }
 
 function ToggleRow({
@@ -125,6 +194,8 @@ export function SettingsPanel({
         </div>
 
         <div className="space-y-5 px-6 py-5 sm:px-7">
+          <AccountSection />
+
           {/* Preferences */}
           <section className="border-2 border-black">
             <SectionHeader label="Preferences" />
