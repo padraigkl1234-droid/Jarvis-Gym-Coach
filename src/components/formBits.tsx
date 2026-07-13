@@ -45,3 +45,25 @@ export const LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
 export const DAYS = [2, 3, 4, 5, 6];
 export const EQUIPMENT = ['Full gym', 'Barbell', 'Dumbbells', 'Kettlebells', 'Resistance bands', 'Bodyweight only'];
 export const SEXES = ['Male', 'Female', 'Other'];
+export const TRAINING_TIMES = ['Early morning', 'Morning', 'Lunchtime', 'Evening', 'Late night'];
+export const DIET_STYLES = ['No preference', 'High protein', 'Vegetarian', 'Vegan', 'Pescatarian', 'Halal', 'Keto'];
+
+/** A labelled numeric input so filled values stay identifiable (age vs height vs weight). */
+export function LabeledInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1 font-display text-[8px] uppercase tracking-[0.18em] text-neutral-500">{label}</div>
+      <input value={value} onChange={(e) => onChange(e.target.value)} inputMode="numeric" placeholder={placeholder ?? '—'} className={inputClass} />
+    </div>
+  );
+}

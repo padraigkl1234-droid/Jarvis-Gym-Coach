@@ -79,6 +79,10 @@ const updateProfileTool = ai.defineTool(
       heightCm: z.number().optional(),
       age: z.number().optional(),
       sex: z.string().optional(),
+      trainingTimePref: z.string().optional().describe('When they prefer to train, e.g. "Evening"'),
+      dietaryStyle: z.string().optional().describe('e.g. "High protein", "Vegetarian", "Halal"'),
+      interests: z.string().optional().describe('Sports and activities they enjoy'),
+      coachNotes: z.string().optional().describe('Life context worth coaching around, e.g. stressful job, kids, travel'),
       calorieTarget: z.number().optional(),
       proteinTargetG: z.number().optional(),
       carbsTargetG: z.number().optional(),
@@ -582,6 +586,10 @@ function buildContextBlock(now: Date): string {
     p2.heightCm ? `${p2.heightCm}cm` : null,
     p2.age ? `${p2.age}y` : null,
     p2.sex || null,
+    p2.trainingTimePref ? `prefers training: ${p2.trainingTimePref.toLowerCase()}` : null,
+    p2.dietaryStyle && p2.dietaryStyle !== 'No preference' ? `dietary style: ${p2.dietaryStyle}` : null,
+    p2.interests ? `interests: ${p2.interests}` : null,
+    p2.coachNotes ? `life context: ${p2.coachNotes}` : null,
   ]
     .filter(Boolean)
     .join(', ');
@@ -723,6 +731,9 @@ export async function runJarvisChat(
     messages,
     prompt: message,
     tools: TOOLS,
+    // Latency: skip Gemini's internal "thinking" phase and cap reply length —
+    // coaching turns are short spoken sentences, not essays.
+    config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 500 },
   });
 
   return { reply: response.text.trim(), store: working };

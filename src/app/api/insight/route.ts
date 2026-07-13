@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     const response = await ai.generate({
       system: `You are VALORIS, a personal AI performance coach. Write ONE proactive nudge to your athlete based on a pattern you spotted in their recent data. Rules: maximum two short sentences, spoken-aloud style, no markdown or emoji, use the concrete numbers you are given, address ${name} directly, end with one specific action for today. Confident and warm, never scolding.`,
       prompt: `Pattern detected: ${kind}. Athlete goal: ${goal || 'not set'}. Facts: ${JSON.stringify(facts)}`,
+      config: { thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 200 },
     });
 
     const message = response.text.trim();

@@ -3,12 +3,25 @@
 import React, { useState } from 'react';
 import { X, Calculator, ChevronLeft, ChevronRight } from 'lucide-react';
 import { type Profile, computeTargets } from '@/lib/store';
-import { Chip, Field, inputClass, GOALS, LEVELS, DAYS, EQUIPMENT, SEXES } from '@/components/formBits';
+import {
+  Chip,
+  Field,
+  inputClass,
+  LabeledInput,
+  GOALS,
+  LEVELS,
+  DAYS,
+  EQUIPMENT,
+  SEXES,
+  TRAINING_TIMES,
+  DIET_STYLES,
+} from '@/components/formBits';
 
 const STEPS = [
   { id: 'vitals', num: '01', label: 'Vitals', blurb: 'Identity & body metrics' },
   { id: 'blueprint', num: '02', label: 'Blueprint', blurb: 'Goals, experience & targets' },
   { id: 'arsenal', num: '03', label: 'Arsenal', blurb: 'Training loadout' },
+  { id: 'persona', num: '04', label: 'Persona', blurb: 'Needs, interests & style' },
 ] as const;
 
 export function ProfilePanel({
@@ -31,6 +44,10 @@ export function ProfilePanel({
   const [experience, setExperience] = useState(profile.experience ?? '');
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(profile.daysPerWeek ?? null);
   const [equipment, setEquipment] = useState<string[]>(profile.equipment ?? []);
+  const [trainingTimePref, setTrainingTimePref] = useState(profile.trainingTimePref ?? '');
+  const [dietaryStyle, setDietaryStyle] = useState(profile.dietaryStyle ?? '');
+  const [interests, setInterests] = useState(profile.interests ?? '');
+  const [coachNotes, setCoachNotes] = useState(profile.coachNotes ?? '');
 
   const [calorieTarget, setCalorieTarget] = useState(profile.calorieTarget.toString());
   const [proteinTargetG, setProteinTargetG] = useState(profile.proteinTargetG.toString());
@@ -80,6 +97,10 @@ export function ProfilePanel({
       heightCm: num(heightCm),
       age: num(age),
       sex: sex || undefined,
+      trainingTimePref: trainingTimePref || undefined,
+      dietaryStyle: dietaryStyle || undefined,
+      interests: interests.trim() || undefined,
+      coachNotes: coachNotes.trim() || undefined,
       calorieTarget: int(calorieTarget, profile.calorieTarget),
       proteinTargetG: int(proteinTargetG, profile.proteinTargetG),
       carbsTargetG: int(carbsTargetG, profile.carbsTargetG),
@@ -109,7 +130,7 @@ export function ProfilePanel({
 
         {/* Step rail */}
         <div className="mt-5 px-6 sm:px-7">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {STEPS.map((s, i) => {
               const active = i === step;
               const done = i < step;
@@ -126,7 +147,7 @@ export function ProfilePanel({
                   }`}
                 >
                   <div className="font-display text-[9px] tracking-[0.2em]">{s.num}</div>
-                  <div className="font-display text-[11px] uppercase tracking-[0.2em]">{s.label}</div>
+                  <div className="truncate font-display text-[10px] uppercase tracking-[0.06em] sm:text-[11px] sm:tracking-[0.15em]">{s.label}</div>
                 </button>
               );
             })}
@@ -159,9 +180,9 @@ export function ProfilePanel({
               </Field>
               <Field label="Body metrics">
                 <div className="grid grid-cols-3 gap-2">
-                  <input value={age} onChange={(e) => setAge(e.target.value)} inputMode="numeric" placeholder="Age" className={inputClass} />
-                  <input value={heightCm} onChange={(e) => setHeightCm(e.target.value)} inputMode="numeric" placeholder="Height cm" className={inputClass} />
-                  <input value={bodyweightKg} onChange={(e) => setBodyweightKg(e.target.value)} inputMode="numeric" placeholder="Weight kg" className={inputClass} />
+                  <LabeledInput label="Age · yrs" value={age} onChange={setAge} placeholder="25" />
+                  <LabeledInput label="Height · cm" value={heightCm} onChange={setHeightCm} placeholder="180" />
+                  <LabeledInput label="Weight · kg" value={bodyweightKg} onChange={setBodyweightKg} placeholder="80" />
                 </div>
               </Field>
             </div>
@@ -239,6 +260,50 @@ export function ProfilePanel({
                   ? `Loadout registered: ${equipment.join(', ')}. VALORIS will build and adapt your plan around this.`
                   : 'Nothing selected — VALORIS will assume bodyweight-only until you register equipment.'}
               </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-5">
+              <Field label="When do you prefer to train?">
+                <div className="flex flex-wrap gap-2">
+                  {TRAINING_TIMES.map((t) => (
+                    <Chip key={t} active={trainingTimePref === t} onClick={() => setTrainingTimePref(trainingTimePref === t ? '' : t)}>
+                      {t}
+                    </Chip>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Dietary style">
+                <div className="flex flex-wrap gap-2">
+                  {DIET_STYLES.map((d) => (
+                    <Chip key={d} active={dietaryStyle === d} onClick={() => setDietaryStyle(dietaryStyle === d ? '' : d)}>
+                      {d}
+                    </Chip>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Sports & interests">
+                <textarea
+                  value={interests}
+                  onChange={(e) => setInterests(e.target.value)}
+                  rows={2}
+                  placeholder="e.g. Five-a-side football, hiking, boxing, golf"
+                  className={`${inputClass} resize-none`}
+                />
+              </Field>
+              <Field label="Anything else VALORIS should know?">
+                <textarea
+                  value={coachNotes}
+                  onChange={(e) => setCoachNotes(e.target.value)}
+                  rows={2}
+                  placeholder="e.g. Stressful job, two young kids, travels a lot for work, hates cardio"
+                  className={`${inputClass} resize-none`}
+                />
+              </Field>
+              <p className="text-[11px] font-medium leading-relaxed text-neutral-400">
+                VALORIS reads all of this every conversation — plans, meal advice, and tone adapt to who you are.
+              </p>
             </div>
           )}
 

@@ -9,7 +9,7 @@ import {
   computeTargets,
   todayStr,
 } from '@/lib/store';
-import { Chip, Field, inputClass, GOALS, LEVELS, DAYS, EQUIPMENT, SEXES } from '@/components/formBits';
+import { Chip, Field, inputClass, LabeledInput, GOALS, LEVELS, DAYS, EQUIPMENT, SEXES } from '@/components/formBits';
 
 function splitItems(text: string): string[] {
   return text
@@ -140,9 +140,9 @@ export function Onboarding({ onComplete }: { onComplete: (patch: Partial<JarvisS
 
           <Field label="Body stats (optional — sharpens your targets)">
             <div className="grid grid-cols-3 gap-2">
-              <input value={age} onChange={(e) => setAge(e.target.value)} inputMode="numeric" placeholder="Age" className={inputClass} />
-              <input value={heightCm} onChange={(e) => setHeightCm(e.target.value)} inputMode="numeric" placeholder="Height cm" className={inputClass} />
-              <input value={bodyweightKg} onChange={(e) => setBodyweightKg(e.target.value)} inputMode="numeric" placeholder="Weight kg" className={inputClass} />
+              <LabeledInput label="Age · yrs" value={age} onChange={setAge} placeholder="25" />
+              <LabeledInput label="Height · cm" value={heightCm} onChange={setHeightCm} placeholder="180" />
+              <LabeledInput label="Weight · kg" value={bodyweightKg} onChange={setBodyweightKg} placeholder="80" />
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
               {SEXES.map((s) => (

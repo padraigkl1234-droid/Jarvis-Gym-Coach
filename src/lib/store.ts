@@ -18,6 +18,10 @@ export interface Profile {
   heightCm?: number;
   age?: number;
   sex?: string; // Male | Female | Other
+  trainingTimePref?: string; // when they prefer to train, e.g. "Evening"
+  dietaryStyle?: string; // e.g. "High protein", "Vegetarian"
+  interests?: string; // sports & activities they enjoy
+  coachNotes?: string; // anything else VALORIS should know about them
   calorieTarget: number;
   proteinTargetG: number;
   carbsTargetG: number;

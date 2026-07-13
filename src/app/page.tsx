@@ -84,9 +84,11 @@ export default function ValorisPage() {
     proteinG: number;
     carbsG: number;
     fatG: number;
+    confidence?: 'low' | 'medium' | 'high';
     note: string;
+    photo?: string; // the analysed image, shown in the confirm card
   } | null>(null);
-  const [analysingPhoto, setAnalysingPhoto] = useState(false);
+  const [analysingPhoto, setAnalysingPhoto] = useState<string | null>(null); // holds the photo while analysing
 
   const storeRef = useRef<JarvisStore>(DEFAULT_STORE);
   const prefsRef = useRef<Prefs>({ voiceReplies: true, bootAnimation: true });
@@ -301,7 +303,6 @@ export default function ValorisPage() {
       const file = e.target.files?.[0];
       e.target.value = '';
       if (!file) return;
-      setAnalysingPhoto(true);
       try {
         // Preferred path: decode + downscale to a small JPEG.
         const downscale = () =>
@@ -346,6 +347,7 @@ export default function ValorisPage() {
         } catch {
           image = await rawDataUrl();
         }
+        setAnalysingPhoto(image);
 
         const res = await fetch('/api/vision-food', {
           method: 'POST',
@@ -360,12 +362,12 @@ export default function ValorisPage() {
         } else if (!data.found) {
           flashNotice(data.note || 'No food detected in that photo.');
         } else {
-          setFoodConfirm(data);
+          setFoodConfirm({ ...data, photo: image });
         }
       } catch (err) {
         flashNotice(`That image could not be read${err instanceof Error && err.message ? ` (${err.message})` : ''}.`);
       } finally {
-        setAnalysingPhoto(false);
+        setAnalysingPhoto(null);
       }
     },
     [flashNotice]
@@ -739,28 +741,63 @@ export default function ValorisPage() {
       <div className="fixed inset-x-0 bottom-[64px] z-30 border-t-2 border-black bg-white lg:bottom-0 lg:left-60">
         {/* Transient overlays float above the bar so nothing shifts */}
         <div className="pointer-events-none absolute inset-x-0 bottom-full flex flex-col items-center gap-2 px-4 pb-2">
+          {analysingPhoto && !foodConfirm && (
+            <div className="pointer-events-auto flex w-full max-w-xl items-center gap-3 border-2 border-black bg-white p-3 shadow-[6px_6px_0_0_rgba(0,0,0,0.15)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={analysingPhoto} alt="Meal being analysed" className="h-14 w-14 shrink-0 border-2 border-black object-cover" />
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-[10px] uppercase tracking-[0.2em] text-red-600">Vision · Analysing</div>
+                <div className="mt-0.5 text-xs font-medium text-neutral-600">Identifying the meal and estimating macros…</div>
+                <div className="relative mt-2 h-1 overflow-hidden bg-neutral-200">
+                  <div className="wizard-scan absolute inset-y-0 w-full" />
+                </div>
+              </div>
+            </div>
+          )}
           {foodConfirm && (
             <div className="pointer-events-auto w-full max-w-xl border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_rgba(0,0,0,0.15)]">
-              <div className="font-display text-[10px] uppercase tracking-[0.2em] text-red-600">Vision · Meal Detected</div>
-              <div className="mt-1 text-sm font-medium text-black">
-                I detected <span className="font-bold">{foodConfirm.name}</span> (~{foodConfirm.calories} kcal
-                <span className="text-neutral-500">
-                  {' '}
-                  · P{foodConfirm.proteinG} C{foodConfirm.carbsG} F{foodConfirm.fatG}
-                </span>
-                ). Log this?
+              <div className="flex items-start gap-3">
+                {foodConfirm.photo && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={foodConfirm.photo} alt={foodConfirm.name} className="h-16 w-16 shrink-0 border-2 border-black object-cover" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-display text-[10px] uppercase tracking-[0.2em] text-red-600">Vision · Meal Detected</span>
+                    {foodConfirm.confidence && (
+                      <span
+                        className={`shrink-0 px-1.5 py-0.5 font-display text-[8px] uppercase tracking-widest ${
+                          foodConfirm.confidence === 'high'
+                            ? 'bg-black text-white'
+                            : foodConfirm.confidence === 'medium'
+                            ? 'border border-black text-black'
+                            : 'border border-neutral-300 text-neutral-400'
+                        }`}
+                      >
+                        {foodConfirm.confidence} confidence
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 truncate text-base font-bold uppercase tracking-wide text-black">{foodConfirm.name}</div>
+                  <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] font-bold tabular-nums text-neutral-700">
+                    <span className="text-red-600">{foodConfirm.calories} kcal</span>
+                    <span>P {foodConfirm.proteinG}g</span>
+                    <span>C {foodConfirm.carbsG}g</span>
+                    <span>F {foodConfirm.fatG}g</span>
+                  </div>
+                </div>
               </div>
-              {foodConfirm.note && <div className="mt-1 text-[11px] font-medium text-neutral-500">{foodConfirm.note}</div>}
+              {foodConfirm.note && <div className="mt-2 text-[11px] font-medium text-neutral-500">{foodConfirm.note}</div>}
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={handleLogDetectedMeal}
-                  className="bg-red-600 px-5 py-1.5 font-display text-[11px] uppercase tracking-[0.15em] text-white transition-colors hover:bg-red-700"
+                  className="flex-1 bg-red-600 px-5 py-2 font-display text-[11px] uppercase tracking-[0.15em] text-white transition-colors hover:bg-red-700"
                 >
                   Log it
                 </button>
                 <button
                   onClick={() => setFoodConfirm(null)}
-                  className="border-2 border-black px-5 py-1.5 font-display text-[11px] uppercase tracking-[0.15em] text-black transition-colors hover:bg-neutral-100"
+                  className="border-2 border-black px-5 py-2 font-display text-[11px] uppercase tracking-[0.15em] text-black transition-colors hover:bg-neutral-100"
                 >
                   Dismiss
                 </button>
@@ -785,6 +822,16 @@ export default function ValorisPage() {
               <button onClick={handleUndo} className="font-display text-[11px] uppercase tracking-[0.15em] text-red-600 transition-colors hover:text-red-700">
                 Undo
               </button>
+            </div>
+          )}
+          {isThinking && (
+            <div className="pointer-events-auto flex items-center gap-2 border-2 border-black bg-black px-3.5 py-1.5 shadow-[4px_4px_0_0_rgba(220,38,38,0.35)]">
+              <span className="flex gap-1">
+                <span className="h-1.5 w-1.5 animate-pulse bg-red-600" />
+                <span className="h-1.5 w-1.5 animate-pulse bg-red-600 [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 animate-pulse bg-red-600 [animation-delay:300ms]" />
+              </span>
+              <span className="font-display text-[10px] uppercase tracking-[0.25em] text-white">Valoris processing</span>
             </div>
           )}
           {liveCaptionText && (
@@ -817,7 +864,7 @@ export default function ValorisPage() {
           <button
             type="button"
             onClick={() => imageInputRef.current?.click()}
-            disabled={analysingPhoto}
+            disabled={!!analysingPhoto}
             className={`flex h-10 w-10 shrink-0 items-center justify-center border-2 transition-colors ${
               analysingPhoto ? 'animate-pulse border-red-600 bg-red-50 text-red-600' : 'border-black bg-white text-black hover:border-red-600 hover:text-red-600'
             }`}

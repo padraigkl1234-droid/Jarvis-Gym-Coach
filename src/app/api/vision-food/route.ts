@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
         'You are a sports nutritionist analysing a photo of food. Identify the meal, estimate portion size from visual cues (plate size, utensils), and estimate calories and macros. Round numbers sensibly; the name should be short and dish-like. If the photo does not show food or drink, set found to false and explain in note.',
       prompt: [{ media: { url: image } }, { text: 'Identify this food and estimate its macros.' }],
       output: { schema: VisionResult },
+      // Skip the thinking phase — photo answers should come back fast.
+      config: { thinkingConfig: { thinkingBudget: 0 } },
     });
 
     let parsed = response.output;
