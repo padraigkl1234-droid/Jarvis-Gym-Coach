@@ -321,7 +321,16 @@ export function SettingsPanel({
             <span>Valoris · Performance System</span>
             <span className={subscriptionTier === 'premium' ? 'text-red-600' : ''}>{subscriptionTier} tier</span>
           </div>
-          <p className="-mt-4 pb-2 text-[10px] font-medium text-neutral-400">All data stays on this device.</p>
+          <p className="-mt-4 text-[10px] font-medium text-neutral-400">All data stays on this device.</p>
+          <div className="-mt-2 flex items-center gap-3 pb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-400">
+            <a href="/privacy" target="_blank" rel="noreferrer" className="hover:text-red-600">
+              Privacy Policy
+            </a>
+            <span className="text-neutral-300">·</span>
+            <a href="/terms" target="_blank" rel="noreferrer" className="hover:text-red-600">
+              Terms of Service
+            </a>
+          </div>
         </div>
       </div>
     </div>
