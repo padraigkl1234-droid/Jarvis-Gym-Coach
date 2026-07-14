@@ -114,8 +114,11 @@ const setPlanDaysTool = ai.defineTool(
           exercises: z.array(
             z.object({
               name: z.string(),
-              sets: z.number().optional(),
-              reps: z.string().optional().describe('e.g. "5", "8-12", "3x30s"'),
+              type: z.enum(['strength', 'cardio']).optional().describe('Defaults to strength. Use cardio for running, cycling, rowing, etc.'),
+              sets: z.number().optional().describe('Strength exercises only'),
+              reps: z.string().optional().describe('Strength exercises only, e.g. "5", "8-12", "3x30s"'),
+              durationMin: z.number().optional().describe('Cardio target duration in minutes'),
+              distanceKm: z.number().optional().describe('Cardio target distance in kilometres'),
               notes: z.string().optional(),
             })
           ),
@@ -264,16 +267,19 @@ const logWaterTool = ai.defineTool(
 const logSetTool = ai.defineTool(
   {
     name: 'logSet',
-    description: "Logs one completed set of an exercise (reps, weight, RPE) to today's workout.",
+    description:
+      "Logs one completed set of a strength exercise (reps, weight, RPE), or one cardio session (duration and/or distance), to today's workout. For cardio (running, cycling, rowing, etc.) pass durationMin and/or distanceKm instead of reps/weight.",
     inputSchema: z.object({
       exercise: z.string(),
       reps: z.number().optional(),
       weightKg: z.number().optional(),
       rpe: z.number().min(1).max(10).optional().describe('Rate of Perceived Exertion, 1-10'),
+      durationMin: z.number().optional().describe('Cardio: minutes performed, e.g. "ran for 25 minutes"'),
+      distanceKm: z.number().optional().describe('Cardio: distance covered in kilometres, e.g. "ran 5k"'),
     }),
     outputSchema: z.object({ setNumber: z.number() }),
   },
-  async ({ exercise, reps, weightKg, rpe }) => {
+  async ({ exercise, reps, weightKg, rpe, durationMin, distanceKm }) => {
     const now = new Date();
     const date = todayStr(now);
     const session = ensureTodaySession();
@@ -289,6 +295,8 @@ const logSetTool = ai.defineTool(
       reps: reps ?? null,
       weightKg: weightKg ?? null,
       rpe: rpe ?? null,
+      durationMin: durationMin ?? null,
+      distanceKm: distanceKm ?? null,
       sessionId: session.id,
     });
     return { setNumber };
@@ -381,17 +389,19 @@ const editSetTool = ai.defineTool(
   {
     name: 'editSet',
     description:
-      "Corrects a logged set's reps, weight, or RPE. Identify it by exercise name; defaults to the most recent matching set today (pass a date for a past day). Only pass the fields being changed.",
+      "Corrects a logged set's reps, weight, RPE, or (for cardio) duration/distance. Identify it by exercise name; defaults to the most recent matching set today (pass a date for a past day). Only pass the fields being changed.",
     inputSchema: z.object({
       exercise: z.string().optional().describe('Exercise name to match; omit to target the most recent set that day'),
       date: z.string().optional().describe('YYYY-MM-DD; defaults to today'),
       reps: z.number().optional(),
       weightKg: z.number().optional(),
       rpe: z.number().min(1).max(10).optional(),
+      durationMin: z.number().optional().describe('Cardio: minutes performed'),
+      distanceKm: z.number().optional().describe('Cardio: distance covered in kilometres'),
     }),
     outputSchema: z.object({ edited: z.boolean() }),
   },
-  async ({ exercise, date, reps, weightKg, rpe }) => {
+  async ({ exercise, date, reps, weightKg, rpe, durationMin, distanceKm }) => {
     const day = date || todayStr();
     const needle = (exercise ?? '').trim().toLowerCase();
     let target = -1;
@@ -405,6 +415,8 @@ const editSetTool = ai.defineTool(
       if (reps !== undefined) s.reps = reps;
       if (weightKg !== undefined) s.weightKg = weightKg;
       if (rpe !== undefined) s.rpe = rpe;
+      if (durationMin !== undefined) s.durationMin = durationMin;
+      if (distanceKm !== undefined) s.distanceKm = distanceKm;
       edited = true;
     }
     return { edited };
@@ -553,7 +565,15 @@ const TOOLS = [
 
 function describePlanDay(day: PlanDay): string {
   const exercises = day.exercises
-    .map((e) => `${e.name}${e.sets ? ` ${e.sets}x${e.reps ?? '?'}` : ''}${e.notes ? ` (${e.notes})` : ''}`)
+    .map((e) => {
+      if (e.type === 'cardio') {
+        const target = [e.durationMin ? `${e.durationMin} min` : null, e.distanceKm ? `${e.distanceKm} km` : null]
+          .filter(Boolean)
+          .join(' / ');
+        return `${e.name}${target ? ` (${target})` : ''}${e.notes ? ` (${e.notes})` : ''}`;
+      }
+      return `${e.name}${e.sets ? ` ${e.sets}x${e.reps ?? '?'}` : ''}${e.notes ? ` (${e.notes})` : ''}`;
+    })
     .join(', ');
   return `${day.label} — ${day.focus}. Exercises: ${exercises || 'none listed'}.`;
 }
@@ -597,7 +617,13 @@ function buildContextBlock(now: Date): string {
   const setsSummary =
     sets.length > 0
       ? sets
-          .map((s) => `${s.exercise} set ${s.setNumber}: ${s.reps ?? '?'} reps @ ${s.weightKg ?? '?'}kg (RPE ${s.rpe ?? '?'})`)
+          .map((s) =>
+            s.durationMin != null || s.distanceKm != null
+              ? `${s.exercise}: ${s.durationMin != null ? `${s.durationMin} min` : ''}${
+                  s.durationMin != null && s.distanceKm != null ? ' / ' : ''
+                }${s.distanceKm != null ? `${s.distanceKm} km` : ''}`
+              : `${s.exercise} set ${s.setNumber}: ${s.reps ?? '?'} reps @ ${s.weightKg ?? '?'}kg (RPE ${s.rpe ?? '?'})`
+          )
           .join('; ')
       : 'None yet today.';
 

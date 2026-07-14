@@ -2,15 +2,18 @@
 
 import React, { useMemo, useState } from 'react';
 import { Check, Trash2, Flag, CheckCircle2, Pencil, Plus } from 'lucide-react';
-import { type JarvisStore, type PlanDay, type SetEntry, todayStr } from '@/lib/store';
+import { type ExerciseType, type JarvisStore, type PlanDay, type SetEntry, todayStr } from '@/lib/store';
 
 const DAYS_SHORT = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const DAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 interface ExerciseDraft {
   name: string;
+  type: ExerciseType;
   sets: string;
   reps: string;
+  durationMin: string;
+  distanceKm: string;
 }
 
 /** Inline editor for one weekday's session — build, rewrite, or clear it. */
@@ -31,8 +34,15 @@ function DayEditor({
   const [focus, setFocus] = useState(initial?.focus ?? '');
   const [rows, setRows] = useState<ExerciseDraft[]>(
     initial && initial.exercises.length > 0
-      ? initial.exercises.map((e) => ({ name: e.name, sets: e.sets?.toString() ?? '', reps: e.reps ?? '' }))
-      : [{ name: '', sets: '3', reps: '8-10' }]
+      ? initial.exercises.map((e) => ({
+          name: e.name,
+          type: e.type ?? 'strength',
+          sets: e.sets?.toString() ?? '',
+          reps: e.reps ?? '',
+          durationMin: e.durationMin?.toString() ?? '',
+          distanceKm: e.distanceKm?.toString() ?? '',
+        }))
+      : [{ name: '', type: 'strength', sets: '3', reps: '8-10', durationMin: '', distanceKm: '' }]
   );
 
   const setRow = (i: number, patch: Partial<ExerciseDraft>) =>
@@ -49,8 +59,23 @@ function DayEditor({
       exercises: rows
         .filter((r) => r.name.trim())
         .map((r) => {
+          if (r.type === 'cardio') {
+            const durationMin = parseFloat(r.durationMin);
+            const distanceKm = parseFloat(r.distanceKm);
+            return {
+              name: r.name.trim(),
+              type: 'cardio' as const,
+              durationMin: Number.isFinite(durationMin) && durationMin > 0 ? durationMin : undefined,
+              distanceKm: Number.isFinite(distanceKm) && distanceKm > 0 ? distanceKm : undefined,
+            };
+          }
           const sets = parseInt(r.sets, 10);
-          return { name: r.name.trim(), sets: Number.isFinite(sets) && sets > 0 ? sets : undefined, reps: r.reps.trim() || undefined };
+          return {
+            name: r.name.trim(),
+            type: 'strength' as const,
+            sets: Number.isFinite(sets) && sets > 0 ? sets : undefined,
+            reps: r.reps.trim() || undefined,
+          };
         }),
     });
     onClose();
@@ -73,30 +98,69 @@ function DayEditor({
       </div>
 
       <div>
-        <div className="mb-1 grid grid-cols-[1fr_64px_88px_36px] gap-2 font-display text-[9px] uppercase tracking-[0.2em] text-neutral-500">
-          <span>Exercise</span>
-          <span className="text-center">Sets</span>
-          <span className="text-center">Reps</span>
-          <span />
-        </div>
+        <div className="mb-1 font-display text-[9px] uppercase tracking-[0.2em] text-neutral-500">Exercises</div>
         <div className="space-y-2">
           {rows.map((r, i) => (
-            <div key={i} className="grid grid-cols-[1fr_64px_88px_36px] items-center gap-2">
-              <input value={r.name} onChange={(e) => setRow(i, { name: e.target.value })} placeholder="Exercise name" className={`${fieldCls} w-full`} />
-              <input value={r.sets} onChange={(e) => setRow(i, { sets: e.target.value })} inputMode="numeric" placeholder="3" className={`${fieldCls} w-full text-center`} />
-              <input value={r.reps} onChange={(e) => setRow(i, { reps: e.target.value })} placeholder="8-10" className={`${fieldCls} w-full text-center`} />
-              <button
-                onClick={() => setRows((cur) => (cur.length > 1 ? cur.filter((_, k) => k !== i) : cur))}
-                className="flex h-9 w-9 items-center justify-center text-neutral-300 transition-colors hover:text-red-600"
-                aria-label={`Remove exercise ${i + 1}`}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+            <div key={i} className="space-y-1.5 border-2 border-neutral-200 p-2">
+              <div className="flex items-center gap-2">
+                <input
+                  value={r.name}
+                  onChange={(e) => setRow(i, { name: e.target.value })}
+                  placeholder="Exercise name"
+                  className={`${fieldCls} w-full flex-1`}
+                />
+                <div className="flex shrink-0 border-2 border-black font-display text-[9px] uppercase tracking-[0.1em]">
+                  <button
+                    type="button"
+                    onClick={() => setRow(i, { type: 'strength' })}
+                    className={`px-2 py-2 transition-colors ${r.type === 'cardio' ? 'bg-white text-neutral-400 hover:text-black' : 'bg-black text-white'}`}
+                  >
+                    Strength
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRow(i, { type: 'cardio' })}
+                    className={`border-l-2 border-black px-2 py-2 transition-colors ${r.type === 'cardio' ? 'bg-red-600 text-white' : 'bg-white text-neutral-400 hover:text-black'}`}
+                  >
+                    Cardio
+                  </button>
+                </div>
+                <button
+                  onClick={() => setRows((cur) => (cur.length > 1 ? cur.filter((_, k) => k !== i) : cur))}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center text-neutral-300 transition-colors hover:text-red-600"
+                  aria-label={`Remove exercise ${i + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              {r.type === 'cardio' ? (
+                <div className="flex gap-2">
+                  <input
+                    value={r.durationMin}
+                    onChange={(e) => setRow(i, { durationMin: e.target.value })}
+                    inputMode="decimal"
+                    placeholder="Minutes"
+                    className={`${fieldCls} w-full text-center`}
+                  />
+                  <input
+                    value={r.distanceKm}
+                    onChange={(e) => setRow(i, { distanceKm: e.target.value })}
+                    inputMode="decimal"
+                    placeholder="Km"
+                    className={`${fieldCls} w-full text-center`}
+                  />
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input value={r.sets} onChange={(e) => setRow(i, { sets: e.target.value })} inputMode="numeric" placeholder="Sets" className={`${fieldCls} w-full text-center`} />
+                  <input value={r.reps} onChange={(e) => setRow(i, { reps: e.target.value })} placeholder="Reps, e.g. 8-10" className={`${fieldCls} w-full text-center`} />
+                </div>
+              )}
             </div>
           ))}
         </div>
         <button
-          onClick={() => setRows((cur) => [...cur, { name: '', sets: '3', reps: '8-10' }])}
+          onClick={() => setRows((cur) => [...cur, { name: '', type: 'strength', sets: '3', reps: '8-10', durationMin: '', distanceKm: '' }])}
           className="mt-2 flex w-full items-center justify-center gap-1.5 border-2 border-dashed border-neutral-300 py-2 font-display text-[10px] uppercase tracking-[0.2em] text-neutral-500 transition-colors hover:border-red-600 hover:text-red-600"
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Add exercise
@@ -137,6 +201,7 @@ export function PlanPage({
   store,
   onLogSet,
   onUnlogSet,
+  onLogCardio,
   onDeleteSet,
   onCompleteWorkout,
   onEditProfile,
@@ -146,6 +211,7 @@ export function PlanPage({
   store: JarvisStore;
   onLogSet: (exercise: string) => void;
   onUnlogSet: (exercise: string) => void;
+  onLogCardio: (exercise: string, durationMin?: number, distanceKm?: number) => void;
   onDeleteSet: (set: SetEntry) => void;
   onCompleteWorkout: () => void;
   onEditProfile: () => void;
@@ -155,6 +221,7 @@ export function PlanPage({
   const todayWd = new Date().getDay();
   const [selectedWd, setSelectedWd] = useState(todayWd);
   const [editing, setEditing] = useState(false);
+  const [cardioDraft, setCardioDraft] = useState<Record<string, { min: string; km: string }>>({});
   const today = todayStr();
 
   const dayPlan = store.plan.find((p) => p.weekday === selectedWd);
@@ -165,6 +232,8 @@ export function PlanPage({
 
   const loggedCount = (exercise: string) =>
     todaySets.filter((s) => s.exercise.toLowerCase() === exercise.toLowerCase()).length;
+  const cardioLogsFor = (exercise: string) =>
+    todaySets.filter((s) => s.exercise.toLowerCase() === exercise.toLowerCase() && (s.durationMin != null || s.distanceKm != null));
 
   const p = store.profile;
 
@@ -267,6 +336,61 @@ export function PlanPage({
             </div>
             <ul className="divide-y divide-neutral-200">
               {dayPlan.exercises.map((ex, i) => {
+                if (ex.type === 'cardio') {
+                  const target = [ex.durationMin ? `${ex.durationMin} min` : null, ex.distanceKm ? `${ex.distanceKm} km` : null]
+                    .filter(Boolean)
+                    .join(' · ');
+                  const logs = isToday ? cardioLogsFor(ex.name) : [];
+                  const draft = cardioDraft[ex.name] ?? { min: '', km: '' };
+                  return (
+                    <li key={i} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold uppercase tracking-wide text-black">{ex.name}</div>
+                        {ex.notes && <div className="text-[11px] font-medium text-neutral-500">{ex.notes}</div>}
+                        <div className="mt-0.5 font-display text-[11px] tabular-nums text-neutral-500">
+                          Target: {target || '—'}
+                          {logs.length > 0 && (
+                            <span className="ml-2 text-red-600">
+                              · Logged: {logs.map((s) => [s.durationMin ? `${s.durationMin}min` : null, s.distanceKm ? `${s.distanceKm}km` : null].filter(Boolean).join('/')).join(', ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {isToday ? (
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <input
+                            value={draft.min}
+                            onChange={(e) => setCardioDraft((cur) => ({ ...cur, [ex.name]: { ...draft, min: e.target.value } }))}
+                            inputMode="decimal"
+                            placeholder="Min"
+                            className="w-14 border-2 border-black px-1.5 py-2 text-center text-sm font-medium text-black focus:border-red-600 focus:outline-none"
+                          />
+                          <input
+                            value={draft.km}
+                            onChange={(e) => setCardioDraft((cur) => ({ ...cur, [ex.name]: { ...draft, km: e.target.value } }))}
+                            inputMode="decimal"
+                            placeholder="Km"
+                            className="w-14 border-2 border-black px-1.5 py-2 text-center text-sm font-medium text-black focus:border-red-600 focus:outline-none"
+                          />
+                          <button
+                            onClick={() => {
+                              const min = parseFloat(draft.min);
+                              const km = parseFloat(draft.km);
+                              onLogCardio(ex.name, Number.isFinite(min) && min > 0 ? min : undefined, Number.isFinite(km) && km > 0 ? km : undefined);
+                              setCardioDraft((cur) => ({ ...cur, [ex.name]: { min: '', km: '' } }));
+                            }}
+                            disabled={!draft.min.trim() && !draft.km.trim()}
+                            className="flex h-9 items-center gap-1 bg-red-600 px-3 font-display text-[10px] uppercase tracking-[0.15em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                          >
+                            <Check className="h-3.5 w-3.5" strokeWidth={3.5} /> Log
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="font-display text-[10px] uppercase tracking-[0.15em] text-neutral-300">Opens on the day</span>
+                      )}
+                    </li>
+                  );
+                }
                 const targetSets = ex.sets ?? 3;
                 const logged = isToday ? loggedCount(ex.name) : 0;
                 const complete = logged >= targetSets;
@@ -341,7 +465,11 @@ export function PlanPage({
                 <span className="font-display text-[11px] tabular-nums text-neutral-400">{s.time}</span>
                 <span className="flex-1 truncate text-sm font-bold text-black">{s.exercise}</span>
                 <span className="font-display text-xs tabular-nums text-neutral-600">
-                  {s.reps != null || s.weightKg != null ? `${s.reps ?? '–'}×${s.weightKg ?? '–'}kg${s.rpe ? ` @${s.rpe}` : ''}` : `set ${s.setNumber}`}
+                  {s.durationMin != null || s.distanceKm != null
+                    ? [s.durationMin != null ? `${s.durationMin} min` : null, s.distanceKm != null ? `${s.distanceKm} km` : null].filter(Boolean).join(' · ')
+                    : s.reps != null || s.weightKg != null
+                    ? `${s.reps ?? '–'}×${s.weightKg ?? '–'}kg${s.rpe ? ` @${s.rpe}` : ''}`
+                    : `set ${s.setNumber}`}
                 </span>
                 <button onClick={() => onDeleteSet(s)} className="p-1 text-neutral-300 transition-colors hover:text-red-600" aria-label={`Delete ${s.exercise} set`}>
                   <Trash2 className="h-4 w-4" />

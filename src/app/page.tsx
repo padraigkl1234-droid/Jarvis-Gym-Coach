@@ -177,6 +177,54 @@ export default function ValorisPage() {
     [commitStore]
   );
 
+  // Logs one cardio session (duration and/or distance) for an exercise today.
+  const handleLogCardio = useCallback(
+    (exercise: string, durationMin?: number, distanceKm?: number) => {
+      const cur = storeRef.current;
+      const now = new Date();
+      const date = todayStr(now);
+      let sessions = cur.sessions;
+      let session = sessions.find((s) => s.date === date && s.status === 'in_progress') ?? sessions.find((s) => s.date === date);
+      if (!session) {
+        const weekday = now.getDay();
+        const planDay = cur.plan.find((x) => x.weekday === weekday);
+        const fresh: WorkoutSession = {
+          id: newId(),
+          date,
+          weekday,
+          label: planDay?.label ?? 'Workout',
+          focus: planDay?.focus,
+          startedAt: timeStr(now),
+          completedAt: null,
+          status: 'in_progress',
+        };
+        session = fresh;
+        sessions = [...sessions, fresh];
+      }
+      const setNumber = cur.sets.filter((s) => s.date === date && s.exercise.toLowerCase() === exercise.toLowerCase()).length + 1;
+      commitStore({
+        ...cur,
+        sessions,
+        sets: [
+          ...cur.sets,
+          {
+            date,
+            time: timeStr(now),
+            exercise,
+            setNumber,
+            reps: null,
+            weightKg: null,
+            rpe: null,
+            durationMin: durationMin ?? null,
+            distanceKm: distanceKm ?? null,
+            sessionId: session.id,
+          },
+        ],
+      });
+    },
+    [commitStore]
+  );
+
   // Un-ticking a set box removes the most recent set of that exercise today.
   const handleUnlogSet = useCallback(
     (exercise: string) => {
@@ -723,6 +771,7 @@ export default function ValorisPage() {
                 store={store}
                 onLogSet={handleQuickLogSet}
                 onUnlogSet={handleUnlogSet}
+                onLogCardio={handleLogCardio}
                 onDeleteSet={handleDeleteSet}
                 onCompleteWorkout={handleCompleteWorkout}
                 onEditProfile={() => setProfileOpen(true)}

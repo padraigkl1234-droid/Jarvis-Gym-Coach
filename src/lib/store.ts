@@ -29,10 +29,15 @@ export interface Profile {
   hydrationTargetMl: number;
 }
 
+export type ExerciseType = 'strength' | 'cardio';
+
 export interface PlannedExercise {
   name: string;
+  type?: ExerciseType; // defaults to 'strength' when absent
   sets?: number;
   reps?: string;
+  durationMin?: number; // cardio target duration
+  distanceKm?: number; // cardio target distance
   notes?: string;
 }
 
@@ -64,6 +69,8 @@ export interface SetEntry {
   reps: number | null;
   weightKg: number | null;
   rpe: number | null;
+  durationMin?: number | null; // cardio: minutes performed
+  distanceKm?: number | null; // cardio: distance covered
   sessionId?: string; // links this set to a WorkoutSession
 }
 
