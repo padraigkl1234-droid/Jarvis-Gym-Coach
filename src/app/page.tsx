@@ -141,8 +141,9 @@ export default function ValorisPage() {
 
   // One tap on a set box in the Fitness Plan logs a set (and opens today's
   // session if none exists), mirroring what the voice tools do server-side.
+  // The weight typed into that exercise's row travels with the tap.
   const handleQuickLogSet = useCallback(
-    (exercise: string) => {
+    (exercise: string, weightKg?: number) => {
       const cur = storeRef.current;
       const now = new Date();
       const date = todayStr(now);
@@ -170,7 +171,7 @@ export default function ValorisPage() {
         sessions,
         sets: [
           ...cur.sets,
-          { date, time: timeStr(now), exercise, setNumber, reps: null, weightKg: null, rpe: null, sessionId: session.id },
+          { date, time: timeStr(now), exercise, setNumber, reps: null, weightKg: weightKg ?? null, rpe: null, sessionId: session.id },
         ],
       });
     },

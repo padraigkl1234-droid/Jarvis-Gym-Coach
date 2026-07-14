@@ -209,7 +209,7 @@ export function PlanPage({
   onRemovePlanDay,
 }: {
   store: JarvisStore;
-  onLogSet: (exercise: string) => void;
+  onLogSet: (exercise: string, weightKg?: number) => void;
   onUnlogSet: (exercise: string) => void;
   onLogCardio: (exercise: string, durationMin?: number, distanceKm?: number) => void;
   onDeleteSet: (set: SetEntry) => void;
@@ -222,6 +222,7 @@ export function PlanPage({
   const [selectedWd, setSelectedWd] = useState(todayWd);
   const [editing, setEditing] = useState(false);
   const [cardioDraft, setCardioDraft] = useState<Record<string, { min: string; km: string }>>({});
+  const [weightDraft, setWeightDraft] = useState<Record<string, string>>({});
   const today = todayStr();
 
   const dayPlan = store.plan.find((p) => p.weekday === selectedWd);
@@ -234,6 +235,11 @@ export function PlanPage({
     todaySets.filter((s) => s.exercise.toLowerCase() === exercise.toLowerCase()).length;
   const cardioLogsFor = (exercise: string) =>
     todaySets.filter((s) => s.exercise.toLowerCase() === exercise.toLowerCase() && (s.durationMin != null || s.distanceKm != null));
+  // Prefills the weight box with whatever was last lifted for this exercise (today, or any past session).
+  const lastWeightFor = (exercise: string) => {
+    const matches = store.sets.filter((s) => s.exercise.toLowerCase() === exercise.toLowerCase() && s.weightKg != null);
+    return matches.length ? String(matches[matches.length - 1].weightKg) : '';
+  };
 
   const p = store.profile;
 
@@ -394,6 +400,10 @@ export function PlanPage({
                 const targetSets = ex.sets ?? 3;
                 const logged = isToday ? loggedCount(ex.name) : 0;
                 const complete = logged >= targetSets;
+                const todayExSets = isToday ? todaySets.filter((s) => s.exercise.toLowerCase() === ex.name.toLowerCase()) : [];
+                const weightVal = weightDraft[ex.name] ?? lastWeightFor(ex.name);
+                const weightNum = parseFloat(weightVal);
+                const nextWeightKg = Number.isFinite(weightNum) && weightNum > 0 ? weightNum : undefined;
                 return (
                   <li key={i} className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-2 px-4 py-3 sm:grid-cols-[1fr_90px_auto]">
                     <div className="min-w-0">
@@ -404,17 +414,41 @@ export function PlanPage({
                       <div className="mt-0.5 font-display text-[11px] tabular-nums text-neutral-500 sm:hidden">
                         {targetSets}×{ex.reps ?? '—'}
                       </div>
+                      {todayExSets.length > 0 && (
+                        <div className="mt-0.5 font-display text-[11px] tabular-nums text-red-600">
+                          Logged: {todayExSets.map((s) => (s.weightKg != null ? `${s.weightKg}kg` : '—')).join(', ')}
+                        </div>
+                      )}
                     </div>
                     <div className="hidden text-right font-display text-sm tabular-nums text-neutral-600 sm:block">
                       {targetSets}×{ex.reps ?? '—'}
                     </div>
                     <div className="flex items-center justify-end gap-1.5">
+                      {isToday && logged < targetSets && (
+                        <input
+                          value={weightVal}
+                          onChange={(e) => setWeightDraft((cur) => ({ ...cur, [ex.name]: e.target.value }))}
+                          inputMode="decimal"
+                          placeholder="Kg"
+                          aria-label={`${ex.name} weight in kg`}
+                          className="mr-1 w-14 border-2 border-black px-1.5 py-2 text-center text-sm font-medium text-black focus:border-red-600 focus:outline-none"
+                        />
+                      )}
                       {Array.from({ length: targetSets }, (_, k) => {
                         const filled = k < logged;
                         return (
                           <button
                             key={k}
-                            onClick={() => (isToday ? (filled && k === logged - 1 ? onUnlogSet(ex.name) : !filled && k === logged ? onLogSet(ex.name) : undefined) : undefined)}
+                            title={filled && todayExSets[k]?.weightKg != null ? `${todayExSets[k].weightKg}kg` : undefined}
+                            onClick={() =>
+                              isToday
+                                ? filled && k === logged - 1
+                                  ? onUnlogSet(ex.name)
+                                  : !filled && k === logged
+                                  ? onLogSet(ex.name, nextWeightKg)
+                                  : undefined
+                                : undefined
+                            }
                             disabled={!isToday || (filled ? k !== logged - 1 : k !== logged)}
                             aria-label={`${ex.name} set ${k + 1}${filled ? ' logged' : ''}`}
                             className={`flex h-10 w-10 items-center justify-center border-2 transition-colors ${
