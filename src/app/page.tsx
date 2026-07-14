@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Dumbbell,
   Salad,
+  Scale,
 } from 'lucide-react';
 import { Onboarding } from '@/components/Onboarding';
 import { ProfilePanel } from '@/components/ProfilePanel';
@@ -22,6 +23,7 @@ import { SplashIntro } from '@/components/SplashIntro';
 import { SettingsPanel, type Prefs } from '@/components/SettingsPanel';
 import { PlanPage } from '@/components/PlanPage';
 import { DietPage } from '@/components/DietPage';
+import { BodyPage } from '@/components/BodyPage';
 import { detectInsights, wasSeenToday, markSeen } from '@/lib/insights';
 import { useVoice } from '@/components/useVoice';
 import {
@@ -36,6 +38,7 @@ import {
   type MealSlot,
   type MemoryCategory,
   type MemoryEntry,
+  type MetricEntry,
   type PlanDay,
   type SetEntry,
   type WorkoutSession,
@@ -54,12 +57,13 @@ interface Caption {
   role: 'user' | 'jarvis';
 }
 
-type View = 'dashboard' | 'plan' | 'diet';
+type View = 'dashboard' | 'plan' | 'diet' | 'body';
 
 const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'plan', label: 'Fitness Plan', icon: Dumbbell },
   { id: 'diet', label: 'Diet Tracker', icon: Salad },
+  { id: 'body', label: 'Body Metrics', icon: Scale },
 ];
 
 /* ------------------------------ Page ------------------------------ */
@@ -135,6 +139,29 @@ export default function ValorisPage() {
       const cur = storeRef.current;
       commitStore({ ...cur, sets: cur.sets.filter((s) => s !== set) });
       offerUndo(cur, 'Set removed');
+    },
+    [commitStore, offerUndo]
+  );
+
+  // Logs a body measurement; a second save for the same date updates that entry rather than duplicating it.
+  const handleLogMetric = useCallback(
+    (patch: Partial<MetricEntry> & { date: string }) => {
+      const cur = storeRef.current;
+      const idx = cur.metrics.findIndex((m) => m.date === patch.date);
+      const metrics =
+        idx >= 0
+          ? cur.metrics.map((m, i) => (i === idx ? { ...m, ...patch } : m))
+          : [...cur.metrics, patch as MetricEntry];
+      commitStore({ ...cur, metrics });
+    },
+    [commitStore]
+  );
+
+  const handleDeleteMetric = useCallback(
+    (entry: MetricEntry) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, metrics: cur.metrics.filter((m) => m !== entry) });
+      offerUndo(cur, 'Measurement removed');
     },
     [commitStore, offerUndo]
   );
@@ -783,6 +810,7 @@ export default function ValorisPage() {
             {view === 'diet' && (
               <DietPage store={store} onAddMeal={handleAddMeal} onDeleteMeal={handleDeleteMeal} onSetWater={handleSetWater} />
             )}
+            {view === 'body' && <BodyPage store={store} onLogMetric={handleLogMetric} onDeleteMetric={handleDeleteMetric} />}
           </div>
         </div>
       </main>
@@ -939,7 +967,7 @@ export default function ValorisPage() {
       </div>
 
       {/* Mobile bottom navigation */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid h-[64px] grid-cols-3 border-t-2 border-black bg-white lg:hidden" aria-label="Primary">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid h-[64px] grid-cols-4 border-t-2 border-black bg-white lg:hidden" aria-label="Primary">
         {NAV.map((item) => {
           const active = view === item.id;
           return (

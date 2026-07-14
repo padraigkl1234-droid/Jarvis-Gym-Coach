@@ -10,7 +10,7 @@ const RED = '#DC2626';
 
 /* ---------------- Hero metric strip ---------------- */
 
-function MetricCard({
+export function MetricCard({
   label,
   value,
   sub,
@@ -39,7 +39,7 @@ function MetricCard({
 
 /* ---------------- Progress chart (inline SVG) ---------------- */
 
-function ProgressChart({ points, unit, title }: { points: { label: string; value: number }[]; unit: string; title: string }) {
+export function ProgressChart({ points, unit, title }: { points: { label: string; value: number }[]; unit: string; title: string }) {
   const W = 640;
   const H = 220;
   const PAD = { l: 44, r: 14, t: 14, b: 26 };
