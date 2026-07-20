@@ -82,6 +82,10 @@ function DayEditor({
 
   return (
     <div className="mt-4 space-y-4">
+      <div className="rounded-xl bg-clay-soft px-3.5 py-2.5 text-[12px] font-semibold leading-snug text-clay">
+        Repeats every {DAY_NAMES[weekday]}, every week — this replaces what&apos;s scheduled for {DAY_NAMES[weekday]} going forward, not just this
+        one date.
+      </div>
       <div>
         <div className="eyebrow mb-1.5 !text-[10px]">Session name</div>
         <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder='e.g. "Upper A"' className={fieldCls} />
@@ -261,7 +265,10 @@ export function MoveTab({
       {/* Session header */}
       <div className="mt-7 flex items-end justify-between">
         <div>
-          <Eyebrow clay>{isToday ? 'Today' : DAY_NAMES[selectedWd]}</Eyebrow>
+          <Eyebrow clay>
+            {isToday ? 'Today' : DAY_NAMES[selectedWd]}
+            {dayPlan && dayPlan.exercises.length > 0 ? ' · Repeats weekly' : ''}
+          </Eyebrow>
           <h2 className="mt-1 font-display text-[26px] text-ink">
             {dayPlan && dayPlan.exercises.length > 0 ? dayPlan.label : 'Rest day'}
           </h2>
