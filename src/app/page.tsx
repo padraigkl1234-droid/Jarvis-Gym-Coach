@@ -5,6 +5,7 @@ import { HomeTab } from '@/components/HomeTab';
 import { MoveTab } from '@/components/MoveTab';
 import { FuelTab } from '@/components/FuelTab';
 import { BodyTab } from '@/components/BodyTab';
+import { ProgressScreen } from '@/components/ProgressScreen';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { SettingsScreen, type Prefs } from '@/components/SettingsScreen';
 import { CtaButton, Eyebrow, Field, fieldCls, Sheet } from '@/components/ui';
@@ -26,7 +27,7 @@ import {
   type WorkoutSession,
 } from '@/lib/store';
 
-type Tab = 'home' | 'move' | 'fuel' | 'body';
+type Tab = 'home' | 'move' | 'fuel' | 'body' | 'progress';
 
 const PREFS_KEY = 'valoris.prefs.v1';
 
@@ -42,6 +43,12 @@ function NavIcon({ tab, className }: { tab: Tab; className?: string }) {
       </>
     ),
     body: <path d="M4 15l4-6 4 4 4-8 4 6" />,
+    progress: (
+      <>
+        <path d="M3 17l6-6 4 4 8-8" />
+        <path d="M15 7h6v6" />
+      </>
+    ),
   };
   return (
     <svg viewBox="0 0 24 24" width={23} height={23} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -360,6 +367,7 @@ export default function ValorisPage() {
     { id: 'move', label: 'Move' },
     { id: 'fuel', label: 'Fuel' },
     { id: 'body', label: 'Body' },
+    { id: 'progress', label: 'Progress' },
   ];
 
   return (
@@ -381,6 +389,7 @@ export default function ValorisPage() {
           )}
           {tab === 'fuel' && <FuelTab store={store} onAddMeal={handleAddMeal} onDeleteMeal={handleDeleteMeal} onSetWater={handleSetWater} />}
           {tab === 'body' && <BodyTab store={store} onOpenLog={() => setMeasureOpen(true)} onDeleteMetric={handleDeleteMetric} />}
+          {tab === 'progress' && <ProgressScreen store={store} />}
         </div>
       </main>
 
@@ -389,7 +398,7 @@ export default function ValorisPage() {
         className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E4E0D4] bg-[rgba(245,244,238,.94)] [backdrop-filter:blur(10px)]"
         aria-label="Primary"
       >
-        <div className="mx-auto grid h-[90px] max-w-md grid-cols-5 items-start px-2 pt-2.5">
+        <div className="mx-auto grid h-[90px] max-w-md grid-cols-6 items-start px-2 pt-2.5">
           {NAV.slice(0, 2).map((item) => {
             const active = tab === item.id;
             return (

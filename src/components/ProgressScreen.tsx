@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import { type JarvisStore } from '@/lib/store';
 import { buildStats } from '@/lib/stats';
 import { Card, Chip, Eyebrow, TrendChart } from '@/components/ui';
@@ -25,7 +24,7 @@ function StatCard({ label, value, unit, sub, subTone = 'faint' }: { label: strin
   );
 }
 
-export function ProgressScreen({ store, onClose }: { store: JarvisStore; onClose: () => void }) {
+export function ProgressScreen({ store }: { store: JarvisStore }) {
   const [days, setDays] = useState(30);
   const stats = useMemo(() => buildStats(store, { days }), [store, days]);
   const { summary } = stats;
@@ -38,15 +37,11 @@ export function ProgressScreen({ store, onClose }: { store: JarvisStore; onClose
   const strengthExercises = useMemo(() => stats.exerciseHistory.filter((e) => e.bestWeightKg != null), [stats]);
 
   return (
-    <div className="fixed inset-0 z-40 overflow-y-auto bg-canvas">
-      <div className="mx-auto max-w-md px-6 pb-16 pt-5">
-        <button onClick={onClose} aria-label="Back" className="-ml-1 flex items-center gap-1.5 py-1 text-[13px] font-bold text-faint">
-          <ArrowLeft size={16} /> Back
-        </button>
-        <Eyebrow className="mt-5">Profile</Eyebrow>
-        <h1 className="mt-1 font-display text-[32px] text-ink">Your Progress</h1>
+    <div>
+      <Eyebrow className="pt-2">Stats</Eyebrow>
+      <h1 className="mt-1 font-display text-[32px] text-ink">Progress</h1>
 
-        <div className="mt-4 flex gap-2">
+      <div className="mt-5 flex gap-2">
           {RANGES.map((r) => (
             <Chip key={r.days} active={days === r.days} onClick={() => setDays(r.days)}>
               {r.label}
@@ -127,6 +122,5 @@ export function ProgressScreen({ store, onClose }: { store: JarvisStore; onClose
           )}
         </div>
       </div>
-    </div>
   );
 }
