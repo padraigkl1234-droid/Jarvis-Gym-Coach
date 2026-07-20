@@ -88,7 +88,7 @@ export default function PrivacyPolicyPage() {
 
       <Section title="10. Contact">
         <p>
-          Questions about this policy or your data: <a className="text-red-600 underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+          Questions about this policy or your data: <a className="text-clay underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
         </p>
       </Section>
     </LegalLayout>

@@ -5,242 +5,52 @@
 html,
 body {
   height: 100%;
-  background: #fff;
-  color: #0a0a0a;
+  background: #f5f4ee;
+  color: #26241f;
 }
 
-/* Display type runs bold by default — the softer face carries weight well. */
+/* The serif display face sits at medium weight by default — it reads elegant,
+   not heavy. Numerals and headlines can override per-use. */
 .font-display {
-  font-weight: 700;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
-/* Tab/page content entrance — quick, physical, no float. */
+/* Eyebrow section labels — the one non-serif signature of the system. */
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8a857a;
+}
+
+/* Tab/page content entrance — calm, subtle. */
 .view-in {
-  animation: view-in 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+  animation: view-in 0.22s ease-out;
 }
 @keyframes view-in {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Every button physically depresses on press — universal tactile feedback. */
+/* Bottom sheets rise gently. */
+.sheet-in {
+  animation: sheet-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes sheet-in {
+  from { opacity: 0.4; transform: translateY(36px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Progress and macro bars animate width on value change. */
+.bar-fill {
+  transition: width 0.25s ease;
+}
+
+/* Gentle tactile press on every button. */
 button:not(:disabled):active {
-  transform: translateY(1.5px) scale(0.985);
-}
-
-/* ---- Boot splash: stamp, rise, sweep, lift ---- */
-.splash-square {
-  opacity: 0;
-  animation: splash-square 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) 0.06s forwards;
-}
-@keyframes splash-square {
-  from { opacity: 0; transform: scale(2.8); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.splash-letter {
-  display: inline-block;
-  opacity: 0;
-  transform: translateY(112%);
-  animation: splash-letter 0.44s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
-}
-@keyframes splash-letter {
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.splash-rule {
-  transform: scaleX(0);
-  transform-origin: left;
-  animation: splash-rule 0.5s cubic-bezier(0.7, 0, 0.3, 1) 0.8s forwards;
-}
-@keyframes splash-rule {
-  to { transform: scaleX(1); }
-}
-
-.splash-sub {
-  opacity: 0;
-  transform: translateY(8px);
-  animation: splash-sub 0.45s ease-out 1.05s forwards;
-}
-@keyframes splash-sub {
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.splash-progress {
-  transform: scaleX(0);
-  transform-origin: left;
-  animation: splash-progress 1.65s cubic-bezier(0.4, 0, 0.2, 1) 0.1s forwards;
-}
-@keyframes splash-progress {
-  to { transform: scaleX(1); }
-}
-
-.splash-exit {
-  animation: splash-exit 0.55s cubic-bezier(0.7, 0, 0.3, 1) forwards;
-}
-@keyframes splash-exit {
-  to { transform: translateY(-100%); }
-}
-
-/* Faint engineering grid — crisper lines, lower overall opacity. */
-.hud-grid {
-  background-image:
-    linear-gradient(rgba(56, 189, 248, 0.09) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(56, 189, 248, 0.09) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 72%);
-  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 72%);
-}
-
-/* Perspective wrapper that tilts the grid into a receding data plane / floor. */
-.hud-grid-3d {
-  perspective: 900px;
-  perspective-origin: 50% 44%;
-}
-.hud-grid-plane {
-  position: absolute;
-  left: -45%;
-  right: -45%;
-  top: -35%;
-  bottom: -35%;
-  opacity: 0.6;
-  transform: rotateX(32deg) scale(1.12);
-  transform-origin: 50% 62%;
-  animation: hud-grid-flow 18s linear infinite;
-}
-@keyframes hud-grid-flow {
-  from { background-position: 0 0; }
-  to { background-position: 0 42px; }
-}
-
-/* Deep ambient nebulas that keep the far corners from looking dead. */
-.hud-nebula-indigo {
-  background: radial-gradient(circle, rgba(79, 70, 229, 0.16), transparent 70%);
-  animation: hud-drift-a 26s ease-in-out infinite;
-}
-.hud-nebula-teal {
-  background: radial-gradient(circle, rgba(20, 184, 166, 0.13), transparent 70%);
-  animation: hud-drift-b 32s ease-in-out infinite;
-}
-@keyframes hud-drift-a {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(24px, 18px, 0) scale(1.08); }
-}
-@keyframes hud-drift-b {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
-  50% { transform: translate3d(-22px, -16px, 0) scale(1); }
-}
-
-/* Layered glass radar rings framing the core, counter-rotating at slow speeds. */
-.hud-ring {
-  position: absolute;
-  border-radius: 9999px;
-}
-.hud-ring-1 {
-  width: 346px;
-  height: 346px;
-  background:
-    conic-gradient(from 200deg, rgba(56, 189, 248, 0.1), transparent 70deg, transparent 300deg, rgba(56, 189, 248, 0.06) 360deg),
-    rgba(125, 185, 240, 0.025);
-  border: 1px solid rgba(125, 195, 250, 0.1);
-  box-shadow: inset 0 0 22px rgba(56, 189, 248, 0.05);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 15px), #000 calc(100% - 15px));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 15px), #000 calc(100% - 15px));
-  animation: hud-spin-cw 80s linear infinite;
-}
-.hud-ring-2 {
-  width: 316px;
-  height: 316px;
-  background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.28) 34deg, transparent 88deg, transparent 360deg);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
-  animation: hud-spin-ccw 46s linear infinite;
-}
-.hud-ring-3 {
-  width: 300px;
-  height: 300px;
-  background: conic-gradient(from 140deg, transparent 0deg, rgba(125, 211, 252, 0.22) 22deg, transparent 60deg, transparent 360deg);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px));
-  animation: hud-spin-cw 66s linear infinite;
-}
-@keyframes hud-spin-cw {
-  to { transform: rotate(360deg); }
-}
-@keyframes hud-spin-ccw {
-  to { transform: rotate(-360deg); }
-}
-
-/* Wizard step transition — content slides in like a diagnostic readout. */
-.wizard-step {
-  animation: wizard-in 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-@keyframes wizard-in {
-  from { opacity: 0; transform: translateX(26px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-/* Thin animated scan bar under the wizard tabs. */
-.wizard-scan {
-  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.9), transparent);
-  animation: wizard-scan 2.6s ease-in-out infinite;
-}
-@keyframes wizard-scan {
-  0%, 100% { transform: translateX(-30%); opacity: 0.4; }
-  50% { transform: translateX(30%); opacity: 1; }
-}
-
-/* Greeny-blue ripple that radiates outward when the orb is tapped. */
-.orb-click-glow {
-  border: 2px solid rgba(100, 235, 205, 0.85);
-  box-shadow:
-    0 0 60px 20px rgba(60, 225, 195, 0.5),
-    inset 0 0 40px rgba(60, 225, 195, 0.3);
-  animation: orb-click 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
-}
-@keyframes orb-click {
-  0% { transform: scale(0.7); opacity: 0; }
-  18% { opacity: 1; }
-  100% { transform: scale(1.5); opacity: 0; }
-}
-
-/* Organic breathing glow behind the core while in standby. */
-.hud-breathe {
-  animation: hud-breathe 6s ease-in-out infinite;
-}
-@keyframes hud-breathe {
-  0%, 100% { opacity: 0.5; transform: scale(0.94); }
-  50% { opacity: 1; transform: scale(1.06); }
-}
-
-/* Moving scanlines overlay for a CRT/hologram feel. */
-.hud-scanlines {
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.025) 0px,
-    rgba(255, 255, 255, 0.025) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  animation: hud-scan 8s linear infinite;
-}
-
-@keyframes hud-scan {
-  from { background-position-y: 0; }
-  to { background-position-y: 120px; }
-}
-
-@keyframes hud-flicker {
-  0%, 100% { opacity: 1; }
-  92% { opacity: 1; }
-  94% { opacity: 0.82; }
-  96% { opacity: 1; }
-}
-
-.hud-flicker {
-  animation: hud-flicker 6s infinite;
+  transform: translateY(1px) scale(0.99);
 }
 
 @media (prefers-reduced-motion: reduce) {

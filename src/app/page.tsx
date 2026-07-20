@@ -1,106 +1,113 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Mic,
-  MicOff,
-  Send,
-  Volume2,
-  UserRound,
-  Settings,
-  Sparkles,
-  X,
-  ImagePlus,
-  LayoutDashboard,
-  Dumbbell,
-  Salad,
-  Scale,
-} from 'lucide-react';
-import { Onboarding } from '@/components/Onboarding';
-import { ProfilePanel } from '@/components/ProfilePanel';
-import { Dashboard } from '@/components/Dashboard';
-import { SplashIntro } from '@/components/SplashIntro';
-import { SettingsPanel, type Prefs } from '@/components/SettingsPanel';
-import { PlanPage } from '@/components/PlanPage';
-import { DietPage } from '@/components/DietPage';
-import { BodyPage } from '@/components/BodyPage';
-import { detectInsights, wasSeenToday, markSeen } from '@/lib/insights';
-import { useVoice } from '@/components/useVoice';
+import { HomeTab } from '@/components/HomeTab';
+import { MoveTab } from '@/components/MoveTab';
+import { FuelTab } from '@/components/FuelTab';
+import { BodyTab } from '@/components/BodyTab';
+import { OnboardingFlow } from '@/components/OnboardingFlow';
+import { SettingsScreen, type Prefs } from '@/components/SettingsScreen';
+import { CtaButton, Eyebrow, Field, fieldCls, Sheet } from '@/components/ui';
 import {
   loadStore,
   saveStore,
-  downloadStore,
-  parseImportedStore,
   DEFAULT_STORE,
+  newId,
+  todayStr,
+  timeStr,
   type JarvisStore,
-  type Profile,
   type MealEntry,
   type MealSlot,
   type MemoryCategory,
   type MemoryEntry,
   type MetricEntry,
   type PlanDay,
-  type SetEntry,
+  type Profile,
   type WorkoutSession,
-  newId,
-  todayStr,
-  timeStr,
 } from '@/lib/store';
 
-interface ChatTurn {
-  role: 'user' | 'model';
-  text: string;
+type Tab = 'home' | 'move' | 'fuel' | 'body';
+
+const PREFS_KEY = 'valoris.prefs.v1';
+
+/* Nav icons — the design's exact line glyphs. */
+function NavIcon({ tab, className }: { tab: Tab; className?: string }) {
+  const paths: Record<Tab, React.ReactNode> = {
+    home: <path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />,
+    move: <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />,
+    fuel: (
+      <>
+        <path d="M4 11h16a8 8 0 0 1-16 0z" />
+        <path d="M12 3v3M9 4v2M15 4v2" />
+      </>
+    ),
+    body: <path d="M4 15l4-6 4 4 4-8 4 6" />,
+  };
+  return (
+    <svg viewBox="0 0 24 24" width={23} height={23} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {paths[tab]}
+    </svg>
+  );
 }
 
-interface Caption {
-  text: string;
-  role: 'user' | 'jarvis';
+/** Log-measurement sheet shared by the FAB and the Body tab. */
+function MeasureSheet({ onSave, onClose }: { onSave: (patch: Partial<MetricEntry> & { date: string }) => void; onClose: () => void }) {
+  const [date, setDate] = useState(todayStr());
+  const [weight, setWeight] = useState('');
+  const [bodyFat, setBodyFat] = useState('');
+  const [restingHr, setRestingHr] = useState('');
+  const [sleep, setSleep] = useState('');
+  const num = (s: string) => {
+    const n = parseFloat(s);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+  const valid = num(weight) != null || num(bodyFat) != null || num(restingHr) != null || num(sleep) != null;
+  return (
+    <Sheet onClose={onClose} label="Log a measurement">
+      <h2 className="font-display text-[24px] text-ink">Log a measurement</h2>
+      <div className="mt-5 space-y-4">
+        <Field label="Date">
+          <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)} className={fieldCls} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Weight kg">
+            <input autoFocus value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" placeholder="—" className={`${fieldCls} text-center`} />
+          </Field>
+          <Field label="Body fat %">
+            <input value={bodyFat} onChange={(e) => setBodyFat(e.target.value)} inputMode="decimal" placeholder="—" className={`${fieldCls} text-center`} />
+          </Field>
+          <Field label="Resting HR">
+            <input value={restingHr} onChange={(e) => setRestingHr(e.target.value)} inputMode="numeric" placeholder="—" className={`${fieldCls} text-center`} />
+          </Field>
+          <Field label="Sleep hrs">
+            <input value={sleep} onChange={(e) => setSleep(e.target.value)} inputMode="decimal" placeholder="—" className={`${fieldCls} text-center`} />
+          </Field>
+        </div>
+      </div>
+      <CtaButton
+        className="mt-6 !py-3.5"
+        disabled={!valid}
+        onClick={() => {
+          onSave({ date, weightKg: num(weight), bodyFatPct: num(bodyFat), restingHr: num(restingHr), sleepHours: num(sleep) });
+          onClose();
+        }}
+      >
+        Save measurement
+      </CtaButton>
+    </Sheet>
+  );
 }
-
-type View = 'dashboard' | 'plan' | 'diet' | 'body';
-
-const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'plan', label: 'Fitness Plan', icon: Dumbbell },
-  { id: 'diet', label: 'Diet Tracker', icon: Salad },
-  { id: 'body', label: 'Body Metrics', icon: Scale },
-];
-
-/* ------------------------------ Page ------------------------------ */
 
 export default function ValorisPage() {
   const [store, setStore] = useState<JarvisStore>(DEFAULT_STORE);
   const [hydrated, setHydrated] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
-  const [view, setView] = useState<View>('dashboard');
-  const [isThinking, setIsThinking] = useState(false);
-  const [caption, setCaption] = useState<Caption | null>(null);
-  const [inputValue, setInputValue] = useState('');
-  const [notice, setNotice] = useState<string | null>(null);
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [prefs, setPrefs] = useState<Prefs>({ voiceReplies: true, bootAnimation: true });
-  const [undo, setUndo] = useState<{ store: JarvisStore; label: string } | null>(null);
-  const [insight, setInsight] = useState<{ title: string; message: string } | null>(null);
-  const [foodConfirm, setFoodConfirm] = useState<{
-    name: string;
-    calories: number;
-    proteinG: number;
-    carbsG: number;
-    fatG: number;
-    confidence?: 'low' | 'medium' | 'high';
-    note: string;
-    photo?: string; // the analysed image, shown in the confirm card
-  } | null>(null);
-  const [analysingPhoto, setAnalysingPhoto] = useState<string | null>(null); // holds the photo while analysing
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [measureOpen, setMeasureOpen] = useState(false);
+  const [prefs, setPrefs] = useState<Prefs>({ reminders: false });
 
-  const storeRef = useRef<JarvisStore>(DEFAULT_STORE);
-  const prefsRef = useRef<Prefs>({ voiceReplies: true, bootAnimation: true });
-  const historyRef = useRef<ChatTurn[]>([]);
-  const captionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
+  const storeRef = useRef(store);
 
   const commitStore = useCallback((next: JarvisStore) => {
     storeRef.current = next;
@@ -108,90 +115,70 @@ export default function ValorisPage() {
     saveStore(next);
   }, []);
 
-  const dismissSplash = useCallback(() => setShowSplash(false), []);
-
-  // Offer a brief window to undo a deletion by snapshotting the prior store.
-  const offerUndo = useCallback((prev: JarvisStore, label: string) => {
-    setUndo({ store: prev, label });
-    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-    undoTimeoutRef.current = setTimeout(() => setUndo(null), 6000);
+  useEffect(() => {
+    const loaded = loadStore();
+    storeRef.current = loaded;
+    setStore(loaded);
+    try {
+      const raw = window.localStorage.getItem(PREFS_KEY);
+      if (raw) setPrefs({ reminders: false, ...JSON.parse(raw) });
+    } catch {
+      /* defaults stand */
+    }
+    setHydrated(true);
   }, []);
 
-  const handleUndo = useCallback(() => {
-    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-    setUndo((u) => {
-      if (u) commitStore(u.store);
-      return null;
+  const handleTogglePref = useCallback((key: keyof Prefs) => {
+    setPrefs((cur) => {
+      const next = { ...cur, [key]: !cur[key] };
+      try {
+        window.localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+      } catch {
+        /* storage unavailable */
+      }
+      return next;
     });
-  }, [commitStore]);
+  }, []);
 
-  const handleDeleteMeal = useCallback(
-    (meal: MealEntry) => {
-      const cur = storeRef.current;
-      commitStore({ ...cur, meals: cur.meals.filter((m) => m !== meal) });
-      offerUndo(cur, 'Meal removed');
-    },
-    [commitStore, offerUndo]
-  );
+  /* ---- Training ---- */
 
-  const handleDeleteSet = useCallback(
-    (set: SetEntry) => {
-      const cur = storeRef.current;
-      commitStore({ ...cur, sets: cur.sets.filter((s) => s !== set) });
-      offerUndo(cur, 'Set removed');
-    },
-    [commitStore, offerUndo]
-  );
+  const ensureSession = useCallback((cur: JarvisStore): { sessions: JarvisStore['sessions']; session: WorkoutSession } => {
+    const now = new Date();
+    const date = todayStr(now);
+    let sessions = cur.sessions;
+    let session = sessions.find((s) => s.date === date && s.status === 'in_progress') ?? sessions.find((s) => s.date === date);
+    if (!session) {
+      const weekday = now.getDay();
+      const planDay = cur.plan.find((x) => x.weekday === weekday);
+      const fresh: WorkoutSession = {
+        id: newId(),
+        date,
+        weekday,
+        label: planDay?.label ?? 'Workout',
+        focus: planDay?.focus,
+        startedAt: timeStr(now),
+        completedAt: null,
+        status: 'in_progress',
+      };
+      session = fresh;
+      sessions = [...sessions, fresh];
+    }
+    return { sessions, session };
+  }, []);
 
-  // Logs a body measurement; a second save for the same date updates that entry rather than duplicating it.
-  const handleLogMetric = useCallback(
-    (patch: Partial<MetricEntry> & { date: string }) => {
-      const cur = storeRef.current;
-      const idx = cur.metrics.findIndex((m) => m.date === patch.date);
-      const metrics =
-        idx >= 0
-          ? cur.metrics.map((m, i) => (i === idx ? { ...m, ...patch } : m))
-          : [...cur.metrics, patch as MetricEntry];
-      commitStore({ ...cur, metrics });
-    },
-    [commitStore]
-  );
+  const handleStartSession = useCallback(() => {
+    const cur = storeRef.current;
+    const { sessions } = ensureSession(cur);
+    if (sessions !== cur.sessions) commitStore({ ...cur, sessions });
+    setTab('move');
+  }, [commitStore, ensureSession]);
 
-  const handleDeleteMetric = useCallback(
-    (entry: MetricEntry) => {
-      const cur = storeRef.current;
-      commitStore({ ...cur, metrics: cur.metrics.filter((m) => m !== entry) });
-      offerUndo(cur, 'Measurement removed');
-    },
-    [commitStore, offerUndo]
-  );
-
-  // One tap on a set box in the Fitness Plan logs a set (and opens today's
-  // session if none exists), mirroring what the voice tools do server-side.
-  // The weight typed into that exercise's row travels with the tap.
   const handleQuickLogSet = useCallback(
     (exercise: string, weightKg?: number) => {
       const cur = storeRef.current;
       const now = new Date();
       const date = todayStr(now);
-      let sessions = cur.sessions;
-      let session = sessions.find((s) => s.date === date && s.status === 'in_progress') ?? sessions.find((s) => s.date === date);
-      if (!session) {
-        const weekday = now.getDay();
-        const planDay = cur.plan.find((x) => x.weekday === weekday);
-        const fresh: WorkoutSession = {
-          id: newId(),
-          date,
-          weekday,
-          label: planDay?.label ?? 'Workout',
-          focus: planDay?.focus,
-          startedAt: timeStr(now),
-          completedAt: null,
-          status: 'in_progress',
-        };
-        session = fresh;
-        sessions = [...sessions, fresh];
-      }
+      const { sessions, session } = ensureSession(cur);
       const setNumber = cur.sets.filter((s) => s.date === date && s.exercise.toLowerCase() === exercise.toLowerCase()).length + 1;
       commitStore({
         ...cur,
@@ -202,33 +189,30 @@ export default function ValorisPage() {
         ],
       });
     },
+    [commitStore, ensureSession]
+  );
+
+  const handleUnlogSet = useCallback(
+    (exercise: string) => {
+      const cur = storeRef.current;
+      const date = todayStr();
+      let target = -1;
+      for (let i = 0; i < cur.sets.length; i++) {
+        const s = cur.sets[i];
+        if (s.date === date && s.exercise.toLowerCase() === exercise.toLowerCase()) target = i;
+      }
+      if (target < 0) return;
+      commitStore({ ...cur, sets: cur.sets.filter((_, i) => i !== target) });
+    },
     [commitStore]
   );
 
-  // Logs one cardio session (duration and/or distance) for an exercise today.
   const handleLogCardio = useCallback(
     (exercise: string, durationMin?: number, distanceKm?: number) => {
       const cur = storeRef.current;
       const now = new Date();
       const date = todayStr(now);
-      let sessions = cur.sessions;
-      let session = sessions.find((s) => s.date === date && s.status === 'in_progress') ?? sessions.find((s) => s.date === date);
-      if (!session) {
-        const weekday = now.getDay();
-        const planDay = cur.plan.find((x) => x.weekday === weekday);
-        const fresh: WorkoutSession = {
-          id: newId(),
-          date,
-          weekday,
-          label: planDay?.label ?? 'Workout',
-          focus: planDay?.focus,
-          startedAt: timeStr(now),
-          completedAt: null,
-          status: 'in_progress',
-        };
-        session = fresh;
-        sessions = [...sessions, fresh];
-      }
+      const { sessions, session } = ensureSession(cur);
       const setNumber = cur.sets.filter((s) => s.date === date && s.exercise.toLowerCase() === exercise.toLowerCase()).length + 1;
       commitStore({
         ...cur,
@@ -250,23 +234,7 @@ export default function ValorisPage() {
         ],
       });
     },
-    [commitStore]
-  );
-
-  // Un-ticking a set box removes the most recent set of that exercise today.
-  const handleUnlogSet = useCallback(
-    (exercise: string) => {
-      const cur = storeRef.current;
-      const date = todayStr();
-      let target = -1;
-      for (let i = 0; i < cur.sets.length; i++) {
-        const s = cur.sets[i];
-        if (s.date === date && s.exercise.toLowerCase() === exercise.toLowerCase()) target = i;
-      }
-      if (target < 0) return;
-      commitStore({ ...cur, sets: cur.sets.filter((_, i) => i !== target) });
-    },
-    [commitStore]
+    [commitStore, ensureSession]
   );
 
   const handleCompleteWorkout = useCallback(() => {
@@ -276,13 +244,10 @@ export default function ValorisPage() {
     if (!open) return;
     commitStore({
       ...cur,
-      sessions: cur.sessions.map((s) =>
-        s === open ? { ...s, status: 'completed' as const, completedAt: timeStr() } : s
-      ),
+      sessions: cur.sessions.map((s) => (s === open ? { ...s, status: 'completed' as const, completedAt: timeStr() } : s)),
     });
   }, [commitStore]);
 
-  // Hand-editing the weekly plan from the Fitness Plan page.
   const handleSavePlanDay = useCallback(
     (day: PlanDay) => {
       const cur = storeRef.current;
@@ -298,12 +263,68 @@ export default function ValorisPage() {
     (weekday: number) => {
       const cur = storeRef.current;
       commitStore({ ...cur, plan: cur.plan.filter((p) => p.weekday !== weekday) });
-      offerUndo(cur, 'Day cleared');
     },
-    [commitStore, offerUndo]
+    [commitStore]
   );
 
-  // Memory bank editing from the profile/settings panel — applies immediately.
+  /* ---- Nutrition ---- */
+
+  const handleAddMeal = useCallback(
+    (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; slot: MealSlot }) => {
+      const cur = storeRef.current;
+      const now = new Date();
+      commitStore({ ...cur, meals: [...cur.meals, { date: todayStr(now), time: timeStr(now), ...meal }] });
+    },
+    [commitStore]
+  );
+
+  const handleDeleteMeal = useCallback(
+    (meal: MealEntry) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, meals: cur.meals.filter((m) => m !== meal) });
+    },
+    [commitStore]
+  );
+
+  const handleSetWater = useCallback(
+    (ml: number) => {
+      const cur = storeRef.current;
+      const date = todayStr();
+      commitStore({ ...cur, water: [...cur.water.filter((w) => w.date !== date), ...(ml > 0 ? [{ date, ml }] : [])] });
+    },
+    [commitStore]
+  );
+
+  /* ---- Body ---- */
+
+  const handleLogMetric = useCallback(
+    (patch: Partial<MetricEntry> & { date: string }) => {
+      const cur = storeRef.current;
+      const idx = cur.metrics.findIndex((m) => m.date === patch.date);
+      const metrics = idx >= 0 ? cur.metrics.map((m, i) => (i === idx ? { ...m, ...patch } : m)) : [...cur.metrics, patch as MetricEntry];
+      commitStore({ ...cur, metrics });
+    },
+    [commitStore]
+  );
+
+  const handleDeleteMetric = useCallback(
+    (entry: MetricEntry) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, metrics: cur.metrics.filter((m) => m !== entry) });
+    },
+    [commitStore]
+  );
+
+  /* ---- Profile, notes, prefs ---- */
+
+  const handleProfileSave = useCallback(
+    (patch: Partial<Profile>) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, profile: { ...cur.profile, ...patch } });
+    },
+    [commitStore]
+  );
+
   const handleAddMemory = useCallback(
     (note: string, category: MemoryCategory) => {
       const cur = storeRef.current;
@@ -316,692 +337,159 @@ export default function ValorisPage() {
     (memory: MemoryEntry) => {
       const cur = storeRef.current;
       commitStore({ ...cur, memories: cur.memories.filter((m) => m !== memory) });
-      offerUndo(cur, 'Memory removed');
-    },
-    [commitStore, offerUndo]
-  );
-
-  const handleAddMeal = useCallback(
-    (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; slot: MealSlot }) => {
-      const cur = storeRef.current;
-      const now = new Date();
-      commitStore({
-        ...cur,
-        meals: [...cur.meals, { date: todayStr(now), time: timeStr(now), ...meal }],
-      });
     },
     [commitStore]
   );
-
-  const handleSetWater = useCallback(
-    (ml: number) => {
-      const cur = storeRef.current;
-      const date = todayStr();
-      commitStore({
-        ...cur,
-        water: [...cur.water.filter((w) => w.date !== date), ...(ml > 0 ? [{ date, ml }] : [])],
-      });
-    },
-    [commitStore]
-  );
-
-  const flashNotice = useCallback((msg: string) => {
-    setNotice(msg);
-    setTimeout(() => setNotice(null), 5000);
-  }, []);
-
-  // Weekly Blueprint PDF: server aggregates the week + writes the debrief.
-  const handleExportBlueprint = useCallback(async () => {
-    try {
-      const res = await fetch('/api/export-blueprint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ store: storeRef.current }),
-      });
-      if (!res.ok) throw new Error('export failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `valoris-blueprint-${todayStr()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      flashNotice('Could not generate the weekly blueprint right now.');
-    }
-  }, [flashNotice]);
-
-  // Photo meal logging: downscale, send to vision, then ask before logging.
-  const handleImageSelect = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = '';
-      if (!file) return;
-      try {
-        // Preferred path: decode + downscale to a small JPEG.
-        const downscale = () =>
-          new Promise<string>((resolve, reject) => {
-            const url = URL.createObjectURL(file);
-            const img = new Image();
-            img.onload = () => {
-              try {
-                const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
-                const c = document.createElement('canvas');
-                c.width = Math.max(1, Math.round(img.width * scale));
-                c.height = Math.max(1, Math.round(img.height * scale));
-                c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
-                resolve(c.toDataURL('image/jpeg', 0.8));
-              } catch (err) {
-                reject(err);
-              } finally {
-                URL.revokeObjectURL(url);
-              }
-            };
-            img.onerror = () => {
-              URL.revokeObjectURL(url);
-              reject(new Error('undecodable'));
-            };
-            img.src = url;
-          });
-        // Fallback for formats the browser can't decode (e.g. HEIC from an
-        // iPhone): send the original bytes — the vision model reads HEIC fine.
-        const rawDataUrl = () =>
-          new Promise<string>((resolve, reject) => {
-            if (!file.type.startsWith('image/')) return reject(new Error('not an image'));
-            if (file.size > 3_000_000) return reject(new Error('image too large to send un-compressed'));
-            const r = new FileReader();
-            r.onload = () => resolve(String(r.result));
-            r.onerror = () => reject(new Error('unreadable file'));
-            r.readAsDataURL(file);
-          });
-
-        let image: string;
-        try {
-          image = await downscale();
-        } catch {
-          image = await rawDataUrl();
-        }
-        setAnalysingPhoto(image);
-
-        const res = await fetch('/api/vision-food', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image, subscriptionTier: storeRef.current.profile.subscriptionTier }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 403) {
-          flashNotice('Photo meal logging is a Premium feature — upgrade to unlock it.');
-        } else if (!res.ok) {
-          flashNotice(`Photo analysis failed (${res.status})${data?.error ? `: ${data.error}` : ''}`);
-        } else if (!data.found) {
-          flashNotice(data.note || 'No food detected in that photo.');
-        } else {
-          setFoodConfirm({ ...data, photo: image });
-        }
-      } catch (err) {
-        flashNotice(`That image could not be read${err instanceof Error && err.message ? ` (${err.message})` : ''}.`);
-      } finally {
-        setAnalysingPhoto(null);
-      }
-    },
-    [flashNotice]
-  );
-
-  const handleLogDetectedMeal = useCallback(() => {
-    const meal = foodConfirm;
-    if (!meal) return;
-    const cur = storeRef.current;
-    const now = new Date();
-    commitStore({
-      ...cur,
-      meals: [
-        ...cur.meals,
-        {
-          date: todayStr(now),
-          time: timeStr(now),
-          name: meal.name,
-          calories: meal.calories,
-          proteinG: meal.proteinG,
-          carbsG: meal.carbsG,
-          fatG: meal.fatG,
-        },
-      ],
-    });
-    setFoodConfirm(null);
-    if (prefsRef.current.voiceReplies) voice.speak(`Logged ${meal.name}, about ${meal.calories} calories.`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [foodConfirm, commitStore]);
-
-  useEffect(() => {
-    const loaded = loadStore();
-    storeRef.current = loaded;
-    setStore(loaded);
-    // Load device preferences; skip the boot animation when it's turned off.
-    try {
-      const raw = window.localStorage.getItem('valoris.prefs.v1');
-      if (raw) {
-        const parsed = { voiceReplies: true, bootAnimation: true, ...JSON.parse(raw) } as Prefs;
-        prefsRef.current = parsed;
-        setPrefs(parsed);
-        if (!parsed.bootAnimation) setShowSplash(false);
-      }
-    } catch {
-      /* prefs unavailable — defaults stand */
-    }
-    setHydrated(true);
-  }, []);
-
-  const handleTogglePref = useCallback((key: keyof Prefs) => {
-    setPrefs((cur) => {
-      const next = { ...cur, [key]: !cur[key] };
-      prefsRef.current = next;
-      try {
-        window.localStorage.setItem('valoris.prefs.v1', JSON.stringify(next));
-      } catch {
-        /* storage unavailable */
-      }
-      return next;
-    });
-  }, []);
 
   const handleResetAll = useCallback(() => {
     commitStore(structuredClone(DEFAULT_STORE));
     setSettingsOpen(false);
+    setTab('home');
   }, [commitStore]);
 
-  // Background insight worker: cron-style analysis of the last few days of
-  // structured data. Runs shortly after launch, every 30 minutes while the
-  // app is open, and whenever it returns to the foreground. Each insight kind
-  // notifies at most once per day.
-  useEffect(() => {
-    if (!hydrated) return;
+  /* ---- Render ---- */
 
-    const check = async () => {
-      if (!storeRef.current.profile.onboarded) return;
-      const candidate = detectInsights(storeRef.current).find((i) => !wasSeenToday(i.kind));
-      if (!candidate) return;
-      markSeen(candidate.kind);
+  if (!hydrated) return <div className="min-h-[100dvh] bg-canvas" />;
 
-      // Let VALORIS phrase the nudge; fall back to the deterministic message.
-      let message = candidate.fallback;
-      try {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 8000);
-        const res = await fetch('/api/insight', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: ctrl.signal,
-          body: JSON.stringify({
-            name: storeRef.current.profile.name,
-            goal: storeRef.current.profile.goal,
-            subscriptionTier: storeRef.current.profile.subscriptionTier,
-            kind: candidate.kind,
-            facts: candidate.facts,
-          }),
-        });
-        clearTimeout(timer);
-        const data = await res.json();
-        if (res.status === 403) {
-          setInsight({
-            title: 'Premium',
-            message: 'VALORIS spotted a pattern in your week. Proactive coaching insights are a Premium feature — upgrade to unlock them.',
-          });
-          return;
-        }
-        if (res.ok && typeof data.message === 'string' && data.message) message = data.message;
-      } catch {
-        // Offline or API unavailable — the deterministic message stands.
-      }
-      setInsight({ title: candidate.title, message });
-    };
+  if (!store.profile.onboarded) {
+    return <OnboardingFlow onComplete={(profile) => handleProfileSave(profile)} />;
+  }
 
-    const initial = setTimeout(check, 2500);
-    const interval = setInterval(check, 30 * 60 * 1000);
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') check();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearTimeout(initial);
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [hydrated]);
-
-  const handleOnboardingComplete = useCallback(
-    (patch: Partial<JarvisStore>) => {
-      const cur = storeRef.current;
-      commitStore({
-        ...cur,
-        ...patch,
-        profile: { ...cur.profile, ...(patch.profile ?? {}) },
-        memories: [...cur.memories, ...(patch.memories ?? [])],
-      });
-    },
-    [commitStore]
-  );
-
-  const handleProfileSave = useCallback(
-    (patch: Partial<Profile>) => {
-      const cur = storeRef.current;
-      commitStore({ ...cur, profile: { ...cur.profile, ...patch } });
-    },
-    [commitStore]
-  );
-
-  const showCaption = useCallback((next: Caption, holdMs = 9000) => {
-    if (captionTimeoutRef.current) clearTimeout(captionTimeoutRef.current);
-    setCaption(next);
-    captionTimeoutRef.current = setTimeout(() => setCaption(null), holdMs);
-  }, []);
-
-  const sendToJarvis = useCallback(
-    async (text: string) => {
-      const priorHistory = historyRef.current.slice(-16);
-      setIsThinking(true);
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, history: priorHistory, store: storeRef.current }),
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) throw new Error(data.error || 'Request failed');
-
-        if (data.store) commitStore(data.store);
-        historyRef.current = [...priorHistory, { role: 'user', text }, { role: 'model', text: data.reply }];
-        setIsThinking(false);
-        showCaption({ text: data.reply, role: 'jarvis' }, Math.max(6000, data.reply.length * 90));
-        if (prefsRef.current.voiceReplies) voice.speak(data.reply);
-      } catch (err) {
-        console.error('VALORIS chat failed:', err);
-        setIsThinking(false);
-        const fallback = 'Apologies — I hit a snag processing that. Give me a moment and try again.';
-        showCaption({ text: fallback, role: 'jarvis' });
-        if (prefsRef.current.voiceReplies) voice.speak(fallback);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [showCaption, commitStore]
-  );
-
-  const handleUserMessage = useCallback(
-    (text: string) => {
-      if (!text.trim()) return;
-      showCaption({ text, role: 'user' }, 4000);
-      sendToJarvis(text.trim());
-    },
-    [sendToJarvis, showCaption]
-  );
-
-  const voice = useVoice({ onFinalTranscript: handleUserMessage });
-
-  useEffect(
-    () => () => {
-      if (captionTimeoutRef.current) clearTimeout(captionTimeoutRef.current);
-    },
-    []
-  );
-
-  const handleImportFile = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = '';
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          commitStore(parseImportedStore(String(reader.result)));
-          flashNotice('Backup restored.');
-        } catch {
-          flashNotice('That file could not be read as a VALORIS backup.');
-        }
-      };
-      reader.readAsText(file);
-    },
-    [commitStore, flashNotice]
-  );
-
-  const statusLabel = isThinking
-    ? 'PROCESSING'
-    : voice.state === 'listening'
-    ? 'LISTENING'
-    : voice.state === 'speaking'
-    ? 'SPEAKING'
-    : 'READY';
-
-  const statusActive = isThinking || voice.state === 'listening' || voice.state === 'speaking';
-
-  const handleMicToggle = () => {
-    if (voice.state === 'listening') return voice.stopListening();
-    if (voice.state === 'speaking') return voice.cancelSpeech();
-    if (isThinking) return;
-    if (!voice.sttSupported) {
-      flashNotice('Voice input is not supported in this browser — use the text box.');
-      return;
-    }
-    voice.startListening();
-  };
-
-  const handleSubmitText = (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = inputValue.trim();
-    if (!text || isThinking) return;
-    setInputValue('');
-    handleUserMessage(text);
-  };
-
-  const liveCaptionText = voice.state === 'listening' ? voice.interimTranscript || 'Listening…' : caption?.text ?? null;
-  const liveCaptionRole = voice.state === 'listening' ? 'user' : caption?.role ?? 'user';
-
-  const utilityBtn =
-    'flex h-9 w-9 items-center justify-center border-2 border-black bg-white text-black transition-colors hover:bg-red-600 hover:border-red-600 hover:text-white';
-
-  // Branded boot animation overlays everything, then lifts away.
-  const splashEl = showSplash ? <SplashIntro onDone={dismissSplash} /> : null;
-
-  // Avoid a flash of onboarding before localStorage has loaded.
-  if (!hydrated)
-    return (
-      <>
-        {splashEl}
-        <div className="h-[100dvh] w-full bg-white" />
-      </>
-    );
-
-  // First run — require a profile before the app is accessible.
-  if (!store.profile.onboarded)
-    return (
-      <>
-        {splashEl}
-        <Onboarding onComplete={handleOnboardingComplete} />
-      </>
-    );
-
-  const activeNav = NAV.find((n) => n.id === view)!;
-
-  const utilities = (
-    <>
-      <button className={utilityBtn} onClick={() => setProfileOpen(true)} title="Athlete profile" aria-label="Athlete profile">
-        <UserRound className="h-4 w-4" />
-      </button>
-      <button className={utilityBtn} onClick={() => setSettingsOpen(true)} title="Settings" aria-label="Settings">
-        <Settings className="h-4 w-4" />
-      </button>
-    </>
-  );
+  const NAV: { id: Tab; label: string }[] = [
+    { id: 'home', label: 'Home' },
+    { id: 'move', label: 'Move' },
+    { id: 'fuel', label: 'Fuel' },
+    { id: 'body', label: 'Body' },
+  ];
 
   return (
-    <div className="min-h-[100dvh] bg-white font-sans text-black">
-      {splashEl}
-      <input ref={fileInputRef} type="file" accept="application/json" onChange={handleImportFile} className="hidden" />
-
-      {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r-2 border-black bg-white lg:flex">
-        <div className="border-b-2 border-black px-5 py-5">
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 bg-red-600" />
-            <span className="font-display text-xl uppercase tracking-[0.2em] text-black">Valoris</span>
-          </div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">Performance System</div>
-        </div>
-        <nav className="flex-1 py-3">
-          {NAV.map((item) => {
-            const active = view === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setView(item.id)}
-                className={`flex w-full items-center gap-3 border-l-4 px-5 py-3.5 text-left transition-colors ${
-                  active ? 'border-red-600 bg-neutral-50 text-black' : 'border-transparent text-neutral-500 hover:bg-neutral-50 hover:text-black'
-                }`}
-                aria-current={active ? 'page' : undefined}
-              >
-                <item.icon className={`h-5 w-5 ${active ? 'text-red-600' : ''}`} />
-                <span className="font-display text-xs uppercase tracking-[0.18em]">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-        <div className="border-t-2 border-black p-4">
-          <div className="mb-3 flex items-center gap-2">{utilities}</div>
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
-            <span className={`h-2 w-2 ${statusActive ? 'animate-pulse bg-red-600' : 'bg-neutral-300'}`} />
-            {statusLabel}
-          </div>
-        </div>
-      </aside>
-
-      {/* Mobile header */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b-2 border-black bg-white px-4 py-3 lg:hidden">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 bg-red-600" />
-          <span className="font-display text-base uppercase tracking-[0.2em] text-black">Valoris</span>
-        </div>
-        <div className="flex items-center gap-1.5">{utilities}</div>
-      </header>
-
-      {/* Main content */}
-      <main className="px-4 pb-64 pt-5 lg:ml-60 lg:px-8 lg:pb-40 lg:pt-8">
-        <div className="mx-auto max-w-4xl">
-          <div className="mb-5 flex items-center justify-between">
-            <h1 className="font-display text-2xl uppercase tracking-[0.08em] text-black lg:text-3xl">{activeNav.label}</h1>
-            <span className="hidden border-2 border-black px-2.5 py-1 font-display text-[10px] uppercase tracking-[0.2em] text-black sm:block">
-              {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-            </span>
-          </div>
-          <div key={view} className="view-in">
-            {view === 'dashboard' && <Dashboard store={store} />}
-            {view === 'plan' && (
-              <PlanPage
-                store={store}
-                onLogSet={handleQuickLogSet}
-                onUnlogSet={handleUnlogSet}
-                onLogCardio={handleLogCardio}
-                onDeleteSet={handleDeleteSet}
-                onCompleteWorkout={handleCompleteWorkout}
-                onEditProfile={() => setProfileOpen(true)}
-                onSavePlanDay={handleSavePlanDay}
-                onRemovePlanDay={handleRemovePlanDay}
-              />
-            )}
-            {view === 'diet' && (
-              <DietPage store={store} onAddMeal={handleAddMeal} onDeleteMeal={handleDeleteMeal} onSetWater={handleSetWater} />
-            )}
-            {view === 'body' && <BodyPage store={store} onLogMetric={handleLogMetric} onDeleteMetric={handleDeleteMetric} />}
-          </div>
+    <div className="min-h-[100dvh] bg-canvas text-ink">
+      <main className="mx-auto max-w-md px-6 pb-[108px] pt-4">
+        <div key={tab} className="view-in">
+          {tab === 'home' && <HomeTab store={store} onStartSession={handleStartSession} onOpenSettings={() => setSettingsOpen(true)} />}
+          {tab === 'move' && (
+            <MoveTab
+              store={store}
+              onLogSet={handleQuickLogSet}
+              onUnlogSet={handleUnlogSet}
+              onLogCardio={handleLogCardio}
+              onStartSession={handleStartSession}
+              onCompleteWorkout={handleCompleteWorkout}
+              onSavePlanDay={handleSavePlanDay}
+              onRemovePlanDay={handleRemovePlanDay}
+            />
+          )}
+          {tab === 'fuel' && <FuelTab store={store} onAddMeal={handleAddMeal} onDeleteMeal={handleDeleteMeal} onSetWater={handleSetWater} />}
+          {tab === 'body' && <BodyTab store={store} onOpenLog={() => setMeasureOpen(true)} onDeleteMetric={handleDeleteMetric} />}
         </div>
       </main>
 
-      {/* Coach bar — fixed above the bottom nav on mobile, bottom of content on desktop */}
-      <div className="fixed inset-x-0 bottom-[64px] z-30 border-t-2 border-black bg-white lg:bottom-0 lg:left-60">
-        {/* Transient overlays float above the bar so nothing shifts */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-full flex flex-col items-center gap-2 px-4 pb-2">
-          {analysingPhoto && !foodConfirm && (
-            <div className="pointer-events-auto flex w-full max-w-xl items-center gap-3 border-2 border-black bg-white p-3 shadow-[6px_6px_0_0_rgba(0,0,0,0.15)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={analysingPhoto} alt="Meal being analysed" className="h-14 w-14 shrink-0 border-2 border-black object-cover" />
-              <div className="min-w-0 flex-1">
-                <div className="font-display text-[10px] uppercase tracking-[0.2em] text-red-600">Vision · Analysing</div>
-                <div className="mt-0.5 text-xs font-medium text-neutral-600">Identifying the meal and estimating macros…</div>
-                <div className="relative mt-2 h-1 overflow-hidden bg-neutral-200">
-                  <div className="wizard-scan absolute inset-y-0 w-full" />
-                </div>
-              </div>
-            </div>
-          )}
-          {foodConfirm && (
-            <div className="pointer-events-auto w-full max-w-xl border-2 border-black bg-white p-4 shadow-[6px_6px_0_0_rgba(0,0,0,0.15)]">
-              <div className="flex items-start gap-3">
-                {foodConfirm.photo && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={foodConfirm.photo} alt={foodConfirm.name} className="h-16 w-16 shrink-0 border-2 border-black object-cover" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-display text-[10px] uppercase tracking-[0.2em] text-red-600">Vision · Meal Detected</span>
-                    {foodConfirm.confidence && (
-                      <span
-                        className={`shrink-0 px-1.5 py-0.5 font-display text-[8px] uppercase tracking-widest ${
-                          foodConfirm.confidence === 'high'
-                            ? 'bg-black text-white'
-                            : foodConfirm.confidence === 'medium'
-                            ? 'border border-black text-black'
-                            : 'border border-neutral-300 text-neutral-400'
-                        }`}
-                      >
-                        {foodConfirm.confidence} confidence
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 truncate text-base font-bold uppercase tracking-wide text-black">{foodConfirm.name}</div>
-                  <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] font-bold tabular-nums text-neutral-700">
-                    <span className="text-red-600">{foodConfirm.calories} kcal</span>
-                    <span>P {foodConfirm.proteinG}g</span>
-                    <span>C {foodConfirm.carbsG}g</span>
-                    <span>F {foodConfirm.fatG}g</span>
-                  </div>
-                </div>
-              </div>
-              {foodConfirm.note && <div className="mt-2 text-[11px] font-medium text-neutral-500">{foodConfirm.note}</div>}
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={handleLogDetectedMeal}
-                  className="flex-1 bg-red-600 px-5 py-2 font-display text-[11px] uppercase tracking-[0.15em] text-white transition-colors hover:bg-red-700"
-                >
-                  Log it
-                </button>
-                <button
-                  onClick={() => setFoodConfirm(null)}
-                  className="border-2 border-black px-5 py-2 font-display text-[11px] uppercase tracking-[0.15em] text-black transition-colors hover:bg-neutral-100"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          )}
-          {insight && (
-            <div className="pointer-events-auto flex w-full max-w-xl items-start gap-2.5 border-2 border-black bg-black p-3.5 text-white shadow-[6px_6px_0_0_rgba(220,38,38,0.35)]">
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-              <div className="min-w-0">
-                <div className="font-display text-[10px] uppercase tracking-[0.2em] text-red-500">Insight · {insight.title}</div>
-                <div className="mt-0.5 text-xs font-medium leading-relaxed text-neutral-100">{insight.message}</div>
-              </div>
-              <button onClick={() => setInsight(null)} className="ml-1 shrink-0 text-neutral-400 transition-colors hover:text-white" aria-label="Dismiss insight">
-                <X className="h-4 w-4" />
+      {/* Bottom navigation */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E4E0D4] bg-[rgba(245,244,238,.94)] [backdrop-filter:blur(10px)]"
+        aria-label="Primary"
+      >
+        <div className="mx-auto grid h-[90px] max-w-md grid-cols-5 items-start px-2 pt-2.5">
+          {NAV.slice(0, 2).map((item) => {
+            const active = tab === item.id;
+            return (
+              <button key={item.id} onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className="flex flex-col items-center gap-1 py-1">
+                <NavIcon tab={item.id} className={active ? 'text-clay' : 'text-hairline'} />
+                <span className={`text-[10px] ${active ? 'font-bold text-clay' : 'font-semibold text-hairline'}`}>{item.label}</span>
               </button>
-            </div>
-          )}
-          {undo && (
-            <div className="pointer-events-auto flex items-center gap-3 border-2 border-black bg-white px-4 py-1.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.12)]">
-              <span className="text-xs font-bold text-black">{undo.label}</span>
-              <button onClick={handleUndo} className="font-display text-[11px] uppercase tracking-[0.15em] text-red-600 transition-colors hover:text-red-700">
-                Undo
-              </button>
-            </div>
-          )}
-          {isThinking && (
-            <div className="pointer-events-auto flex items-center gap-2 border-2 border-black bg-black px-3.5 py-1.5 shadow-[4px_4px_0_0_rgba(220,38,38,0.35)]">
-              <span className="flex gap-1">
-                <span className="h-1.5 w-1.5 animate-pulse bg-red-600" />
-                <span className="h-1.5 w-1.5 animate-pulse bg-red-600 [animation-delay:150ms]" />
-                <span className="h-1.5 w-1.5 animate-pulse bg-red-600 [animation-delay:300ms]" />
-              </span>
-              <span className="font-display text-[10px] uppercase tracking-[0.25em] text-white">Valoris processing</span>
-            </div>
-          )}
-          {liveCaptionText && (
-            <div className="pointer-events-auto w-full max-w-xl border-2 border-black bg-white px-4 py-2 text-center shadow-[4px_4px_0_0_rgba(0,0,0,0.12)]">
-              <span className={`text-sm font-medium ${liveCaptionRole === 'jarvis' ? 'text-black' : 'text-neutral-500'}`}>
-                {liveCaptionRole === 'jarvis' && <Volume2 className="mr-1.5 inline-block h-3.5 w-3.5 -translate-y-0.5 text-red-600" />}
-                {liveCaptionText}
-              </span>
-            </div>
-          )}
-          {notice && (
-            <div className="pointer-events-auto max-w-xl border-2 border-red-600 bg-white px-4 py-1.5 text-center text-xs font-bold text-red-600">{notice}</div>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmitText} className="mx-auto flex max-w-4xl items-center gap-2 px-4 py-2.5 lg:px-8">
-          <div className="flex h-10 flex-1 items-center border-2 border-black bg-white px-3 focus-within:border-red-600">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask VALORIS — log food, sets, anything…"
-              className="w-full bg-transparent text-sm font-medium text-black placeholder:text-neutral-400 focus:outline-none"
-            />
-            <button type="submit" disabled={!inputValue.trim() || isThinking} className="text-red-600 transition-opacity disabled:opacity-30" aria-label="Send">
-              <Send className="h-4 w-4" />
+            );
+          })}
+          <div className="flex justify-center">
+            <button
+              onClick={() => setQuickAddOpen(true)}
+              aria-label="Quick add"
+              className="-mt-[26px] flex h-14 w-14 items-center justify-center rounded-full bg-clay text-white shadow-fab transition-colors hover:bg-clay-dark"
+            >
+              <svg viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
             </button>
           </div>
-          <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
-          <button
-            type="button"
-            onClick={() => imageInputRef.current?.click()}
-            disabled={!!analysingPhoto}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center border-2 transition-colors ${
-              analysingPhoto ? 'animate-pulse border-red-600 bg-red-50 text-red-600' : 'border-black bg-white text-black hover:border-red-600 hover:text-red-600'
-            }`}
-            aria-label="Log a meal from a photo"
-            title="Snap or upload a meal photo"
-          >
-            <ImagePlus className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleMicToggle}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center border-2 transition-colors ${
-              voice.state === 'listening'
-                ? 'border-red-600 bg-red-600 text-white'
-                : 'border-black bg-white text-black hover:border-red-600 hover:text-red-600'
-            }`}
-            aria-label="Toggle microphone"
-          >
-            {voice.state === 'listening' ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
-          </button>
-        </form>
-      </div>
-
-      {/* Mobile bottom navigation */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid h-[64px] grid-cols-4 border-t-2 border-black bg-white lg:hidden" aria-label="Primary">
-        {NAV.map((item) => {
-          const active = view === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setView(item.id)}
-              className="relative flex flex-col items-center justify-center gap-1"
-              aria-current={active ? 'page' : undefined}
-            >
-              {active && <span className="absolute inset-x-4 top-0 h-1 bg-red-600" />}
-              <item.icon className={`h-5 w-5 ${active ? 'text-red-600' : 'text-neutral-400'}`} />
-              <span className={`font-display text-[9px] uppercase tracking-[0.12em] ${active ? 'text-black' : 'text-neutral-400'}`}>{item.label}</span>
-            </button>
-          );
-        })}
+          {NAV.slice(2).map((item) => {
+            const active = tab === item.id;
+            return (
+              <button key={item.id} onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className="flex flex-col items-center gap-1 py-1">
+                <NavIcon tab={item.id} className={active ? 'text-clay' : 'text-hairline'} />
+                <span className={`text-[10px] ${active ? 'font-bold text-clay' : 'font-semibold text-hairline'}`}>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
-      {profileOpen && <ProfilePanel profile={store.profile} onSave={handleProfileSave} onClose={() => setProfileOpen(false)} />}
-
+      {/* Overlays */}
       {settingsOpen && (
-        <SettingsPanel
-          memories={store.memories}
+        <SettingsScreen
+          store={store}
           prefs={prefs}
-          subscriptionTier={store.profile.subscriptionTier ?? 'free'}
           onTogglePref={handleTogglePref}
+          onProfileSave={handleProfileSave}
           onAddMemory={handleAddMemory}
           onRemoveMemory={handleRemoveMemory}
-          onExportBlueprint={handleExportBlueprint}
-          onDownloadBackup={() => downloadStore(storeRef.current)}
-          onRestoreBackup={() => fileInputRef.current?.click()}
           onResetAll={handleResetAll}
           onClose={() => setSettingsOpen(false)}
         />
       )}
+
+      {quickAddOpen && (
+        <Sheet onClose={() => setQuickAddOpen(false)} label="Quick add">
+          <Eyebrow>Quick add</Eyebrow>
+          <div className="mt-3 space-y-2">
+            <button
+              onClick={() => {
+                setQuickAddOpen(false);
+                setTab('fuel');
+              }}
+              className="flex w-full items-center gap-4 rounded-2xl border border-line bg-card p-4 text-left"
+            >
+              <span className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-clay-soft text-clay">
+                <NavIcon tab="fuel" />
+              </span>
+              <span>
+                <span className="block text-[15px] font-bold text-ink">Log food</span>
+                <span className="block text-[12px] text-faint">Add a meal to today</span>
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                setQuickAddOpen(false);
+                setMeasureOpen(true);
+              }}
+              className="flex w-full items-center gap-4 rounded-2xl border border-line bg-card p-4 text-left"
+            >
+              <span className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-clay-soft text-clay">
+                <NavIcon tab="body" />
+              </span>
+              <span>
+                <span className="block text-[15px] font-bold text-ink">Log a measurement</span>
+                <span className="block text-[12px] text-faint">Weight, body fat, HR, sleep</span>
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                setQuickAddOpen(false);
+                setTab('move');
+              }}
+              className="flex w-full items-center gap-4 rounded-2xl border border-line bg-card p-4 text-left"
+            >
+              <span className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-clay-soft text-clay">
+                <NavIcon tab="move" />
+              </span>
+              <span>
+                <span className="block text-[15px] font-bold text-ink">Log a set</span>
+                <span className="block text-[12px] text-faint">Jump into today&apos;s session</span>
+              </span>
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {measureOpen && <MeasureSheet onSave={handleLogMetric} onClose={() => setMeasureOpen(false)} />}
     </div>
   );
 }

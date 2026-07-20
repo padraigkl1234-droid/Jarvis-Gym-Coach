@@ -74,7 +74,7 @@ export default function TermsPage() {
 
       <Section title="9. Contact">
         <p>
-          Questions about these terms: <a className="text-red-600 underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+          Questions about these terms: <a className="text-clay underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
         </p>
       </Section>
     </LegalLayout>
