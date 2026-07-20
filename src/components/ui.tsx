@@ -106,6 +106,69 @@ export function Sheet({ onClose, children, label }: { onClose: () => void; child
   );
 }
 
+/** Date-indexed line chart with a soft gradient fill, month labels on the x-axis. */
+export function TrendChart({
+  points,
+  color = '#B4552F',
+  emptyLabel = 'Not enough data yet',
+}: {
+  points: { date: string; value: number }[];
+  color?: string;
+  emptyLabel?: string;
+}) {
+  const W = 300;
+  const H = 110;
+  const PAD = { l: 6, r: 6, t: 10, b: 20 };
+  if (points.length < 2) {
+    return (
+      <div className="flex h-[110px] items-center justify-center rounded-xl bg-canvas text-[12px] font-semibold text-hairline">{emptyLabel}</div>
+    );
+  }
+  const vals = points.map((p) => p.value);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const span = max - min || 1;
+  const lo = min - span * 0.2;
+  const hi = max + span * 0.2;
+  const t0 = new Date(points[0].date).getTime();
+  const t1 = new Date(points[points.length - 1].date).getTime() || t0 + 1;
+  const x = (d: string) => PAD.l + ((new Date(d).getTime() - t0) / (t1 - t0 || 1)) * (W - PAD.l - PAD.r);
+  const y = (v: number) => PAD.t + (1 - (v - lo) / (hi - lo)) * (H - PAD.t - PAD.b);
+  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.date).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
+  const area = `${line} L${x(points[points.length - 1].date).toFixed(1)},${H - PAD.b} L${x(points[0].date).toFixed(1)},${H - PAD.b} Z`;
+  const gradId = `trend-${color.replace('#', '')}`;
+
+  // Month labels across the visible range.
+  const months: { label: string; xPos: number }[] = [];
+  const cursor = new Date(points[0].date);
+  cursor.setDate(1);
+  while (cursor.getTime() <= t1) {
+    if (cursor.getTime() >= t0) {
+      const iso = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+      months.push({ label: cursor.toLocaleDateString('en-GB', { month: 'short' }), xPos: x(iso) });
+    }
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Trend chart">
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gradId})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      {months.map((m, i) => (
+        <text key={i} x={m.xPos} y={H - 6} textAnchor="middle" fontSize="11" fill="#A8A296" fontWeight="600">
+          {m.label}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
 /** Full-width clay call-to-action pill. */
 export function CtaButton({
   children,

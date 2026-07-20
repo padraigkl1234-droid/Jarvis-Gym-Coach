@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { ArrowLeft, ChevronRight, UserRound, Target, CalendarRange, Download, Bell, Ruler, Plus } from 'lucide-react';
+import { ArrowLeft, ChevronRight, UserRound, Target, CalendarRange, Download, Bell, Ruler, Plus, TrendingUp } from 'lucide-react';
+import { ProgressScreen } from '@/components/ProgressScreen';
 import {
   MEMORY_CATEGORIES,
   downloadStore,
@@ -290,6 +291,7 @@ export function SettingsScreen({
   const { data: session } = useSession();
   const [googleReady, setGoogleReady] = useState(false);
   const [sheet, setSheet] = useState<'profile' | 'goals' | 'schedule' | 'note' | null>(null);
+  const [progressOpen, setProgressOpen] = useState(false);
   const [armDelete, setArmDelete] = useState(false);
 
   useEffect(() => {
@@ -336,6 +338,7 @@ export function SettingsScreen({
           <Row icon={UserRound} label="Athlete profile" onClick={() => setSheet('profile')} />
           <Row icon={Target} label="Goals & daily targets" value={p.goal || undefined} onClick={() => setSheet('goals')} />
           <Row icon={CalendarRange} label="Equipment & schedule" value={p.daysPerWeek ? `${p.daysPerWeek} days` : undefined} onClick={() => setSheet('schedule')} />
+          <Row icon={TrendingUp} label="Your progress" value="Calories, weight, strength" onClick={() => setProgressOpen(true)} />
         </Card>
 
         {/* Coach notes */}
@@ -409,6 +412,7 @@ export function SettingsScreen({
       {sheet === 'goals' && <GoalsSheet profile={p} onSave={onProfileSave} onClose={() => setSheet(null)} />}
       {sheet === 'schedule' && <ScheduleSheet profile={p} onSave={onProfileSave} onClose={() => setSheet(null)} />}
       {sheet === 'note' && <NoteComposer onAdd={onAddMemory} onClose={() => setSheet(null)} />}
+      {progressOpen && <ProgressScreen store={store} onClose={() => setProgressOpen(false)} />}
     </div>
   );
 }
