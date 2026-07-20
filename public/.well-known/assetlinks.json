@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.vercel.jarvis_gym_coach.twa",
+    "sha256_cert_fingerprints": ["07:B4:47:B2:A1:E9:91:B9:21:2A:CC:AA:97:E6:1D:03:D7:99:A2:6E:DF:C4:26:D6:A6:B9:DE:05:BE:36:0A:D3"]
+  }
+}]
