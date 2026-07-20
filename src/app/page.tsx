@@ -181,7 +181,7 @@ export default function ValorisPage() {
   }, [commitStore, ensureSession]);
 
   const handleQuickLogSet = useCallback(
-    (exercise: string, weightKg?: number) => {
+    (exercise: string, weightKg?: number, reps?: number) => {
       const cur = storeRef.current;
       const now = new Date();
       const date = todayStr(now);
@@ -192,7 +192,7 @@ export default function ValorisPage() {
         sessions,
         sets: [
           ...cur.sets,
-          { date, time: timeStr(now), exercise, setNumber, reps: null, weightKg: weightKg ?? null, rpe: null, sessionId: session.id },
+          { date, time: timeStr(now), exercise, setNumber, reps: reps ?? null, weightKg: weightKg ?? null, rpe: null, sessionId: session.id },
         ],
       });
     },

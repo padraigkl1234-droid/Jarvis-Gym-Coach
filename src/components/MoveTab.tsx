@@ -175,7 +175,7 @@ export function MoveTab({
   onRemovePlanDay,
 }: {
   store: JarvisStore;
-  onLogSet: (exercise: string, weightKg?: number) => void;
+  onLogSet: (exercise: string, weightKg?: number, reps?: number) => void;
   onUnlogSet: (exercise: string) => void;
   onLogCardio: (exercise: string, durationMin?: number, distanceKm?: number) => void;
   onStartSession: () => void;
@@ -189,6 +189,7 @@ export function MoveTab({
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [weightDraft, setWeightDraft] = useState<Record<string, string>>({});
+  const [repsDraft, setRepsDraft] = useState<Record<string, string>>({});
   const [cardioDraft, setCardioDraft] = useState<Record<string, { min: string; km: string }>>({});
   const today = todayStr();
 
@@ -215,6 +216,10 @@ export function MoveTab({
   const lastWeightFor = (exercise: string) => {
     const matches = store.sets.filter((s) => s.exercise.toLowerCase() === exercise.toLowerCase() && s.weightKg != null);
     return matches.length ? matches[matches.length - 1].weightKg! : null;
+  };
+  const lastRepsFor = (exercise: string) => {
+    const matches = store.sets.filter((s) => s.exercise.toLowerCase() === exercise.toLowerCase() && s.reps != null);
+    return matches.length ? matches[matches.length - 1].reps! : null;
   };
 
   const p = store.profile;
@@ -381,9 +386,13 @@ export function MoveTab({
             const logged = isToday ? loggedCount(ex.name) : 0;
             const complete = logged >= targetSets;
             const last = lastWeightFor(ex.name);
+            const lastReps = lastRepsFor(ex.name);
             const weightVal = weightDraft[ex.name] ?? (last != null ? String(last) : '');
             const weightNum = parseFloat(weightVal);
             const nextWeight = Number.isFinite(weightNum) && weightNum > 0 ? weightNum : undefined;
+            const repsVal = repsDraft[ex.name] ?? (lastReps != null ? String(lastReps) : '');
+            const repsNum = parseInt(repsVal, 10);
+            const nextReps = Number.isFinite(repsNum) && repsNum > 0 ? repsNum : undefined;
             return (
               <li key={i} className={`py-[15px] ${i > 0 ? 'border-t border-line' : ''}`}>
                 <div className="flex items-center justify-between gap-3">
@@ -391,7 +400,7 @@ export function MoveTab({
                     <div className={`text-[15px] font-semibold ${complete ? 'text-hairline' : 'text-ink'}`}>{ex.name}</div>
                     <div className="mt-0.5 text-[12px] text-faint">
                       {targetSets} × {ex.reps ?? '—'}
-                      {last != null && ` · ${last} kg last`}
+                      {last != null && ` · ${last}kg${lastReps != null ? ` × ${lastReps}` : ''} last`}
                     </div>
                   </button>
                   <div className="flex shrink-0 items-center gap-2">
@@ -406,7 +415,7 @@ export function MoveTab({
                               ? filled && k === logged - 1
                                 ? onUnlogSet(ex.name)
                                 : !filled && k === logged
-                                ? onLogSet(ex.name, nextWeight)
+                                ? onLogSet(ex.name, nextWeight, nextReps)
                                 : undefined
                               : undefined
                           }
@@ -425,14 +434,22 @@ export function MoveTab({
                   </div>
                 </div>
                 {isOpen && isToday && (
-                  <div className="mt-3 flex items-center gap-2.5">
+                  <div className="mt-3 flex flex-wrap items-center gap-2.5">
                     <span className="text-[12px] font-semibold text-faint">Weight</span>
                     <input
                       value={weightVal}
                       onChange={(e) => setWeightDraft((c) => ({ ...c, [ex.name]: e.target.value }))}
                       inputMode="decimal"
                       placeholder="kg"
-                      className={`${fieldCls} !w-24 text-center`}
+                      className={`${fieldCls} !w-20 text-center`}
+                    />
+                    <span className="text-[12px] font-semibold text-faint">Reps</span>
+                    <input
+                      value={repsVal}
+                      onChange={(e) => setRepsDraft((c) => ({ ...c, [ex.name]: e.target.value }))}
+                      inputMode="numeric"
+                      placeholder="reps"
+                      className={`${fieldCls} !w-20 text-center`}
                     />
                     <span className="text-[12px] text-hairline">applies to the next set you tick</span>
                   </div>
