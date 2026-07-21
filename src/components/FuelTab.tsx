@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { type JarvisStore, type MealEntry, type MealSlot, todayStr } from '@/lib/store';
-import { Bar, Card, Eyebrow, fieldCls } from '@/components/ui';
+import { Bar, Card, CtaButton, Eyebrow, Field, Sheet, fieldCls } from '@/components/ui';
 
 const SLOTS: { id: MealSlot; label: string }[] = [
   { id: 'breakfast', label: 'Breakfast' },
@@ -101,18 +101,94 @@ function AddMealForm({
   );
 }
 
+function EditMealSheet({
+  meal,
+  onSave,
+  onDelete,
+  onClose,
+}: {
+  meal: MealEntry;
+  onSave: (patch: Partial<MealEntry>) => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(meal.name);
+  const [kcal, setKcal] = useState(String(meal.calories));
+  const [protein, setProtein] = useState(String(meal.proteinG));
+  const [carbs, setCarbs] = useState(String(meal.carbsG));
+  const [fat, setFat] = useState(String(meal.fatG));
+  const num = (s: string, fallback: number) => {
+    const n = parseFloat(s);
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  };
+  const valid = name.trim().length > 0;
+
+  return (
+    <Sheet onClose={onClose} label={`Edit ${meal.name}`}>
+      <h2 className="font-display text-[24px] text-ink">Edit entry</h2>
+      <div className="mt-5 space-y-4">
+        <Field label="Name">
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={fieldCls} />
+        </Field>
+        <div className="grid grid-cols-4 gap-2">
+          <Field label="Kcal">
+            <input value={kcal} onChange={(e) => setKcal(e.target.value)} inputMode="numeric" className={`${fieldCls} !px-2 text-center`} />
+          </Field>
+          <Field label="Protein g">
+            <input value={protein} onChange={(e) => setProtein(e.target.value)} inputMode="numeric" className={`${fieldCls} !px-2 text-center`} />
+          </Field>
+          <Field label="Carbs g">
+            <input value={carbs} onChange={(e) => setCarbs(e.target.value)} inputMode="numeric" className={`${fieldCls} !px-2 text-center`} />
+          </Field>
+          <Field label="Fat g">
+            <input value={fat} onChange={(e) => setFat(e.target.value)} inputMode="numeric" className={`${fieldCls} !px-2 text-center`} />
+          </Field>
+        </div>
+      </div>
+      <CtaButton
+        className="mt-6 !py-3.5"
+        disabled={!valid}
+        onClick={() => {
+          onSave({
+            name: name.trim(),
+            calories: num(kcal, meal.calories),
+            proteinG: num(protein, meal.proteinG),
+            carbsG: num(carbs, meal.carbsG),
+            fatG: num(fat, meal.fatG),
+          });
+          onClose();
+        }}
+      >
+        Save changes
+      </CtaButton>
+      <button
+        onClick={() => {
+          onDelete();
+          onClose();
+        }}
+        className="mt-3 w-full py-1 text-center text-[13px] font-bold text-clay"
+      >
+        Delete entry
+      </button>
+    </Sheet>
+  );
+}
+
 export function FuelTab({
   store,
   onAddMeal,
+  onEditMeal,
   onDeleteMeal,
   onSetWater,
 }: {
   store: JarvisStore;
   onAddMeal: (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; slot: MealSlot }) => void;
+  onEditMeal: (meal: MealEntry, patch: Partial<MealEntry>) => void;
   onDeleteMeal: (meal: MealEntry) => void;
   onSetWater: (ml: number) => void;
 }) {
   const [addingSlot, setAddingSlot] = useState<MealSlot | null>(null);
+  const [editingMeal, setEditingMeal] = useState<MealEntry | null>(null);
   const today = todayStr();
   const p = store.profile;
 
@@ -176,7 +252,9 @@ export function FuelTab({
                 <div className="mt-1.5 flex flex-wrap gap-x-1 gap-y-1">
                   {slotMeals.map((m, i) => (
                     <span key={i} className="inline-flex items-center gap-1 text-[13px] text-muted">
-                      {m.name}
+                      <button onClick={() => setEditingMeal(m)} className="underline decoration-dotted decoration-hairline underline-offset-2 hover:text-ink">
+                        {m.name}
+                      </button>
                       <button onClick={() => onDeleteMeal(m)} aria-label={`Remove ${m.name}`} className="text-hairline transition-colors hover:text-clay">
                         <X className="h-3 w-3" />
                       </button>
@@ -211,6 +289,15 @@ export function FuelTab({
           +250 ml
         </button>
       </Card>
+
+      {editingMeal && (
+        <EditMealSheet
+          meal={editingMeal}
+          onSave={(patch) => onEditMeal(editingMeal, patch)}
+          onDelete={() => onDeleteMeal(editingMeal)}
+          onClose={() => setEditingMeal(null)}
+        />
+      )}
     </div>
   );
 }

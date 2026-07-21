@@ -293,6 +293,14 @@ export default function ValorisPage() {
     [commitStore]
   );
 
+  const handleEditMeal = useCallback(
+    (meal: MealEntry, patch: Partial<MealEntry>) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, meals: cur.meals.map((m) => (m === meal ? { ...m, ...patch } : m)) });
+    },
+    [commitStore]
+  );
+
   const handleSetWater = useCallback(
     (ml: number) => {
       const cur = storeRef.current;
@@ -387,7 +395,9 @@ export default function ValorisPage() {
               onRemovePlanDay={handleRemovePlanDay}
             />
           )}
-          {tab === 'fuel' && <FuelTab store={store} onAddMeal={handleAddMeal} onDeleteMeal={handleDeleteMeal} onSetWater={handleSetWater} />}
+          {tab === 'fuel' && (
+            <FuelTab store={store} onAddMeal={handleAddMeal} onEditMeal={handleEditMeal} onDeleteMeal={handleDeleteMeal} onSetWater={handleSetWater} />
+          )}
           {tab === 'body' && <BodyTab store={store} onOpenLog={() => setMeasureOpen(true)} onDeleteMetric={handleDeleteMetric} />}
           {tab === 'progress' && <ProgressScreen store={store} />}
         </div>
