@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { type JarvisStore } from '@/lib/store';
 import { buildStats } from '@/lib/stats';
 import { Card, Chip, Eyebrow, TrendChart } from '@/components/ui';
+import { SessionLog } from '@/components/SessionLog';
 
 const RANGES = [
   { label: '7D', days: 7 },
@@ -11,10 +13,27 @@ const RANGES = [
   { label: '90D', days: 90 },
 ];
 
-function StatCard({ label, value, unit, sub, subTone = 'faint' }: { label: string; value: string; unit?: string; sub?: string; subTone?: 'sage' | 'faint' }) {
+function StatCard({
+  label,
+  value,
+  unit,
+  sub,
+  subTone = 'faint',
+  onClick,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  sub?: string;
+  subTone?: 'sage' | 'faint';
+  onClick?: () => void;
+}) {
   return (
-    <Card className="rounded-[18px] p-4">
-      <Eyebrow className="!text-[10px]">{label}</Eyebrow>
+    <Card className="rounded-[18px] p-4" onClick={onClick}>
+      <div className="flex items-center justify-between">
+        <Eyebrow className="!text-[10px]">{label}</Eyebrow>
+        {onClick && <ChevronRight size={14} className="text-faintest" />}
+      </div>
       <div className="mt-2 flex items-baseline gap-1.5">
         <span className="font-display text-[26px] leading-none text-ink">{value}</span>
         {unit && <span className="text-[12px] text-faint">{unit}</span>}
@@ -26,8 +45,12 @@ function StatCard({ label, value, unit, sub, subTone = 'faint' }: { label: strin
 
 export function ProgressScreen({ store }: { store: JarvisStore }) {
   const [days, setDays] = useState(30);
+  const [logOpen, setLogOpen] = useState(false);
   const stats = useMemo(() => buildStats(store, { days }), [store, days]);
   const { summary } = stats;
+
+  const completedSessions = useMemo(() => stats.completedSessions.filter((s) => s.status === 'completed'), [stats]);
+  const rangeLabel = RANGES.find((r) => r.days === days)?.label ?? `${days}D`;
 
   const caloriePoints = useMemo(
     () => [...stats.dailyMacros].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({ date: d.date, value: d.calories })),
@@ -63,7 +86,12 @@ export function ProgressScreen({ store }: { store: JarvisStore }) {
             sub={summary.bodyweightKg ? `${summary.bodyweightKg.first}kg → ${summary.bodyweightKg.last}kg` : 'No weigh-ins yet'}
             subTone={summary.bodyweightKg && summary.bodyweightKg.change < 0 ? 'sage' : 'faint'}
           />
-          <StatCard label="Sessions completed" value={String(summary.workoutsCompleted)} sub={`${summary.totalSets} sets logged`} />
+          <StatCard
+            label="Sessions completed"
+            value={String(summary.workoutsCompleted)}
+            sub={`${summary.totalSets} sets logged`}
+            onClick={summary.workoutsCompleted > 0 ? () => setLogOpen(true) : undefined}
+          />
           <StatCard label="Total volume" value={summary.totalVolumeKg.toLocaleString()} unit="kg lifted" />
         </div>
 
@@ -121,6 +149,8 @@ export function ProgressScreen({ store }: { store: JarvisStore }) {
             </ul>
           )}
         </div>
+
+        {logOpen && <SessionLog sessions={completedSessions} rangeLabel={rangeLabel} onClose={() => setLogOpen(false)} />}
       </div>
   );
 }
