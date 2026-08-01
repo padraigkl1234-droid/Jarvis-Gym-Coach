@@ -12,6 +12,7 @@ import { CtaButton, Eyebrow, Field, fieldCls, Sheet } from '@/components/ui';
 import {
   loadStore,
   saveStore,
+  decodePlanParam,
   DEFAULT_STORE,
   newId,
   todayStr,
@@ -113,6 +114,7 @@ export default function ValorisPage() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [measureOpen, setMeasureOpen] = useState(false);
   const [prefs, setPrefs] = useState<Prefs>({ reminders: false });
+  const [pendingPlan, setPendingPlan] = useState<PlanDay[] | null>(null);
 
   const storeRef = useRef(store);
 
@@ -132,8 +134,29 @@ export default function ValorisPage() {
     } catch {
       /* defaults stand */
     }
+    // A shared plan link (?plan=...) offers to load a whole weekly plan in one
+    // tap. We only stage it for confirmation here — nothing is applied until
+    // the athlete taps Apply, and it never touches logged data.
+    try {
+      const param = new URL(window.location.href).searchParams.get('plan');
+      if (param) {
+        const decoded = decodePlanParam(param);
+        if (decoded) setPendingPlan(decoded);
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    } catch {
+      /* malformed link — ignore */
+    }
     setHydrated(true);
   }, []);
+
+  const applyPendingPlan = useCallback(() => {
+    if (!pendingPlan) return;
+    const cur = storeRef.current;
+    commitStore({ ...cur, plan: pendingPlan });
+    setPendingPlan(null);
+    setTab('move');
+  }, [pendingPlan, commitStore]);
 
   const handleTogglePref = useCallback((key: keyof Prefs) => {
     setPrefs((cur) => {
@@ -509,6 +532,33 @@ export default function ValorisPage() {
       )}
 
       {measureOpen && <MeasureSheet onSave={handleLogMetric} onClose={() => setMeasureOpen(false)} />}
+
+      {pendingPlan && (
+        <Sheet onClose={() => setPendingPlan(null)} label="Apply shared plan">
+          <Eyebrow>Import plan</Eyebrow>
+          <h2 className="mt-1 font-display text-[24px] text-ink">Apply this training plan?</h2>
+          <p className="mt-2 text-[13px] leading-relaxed text-muted">
+            This sets your weekly schedule to the shared plan below. It replaces your current weekly plan — your logged workouts, meals, and
+            measurements are not touched.
+          </p>
+          <div className="mt-4 space-y-2">
+            {pendingPlan.map((d) => (
+              <div key={d.weekday} className="rounded-xl border border-line bg-card p-3">
+                <div className="text-[13px] font-bold text-ink">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.weekday]} · {d.label}
+                </div>
+                <div className="mt-0.5 text-[12px] text-faint">{d.exercises.map((e) => e.name).join(', ')}</div>
+              </div>
+            ))}
+          </div>
+          <CtaButton className="mt-5 !py-3.5" onClick={applyPendingPlan}>
+            Apply plan
+          </CtaButton>
+          <button onClick={() => setPendingPlan(null)} className="mt-3 w-full py-1 text-center text-[13px] font-bold text-faint">
+            Cancel
+          </button>
+        </Sheet>
+      )}
     </div>
   );
 }

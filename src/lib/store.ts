@@ -314,3 +314,42 @@ export function downloadStore(store: JarvisStore): void {
 export function parseImportedStore(raw: string): JarvisStore {
   return normalize(JSON.parse(raw));
 }
+
+/**
+ * Decodes a shareable plan payload (base64url of { v, plan }) into a validated
+ * PlanDay[]. Used by the ?plan= import link so a whole weekly plan can be
+ * applied in one tap without touching any logged data. Returns null if the
+ * payload is missing, malformed, or not a plan.
+ */
+export function decodePlanParam(param: string): PlanDay[] | null {
+  try {
+    const b64 = param.replace(/-/g, '+').replace(/_/g, '/');
+    const json = typeof atob !== 'undefined' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary');
+    const obj = JSON.parse(json);
+    const raw = Array.isArray(obj) ? obj : obj?.plan;
+    if (!Array.isArray(raw)) return null;
+    const plan: PlanDay[] = [];
+    for (const d of raw) {
+      if (typeof d?.weekday !== 'number' || d.weekday < 0 || d.weekday > 6 || !Array.isArray(d?.exercises)) continue;
+      plan.push({
+        weekday: d.weekday,
+        label: String(d.label ?? 'Session'),
+        focus: String(d.focus ?? ''),
+        exercises: d.exercises
+          .filter((e: any) => e && typeof e.name === 'string')
+          .map((e: any) => ({
+            name: String(e.name),
+            type: e.type === 'cardio' ? 'cardio' : 'strength',
+            sets: typeof e.sets === 'number' ? e.sets : undefined,
+            reps: typeof e.reps === 'string' ? e.reps : undefined,
+            durationMin: typeof e.durationMin === 'number' ? e.durationMin : undefined,
+            distanceKm: typeof e.distanceKm === 'number' ? e.distanceKm : undefined,
+            notes: typeof e.notes === 'string' ? e.notes : undefined,
+          })),
+      });
+    }
+    return plan.length ? plan.sort((a, b) => a.weekday - b.weekday) : null;
+  } catch {
+    return null;
+  }
+}
