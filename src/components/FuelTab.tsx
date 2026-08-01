@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, History } from 'lucide-react';
 import { type JarvisStore, type MealEntry, type MealSlot, todayStr } from '@/lib/store';
 import { Bar, Card, CtaButton, Eyebrow, Field, Sheet, fieldCls } from '@/components/ui';
+import { FoodDiary } from '@/components/FoodDiary';
 
 const SLOTS: { id: MealSlot; label: string }[] = [
   { id: 'breakfast', label: 'Breakfast' },
@@ -189,6 +190,7 @@ export function FuelTab({
 }) {
   const [addingSlot, setAddingSlot] = useState<MealSlot | null>(null);
   const [editingMeal, setEditingMeal] = useState<MealEntry | null>(null);
+  const [diaryOpen, setDiaryOpen] = useState(false);
   const today = todayStr();
   const p = store.profile;
 
@@ -202,8 +204,18 @@ export function FuelTab({
 
   return (
     <div>
-      <Eyebrow className="pt-2">Diet</Eyebrow>
-      <h1 className="mt-1 font-display text-[32px] text-ink">Fuel</h1>
+      <div className="flex items-start justify-between">
+        <div>
+          <Eyebrow className="pt-2">Diet</Eyebrow>
+          <h1 className="mt-1 font-display text-[32px] text-ink">Fuel</h1>
+        </div>
+        <button
+          onClick={() => setDiaryOpen(true)}
+          className="mt-3 flex items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-2 text-[12px] font-bold text-muted transition-colors hover:text-clay"
+        >
+          <History size={15} /> History
+        </button>
+      </div>
 
       {/* Hero card */}
       <div className="mt-5 rounded-3xl bg-ink p-6">
@@ -298,6 +310,8 @@ export function FuelTab({
           onClose={() => setEditingMeal(null)}
         />
       )}
+
+      {diaryOpen && <FoodDiary store={store} onDeleteMeal={onDeleteMeal} onClose={() => setDiaryOpen(false)} />}
     </div>
   );
 }
