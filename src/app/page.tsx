@@ -390,7 +390,7 @@ export default function ValorisPage() {
   if (!hydrated) return <div className="min-h-[100dvh] bg-canvas" />;
 
   if (!store.profile.onboarded) {
-    return <OnboardingFlow onComplete={(profile) => handleProfileSave(profile)} />;
+    return <OnboardingFlow onComplete={(profile) => handleProfileSave(profile)} onRestore={(restored) => commitStore(restored)} />;
   }
 
   const NAV: { id: Tab; label: string }[] = [
@@ -473,6 +473,7 @@ export default function ValorisPage() {
           onProfileSave={handleProfileSave}
           onAddMemory={handleAddMemory}
           onRemoveMemory={handleRemoveMemory}
+          onRestore={(restored) => commitStore(restored)}
           onResetAll={handleResetAll}
           onClose={() => setSettingsOpen(false)}
         />

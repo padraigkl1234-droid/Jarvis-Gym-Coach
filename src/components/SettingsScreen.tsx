@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { ArrowLeft, ChevronRight, UserRound, Target, CalendarRange, Download, Bell, Ruler, Plus } from 'lucide-react';
+import { ArrowLeft, ChevronRight, UserRound, Target, CalendarRange, Download, Upload, Bell, Ruler, Plus } from 'lucide-react';
 import {
   MEMORY_CATEGORIES,
   downloadStore,
+  parseImportedStore,
   type JarvisStore,
   type MemoryCategory,
   type MemoryEntry,
@@ -275,6 +276,7 @@ export function SettingsScreen({
   onProfileSave,
   onAddMemory,
   onRemoveMemory,
+  onRestore,
   onResetAll,
   onClose,
 }: {
@@ -284,6 +286,7 @@ export function SettingsScreen({
   onProfileSave: (patch: Partial<Profile>) => void;
   onAddMemory: (note: string, category: MemoryCategory) => void;
   onRemoveMemory: (memory: MemoryEntry) => void;
+  onRestore: (store: JarvisStore) => void;
   onResetAll: () => void;
   onClose: () => void;
 }) {
@@ -291,6 +294,27 @@ export function SettingsScreen({
   const [googleReady, setGoogleReady] = useState(false);
   const [sheet, setSheet] = useState<'profile' | 'goals' | 'schedule' | 'note' | null>(null);
   const [armDelete, setArmDelete] = useState(false);
+  const [restorePreview, setRestorePreview] = useState<JarvisStore | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = parseImportedStore(String(reader.result));
+        setRestoreError(null);
+        setRestorePreview(parsed);
+      } catch {
+        setRestoreError("That file couldn't be read as a VALORIS backup.");
+      }
+    };
+    reader.onerror = () => setRestoreError("That file couldn't be read.");
+    reader.readAsText(file);
+  };
 
   useEffect(() => {
     fetch('/api/auth/providers')
@@ -368,8 +392,14 @@ export function SettingsScreen({
         <Card className="mt-2 divide-y divide-divider rounded-2xl">
           <Row icon={Ruler} label="Units" value="Metric · kg" />
           <Row icon={Bell} label="Reminders" right={<Toggle on={prefs.reminders} onChange={() => onTogglePref('reminders')} label="Reminders" />} />
-          <Row icon={Download} label="Export my data" onClick={() => downloadStore(store)} />
+          <Row icon={Download} label="Back up my data" value="Download" onClick={() => downloadStore(store)} />
+          <Row icon={Upload} label="Restore from backup" value="Import" onClick={() => fileRef.current?.click()} />
         </Card>
+        <p className="mt-2 px-1 text-[11px] leading-relaxed text-faintest">
+          Your data lives only on this device. Back it up before uninstalling or switching phones, then Restore to bring it back.
+        </p>
+        {restoreError && <p className="mt-1 px-1 text-[12px] font-semibold text-clay">{restoreError}</p>}
+        <input ref={fileRef} type="file" accept="application/json,.json" onChange={onFilePicked} className="hidden" />
 
         {/* Account actions */}
         <div className="mt-8 space-y-4 text-center">
@@ -409,6 +439,46 @@ export function SettingsScreen({
       {sheet === 'goals' && <GoalsSheet profile={p} onSave={onProfileSave} onClose={() => setSheet(null)} />}
       {sheet === 'schedule' && <ScheduleSheet profile={p} onSave={onProfileSave} onClose={() => setSheet(null)} />}
       {sheet === 'note' && <NoteComposer onAdd={onAddMemory} onClose={() => setSheet(null)} />}
+
+      {restorePreview && (
+        <Sheet onClose={() => setRestorePreview(null)} label="Restore backup">
+          <Eyebrow>Restore backup</Eyebrow>
+          <h2 className="mt-1 font-display text-[24px] text-ink">Restore this backup?</h2>
+          <p className="mt-2 text-[13px] leading-relaxed text-muted">
+            This replaces everything currently in the app with the backup below. Best used on a fresh install.
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-[13px]">
+            {(
+              [
+                ['Athlete', restorePreview.profile.name || '—'],
+                ['Meals', String(restorePreview.meals.length)],
+                ['Logged sets', String(restorePreview.sets.length)],
+                ['Sessions', String(restorePreview.sessions.length)],
+                ['Measurements', String(restorePreview.metrics.length)],
+                ['Plan days', String(restorePreview.plan.length)],
+              ] as const
+            ).map(([k, v]) => (
+              <div key={k} className="rounded-xl border border-line bg-card px-3 py-2">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-faint">{k}</div>
+                <div className="mt-0.5 font-display text-[16px] text-ink">{v}</div>
+              </div>
+            ))}
+          </div>
+          <CtaButton
+            className="mt-5 !py-3.5"
+            onClick={() => {
+              onRestore(restorePreview);
+              setRestorePreview(null);
+              onClose();
+            }}
+          >
+            Restore &amp; replace
+          </CtaButton>
+          <button onClick={() => setRestorePreview(null)} className="mt-3 w-full py-1 text-center text-[13px] font-bold text-faint">
+            Cancel
+          </button>
+        </Sheet>
+      )}
     </div>
   );
 }

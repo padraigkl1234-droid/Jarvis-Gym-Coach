@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Dumbbell, Flame, Trophy, HeartPulse, Check } from 'lucide-react';
-import { computeTargets, type Profile } from '@/lib/store';
+import { computeTargets, parseImportedStore, type JarvisStore, type Profile } from '@/lib/store';
 import { Chip, CtaButton, Field, fieldCls } from '@/components/ui';
 
 const GOALS = [
@@ -17,8 +17,31 @@ const DAYS = [2, 3, 4, 5, 6];
 const EQUIPMENT = ['Full gym', 'Dumbbells', 'Barbell', 'Machines', 'Bands', 'Bodyweight'];
 const SEXES = ['Male', 'Female', 'Other'];
 
-export function OnboardingFlow({ onComplete }: { onComplete: (profile: Partial<Profile>) => void }) {
+export function OnboardingFlow({
+  onComplete,
+  onRestore,
+}: {
+  onComplete: (profile: Partial<Profile>) => void;
+  onRestore: (store: JarvisStore) => void;
+}) {
   const [step, setStep] = useState(0);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        onRestore(parseImportedStore(String(reader.result)));
+      } catch {
+        setRestoreError("That file couldn't be read as a VALORIS backup.");
+      }
+    };
+    reader.onerror = () => setRestoreError("That file couldn't be read.");
+    reader.readAsText(file);
+  };
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [sex, setSex] = useState('');
@@ -217,12 +240,20 @@ export function OnboardingFlow({ onComplete }: { onComplete: (profile: Partial<P
         <CtaButton onClick={() => (step === 3 ? finish() : setStep(step + 1))} disabled={!canContinue}>
           {step === 3 ? 'Start training →' : 'Continue →'}
         </CtaButton>
-        {step > 0 && (
+        {step > 0 ? (
           <button onClick={() => setStep(step - 1)} className="mt-3 w-full text-center text-[13px] font-semibold text-faint">
             Back
           </button>
+        ) : (
+          <>
+            <button onClick={() => fileRef.current?.click()} className="mt-4 w-full text-center text-[13px] font-semibold text-faint">
+              Reinstalling? <span className="text-clay">Restore from a backup</span>
+            </button>
+            {restoreError && <p className="mt-1 text-center text-[12px] font-semibold text-clay">{restoreError}</p>}
+          </>
         )}
       </div>
+      <input ref={fileRef} type="file" accept="application/json,.json" onChange={onFilePicked} className="hidden" />
     </div>
   );
 }
