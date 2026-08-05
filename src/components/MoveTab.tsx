@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Play, Trash2, Plus } from 'lucide-react';
+import { Play, Trash2, Plus, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { type ExerciseType, type JarvisStore, type PlanDay, todayStr } from '@/lib/store';
 import { Card, Chip, CtaButton, Eyebrow, fieldCls } from '@/components/ui';
 
@@ -187,6 +187,7 @@ export function MoveTab({
   const todayWd = now.getDay();
   const [selectedWd, setSelectedWd] = useState(todayWd);
   const [editing, setEditing] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [weightDraft, setWeightDraft] = useState<Record<string, string>>({});
   const [repsDraft, setRepsDraft] = useState<Record<string, string>>({});
@@ -222,6 +223,16 @@ export function MoveTab({
     return matches.length ? matches[matches.length - 1].reps! : null;
   };
 
+  // Reorder a day's exercises (persists to the recurring plan).
+  const moveExercise = (i: number, dir: -1 | 1) => {
+    if (!dayPlan) return;
+    const j = i + dir;
+    if (j < 0 || j >= dayPlan.exercises.length) return;
+    const exercises = [...dayPlan.exercises];
+    [exercises[i], exercises[j]] = [exercises[j], exercises[i]];
+    onSavePlanDay({ ...dayPlan, exercises });
+  };
+
   const p = store.profile;
   const equipSummary =
     p.equipment && p.equipment.length > 0 ? (p.equipment.length > 2 ? 'Full gym' : p.equipment.join(' · ')) : null;
@@ -244,6 +255,7 @@ export function MoveTab({
               onClick={() => {
                 setSelectedWd(wd);
                 setEditing(false);
+                setReordering(false);
                 setExpanded(null);
               }}
               aria-current={selected ? 'date' : undefined}
@@ -302,10 +314,58 @@ export function MoveTab({
           onClose={() => setEditing(false)}
         />
       ) : dayPlan && dayPlan.exercises.length > 0 ? (
-        <ul className="mt-2">
+        <>
+        {dayPlan.exercises.length > 1 && (
+          <div className="mt-3 flex justify-end">
+            <button
+              onClick={() => {
+                setReordering((r) => !r);
+                setExpanded(null);
+              }}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-bold transition-colors ${
+                reordering ? 'border-clay bg-clay-soft text-clay' : 'border-line bg-card text-muted hover:text-clay'
+              }`}
+            >
+              <ArrowUpDown size={14} /> {reordering ? 'Done' : 'Reorder'}
+            </button>
+          </div>
+        )}
+        <ul className="mt-1">
           {dayPlan.exercises.map((ex, i) => {
             const isCardio = ex.type === 'cardio';
             const isOpen = expanded === ex.name;
+            if (reordering) {
+              return (
+                <li key={i} className={`flex items-center justify-between gap-3 py-3 ${i > 0 ? 'border-t border-line' : ''}`}>
+                  <div className="min-w-0">
+                    <div className="truncate text-[15px] font-semibold text-ink">{ex.name}</div>
+                    <div className="mt-0.5 text-[12px] text-faint">
+                      {ex.type === 'cardio'
+                        ? [ex.durationMin ? `${ex.durationMin} min` : null, ex.distanceKm ? `${ex.distanceKm} km` : null].filter(Boolean).join(' · ') || 'Cardio'
+                        : `${ex.sets ?? 3} × ${ex.reps ?? '—'}`}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={() => moveExercise(i, -1)}
+                      disabled={i === 0}
+                      aria-label={`Move ${ex.name} up`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink transition-colors disabled:opacity-30 enabled:hover:border-clay enabled:hover:text-clay"
+                    >
+                      <ChevronUp size={18} />
+                    </button>
+                    <button
+                      onClick={() => moveExercise(i, 1)}
+                      disabled={i === dayPlan.exercises.length - 1}
+                      aria-label={`Move ${ex.name} down`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink transition-colors disabled:opacity-30 enabled:hover:border-clay enabled:hover:text-clay"
+                    >
+                      <ChevronDown size={18} />
+                    </button>
+                  </div>
+                </li>
+              );
+            }
             if (isCardio) {
               const target = [ex.durationMin ? `${ex.durationMin} min` : null, ex.distanceKm ? `${ex.distanceKm} km` : null]
                 .filter(Boolean)
@@ -458,6 +518,7 @@ export function MoveTab({
             );
           })}
         </ul>
+        </>
       ) : (
         <p className="mt-3 text-[14px] leading-relaxed text-muted">
           {store.plan.length === 0
@@ -466,8 +527,14 @@ export function MoveTab({
         </p>
       )}
 
-      {!editing && (
-        <button onClick={() => setEditing(true)} className="mt-3 text-[13px] font-bold text-faint transition-colors hover:text-clay">
+      {!editing && !reordering && (
+        <button
+          onClick={() => {
+            setReordering(false);
+            setEditing(true);
+          }}
+          className="mt-3 text-[13px] font-bold text-faint transition-colors hover:text-clay"
+        >
           {dayPlan ? 'Edit this day' : 'Build this day'} →
         </button>
       )}
