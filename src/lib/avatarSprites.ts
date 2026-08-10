@@ -5,6 +5,8 @@
  */
 
 export type AvatarState = 'idle' | 'full' | 'flexed' | 'charged';
+/** Everything PixelAvatar can actually render — mood states plus room-only poses. */
+export type AvatarPose = AvatarState | 'sitting';
 
 export const AVATAR_PALETTE: Record<string, string> = {
   h: '#3A2E22', // hair
@@ -122,7 +124,17 @@ function zzz(g: string[][]) {
   span(g, 4, 12, 16, 'k');
 }
 
-function buildPose(state: AvatarState): string[][] {
+/** Shortened legs so the figure reads as sitting once composited onto a sofa/seat. */
+function torsoAndLegsSitting(g: string[][]) {
+  for (const y of [9, 10, 11, 12, 13]) span(g, y, 5, 12, 'c');
+  for (const y of [14, 15]) span(g, y, 5, 12, 'd');
+  span(g, 16, 5, 7, 's');
+  span(g, 16, 10, 12, 's');
+  span(g, 17, 4, 7, 'w');
+  span(g, 17, 10, 13, 'w');
+}
+
+function buildPose(state: AvatarPose): string[][] {
   const g = blank();
   if (state === 'idle') {
     head(g, 'open', 'flat');
@@ -137,6 +149,10 @@ function buildPose(state: AvatarState): string[][] {
     head(g, 'open', 'flat');
     torsoAndLegs(g, false);
     armsFlexed(g);
+  } else if (state === 'sitting') {
+    head(g, 'open', 'smile');
+    torsoAndLegsSitting(g);
+    armsDown(g);
   } else {
     head(g, 'happy', 'smile');
     torsoAndLegs(g, false);
@@ -145,11 +161,12 @@ function buildPose(state: AvatarState): string[][] {
   return g;
 }
 
-export const AVATAR_POSES: Record<AvatarState, string[][]> = {
+export const AVATAR_POSES: Record<AvatarPose, string[][]> = {
   idle: buildPose('idle'),
   full: buildPose('full'),
   flexed: buildPose('flexed'),
   charged: buildPose('charged'),
+  sitting: buildPose('sitting'),
 };
 
 export const AVATAR_GRID_SIZE = { width: W, height: H };

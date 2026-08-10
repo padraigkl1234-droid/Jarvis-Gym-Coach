@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { AVATAR_GRID_SIZE, AVATAR_PALETTE, AVATAR_POSES, type AvatarState } from '@/lib/avatarSprites';
+import { AVATAR_GRID_SIZE, AVATAR_PALETTE, AVATAR_POSES, type AvatarPose } from '@/lib/avatarSprites';
 
-export function PixelAvatar({ state, size = 120 }: { state: AvatarState; size?: number }) {
+export function PixelAvatar({ state, size = 120, className = '' }: { state: AvatarPose; size?: number; className?: string }) {
   const { width, height } = AVATAR_GRID_SIZE;
   const grid = AVATAR_POSES[state];
   const rects: React.ReactNode[] = [];
@@ -22,6 +22,7 @@ export function PixelAvatar({ state, size = 120 }: { state: AvatarState; size?: 
       shapeRendering="crispEdges"
       role="img"
       aria-label={`Avatar: ${state}`}
+      className={className}
     >
       {rects}
     </svg>

@@ -3,9 +3,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import { type JarvisStore, todayStr } from '@/lib/store';
-import { Bar, Card, Eyebrow } from '@/components/ui';
+import { Bar, Eyebrow } from '@/components/ui';
 import { CoachInsight } from '@/components/CoachInsight';
-import { PixelAvatar } from '@/components/PixelAvatar';
+import { PetRoom } from '@/components/PetRoom';
 import { type AvatarState } from '@/lib/avatarSprites';
 
 const MANUAL_KEY = 'valoris.checklist.manual.v1';
@@ -23,32 +23,6 @@ function greetingFor(hour: number): string {
   if (hour < 12) return 'Good morning,';
   if (hour < 18) return 'Good afternoon,';
   return 'Good evening,';
-}
-
-function AvatarCard({ state, name }: { state: AvatarState; name: string }) {
-  const copy: Record<AvatarState, string> = {
-    idle: `${name} is ready when you are.`,
-    full: `Fully fuelled — ${name} is having a nap.`,
-    flexed: `Workout done — ${name} is feeling strong.`,
-    charged: `Fed and trained — ${name} is unstoppable today.`,
-  };
-  const label: Record<AvatarState, string> = {
-    idle: 'Ready',
-    full: 'Fuelled up',
-    flexed: 'Trained',
-    charged: 'Fully charged',
-  };
-  return (
-    <Card className="mt-7 flex items-center gap-4 rounded-[22px] p-4">
-      <div className="shrink-0 rounded-[16px] bg-canvas p-2">
-        <PixelAvatar state={state} size={72} />
-      </div>
-      <div className="min-w-0">
-        <div className="text-[11px] font-bold uppercase tracking-wide text-clay">{label[state]}</div>
-        <p className="mt-1 text-[14px] leading-snug text-ink">{copy[state]}</p>
-      </div>
-    </Card>
-  );
 }
 
 export function HomeTab({
@@ -183,7 +157,7 @@ export function HomeTab({
         </div>
       </div>
 
-      <AvatarCard state={avatarState} name={firstName} />
+      <PetRoom mood={avatarState} name={firstName} />
 
       {/* Today's session card */}
       {hasSession && (
