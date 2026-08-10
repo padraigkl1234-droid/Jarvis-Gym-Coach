@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Plus, X, History } from 'lucide-react';
+import { Plus, X, History, Sparkles } from 'lucide-react';
 import { type JarvisStore, type MealEntry, type MealSlot, todayStr } from '@/lib/store';
 import { Bar, Card, CtaButton, Eyebrow, Field, Sheet, fieldCls } from '@/components/ui';
 import { FoodDiary } from '@/components/FoodDiary';
+import { suggestMeals, type FoodOption } from '@/lib/foodSuggestions';
 
 const SLOTS: { id: MealSlot; label: string }[] = [
   { id: 'breakfast', label: 'Breakfast' },
@@ -13,15 +14,18 @@ const SLOTS: { id: MealSlot; label: string }[] = [
   { id: 'snack', label: 'Snacks' },
 ];
 
-/** Meals logged without a slot get filed by time of day. */
-function slotOf(m: MealEntry): MealSlot {
-  if (m.slot) return m.slot;
-  const hour = parseInt(m.time.slice(0, 2), 10) || 0;
+function slotForHour(hour: number): MealSlot {
   if (hour < 5) return 'snack';
   if (hour < 11) return 'breakfast';
   if (hour < 15) return 'lunch';
   if (hour < 21) return 'dinner';
   return 'snack';
+}
+
+/** Meals logged without a slot get filed by time of day. */
+function slotOf(m: MealEntry): MealSlot {
+  if (m.slot) return m.slot;
+  return slotForHour(parseInt(m.time.slice(0, 2), 10) || 0);
 }
 
 function MacroMini({ label, value, target, fill }: { label: string; value: number; target: number; fill: string }) {
@@ -175,6 +179,57 @@ function EditMealSheet({
   );
 }
 
+function SuggestionsCard({
+  remaining,
+  targets,
+  dietaryStyle,
+  onLog,
+}: {
+  remaining: { calories: number; proteinG: number; carbsG: number; fatG: number };
+  targets: { calorieTarget: number; proteinTargetG: number; carbsTargetG: number; fatTargetG: number };
+  dietaryStyle?: string;
+  onLog: (food: FoodOption) => void;
+}) {
+  const suggestions = useMemo(() => suggestMeals(remaining, targets, dietaryStyle), [remaining, targets, dietaryStyle]);
+
+  return (
+    <Card className="mt-3 rounded-[18px] px-[18px] py-4">
+      <div className="flex items-center gap-2">
+        <Sparkles size={15} className="text-clay" />
+        <span className="text-[15px] font-bold text-ink">Suggestions</span>
+      </div>
+      {remaining.calories <= 0 ? (
+        <p className="mt-2 text-[13px] text-muted">
+          You're at (or over) your calorie target for today — nothing to suggest right now.
+        </p>
+      ) : suggestions.length === 0 ? (
+        <p className="mt-2 text-[13px] text-muted">Nothing fits your remaining macros well right now.</p>
+      ) : (
+        <ul className="mt-1 divide-y divide-divider">
+          {suggestions.map((s, i) => (
+            <li key={i} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-[14px] font-semibold text-ink">{s.food.name}</div>
+                <div className="mt-0.5 text-[12px] text-faint">
+                  {s.food.calories} kcal · P{s.food.proteinG} C{s.food.carbsG} F{s.food.fatG}
+                </div>
+                <div className="mt-0.5 text-[11px] font-semibold text-sage">{s.reason}</div>
+              </div>
+              <button
+                onClick={() => onLog(s.food)}
+                aria-label={`Log ${s.food.name}`}
+                className="shrink-0 rounded-full bg-clay-soft px-3.5 py-1.5 text-[12px] font-bold text-clay transition-colors hover:bg-clay-border"
+              >
+                + Log
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 export function FuelTab({
   store,
   onAddMeal,
@@ -200,7 +255,18 @@ export function FuelTab({
   const carbs = meals.reduce((a, m) => a + m.carbsG, 0);
   const fat = meals.reduce((a, m) => a + m.fatG, 0);
   const remaining = Math.max(0, p.calorieTarget - kcal);
+  const remainingMacros = {
+    calories: remaining,
+    proteinG: p.proteinTargetG - protein,
+    carbsG: p.carbsTargetG - carbs,
+    fatG: p.fatTargetG - fat,
+  };
   const waterMl = store.water.filter((w) => w.date === today).reduce((a, w) => a + w.ml, 0);
+
+  const logSuggestion = (food: FoodOption) => {
+    const hour = new Date().getHours();
+    onAddMeal({ name: food.name, calories: food.calories, proteinG: food.proteinG, carbsG: food.carbsG, fatG: food.fatG, slot: slotForHour(hour) });
+  };
 
   return (
     <div>
@@ -239,6 +305,8 @@ export function FuelTab({
           <MacroMini label="Fat" value={fat} target={p.fatTargetG} fill="bg-fatm" />
         </div>
       </div>
+
+      <SuggestionsCard remaining={remainingMacros} targets={p} dietaryStyle={p.dietaryStyle} onLog={logSuggestion} />
 
       {/* Meal cards */}
       <div className="mt-5 space-y-3">
