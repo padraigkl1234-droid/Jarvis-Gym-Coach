@@ -69,7 +69,7 @@ export function OnboardingFlow({
       age: num(age),
       sex: sex || undefined,
     };
-    return { ...input, ...computeTargets(input), onboarded: true };
+    return { ...input, ...computeTargets(input), onboarded: true, targetsAuto: true };
   };
 
   const finish = () => onComplete(buildProfile());

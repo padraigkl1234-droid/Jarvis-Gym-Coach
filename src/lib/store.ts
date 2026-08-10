@@ -27,6 +27,11 @@ export interface Profile {
   carbsTargetG: number;
   fatTargetG: number;
   hydrationTargetMl: number;
+  // When true (the default), targets recalculate automatically whenever
+  // stats/goal/schedule change. Set false the moment the athlete manually
+  // types their own numbers in Goals & daily targets, so we never silently
+  // overwrite a deliberate override.
+  targetsAuto?: boolean;
 }
 
 export type ExerciseType = 'strength' | 'cardio';

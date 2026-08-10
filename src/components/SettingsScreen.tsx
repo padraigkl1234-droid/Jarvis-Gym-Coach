@@ -2,9 +2,10 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { ArrowLeft, ChevronRight, UserRound, Target, CalendarRange, Download, Upload, Bell, Ruler, Plus } from 'lucide-react';
+import { ArrowLeft, ChevronRight, UserRound, Target, CalendarRange, Download, Upload, Bell, Ruler, Plus, Wand2 } from 'lucide-react';
 import {
   MEMORY_CATEGORIES,
+  computeTargets,
   downloadStore,
   parseImportedStore,
   type JarvisStore,
@@ -104,10 +105,38 @@ function AthleteProfileSheet({ profile, onSave, onClose }: { profile: Profile; o
           </div>
         </Field>
       </div>
+      {profile.targetsAuto !== false && (
+        <p className="mt-4 text-[12px] leading-relaxed text-faint">
+          Your calorie &amp; macro targets recalculate from these stats automatically.
+        </p>
+      )}
       <CtaButton
         className="mt-6 !py-3.5"
         onClick={() => {
-          onSave({ name: name.trim() || profile.name, age: num(age), heightCm: num(height), bodyweightKg: num(weight), sex: sex || undefined });
+          const patch: Partial<Profile> = {
+            name: name.trim() || profile.name,
+            age: num(age),
+            heightCm: num(height),
+            bodyweightKg: num(weight),
+            sex: sex || undefined,
+          };
+          if (profile.targetsAuto !== false) {
+            Object.assign(
+              patch,
+              computeTargets({
+                name: patch.name!,
+                goal: profile.goal,
+                experience: profile.experience,
+                daysPerWeek: profile.daysPerWeek,
+                equipment: profile.equipment,
+                bodyweightKg: patch.bodyweightKg,
+                heightCm: patch.heightCm,
+                age: patch.age,
+                sex: patch.sex,
+              })
+            );
+          }
+          onSave(patch);
           onClose();
         }}
       >
@@ -124,10 +153,31 @@ function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p
   const [carbs, setCarbs] = useState(profile.carbsTargetG.toString());
   const [fat, setFat] = useState(profile.fatTargetG.toString());
   const [water, setWater] = useState(profile.hydrationTargetMl.toString());
+  const [recalculated, setRecalculated] = useState(false);
   const num = (s: string, fallback: number) => {
     const n = parseFloat(s);
     return Number.isFinite(n) && n > 0 ? Math.round(n) : fallback;
   };
+  const recalculate = () => {
+    setRecalculated(true);
+    const t = computeTargets({
+      name: profile.name,
+      goal: goal || profile.goal,
+      experience: profile.experience,
+      daysPerWeek: profile.daysPerWeek,
+      equipment: profile.equipment,
+      bodyweightKg: profile.bodyweightKg,
+      heightCm: profile.heightCm,
+      age: profile.age,
+      sex: profile.sex,
+    });
+    setCal(t.calorieTarget.toString());
+    setProtein(t.proteinTargetG.toString());
+    setCarbs(t.carbsTargetG.toString());
+    setFat(t.fatTargetG.toString());
+    setWater(t.hydrationTargetMl.toString());
+  };
+
   return (
     <Sheet onClose={onClose} label="Goals and daily targets">
       <h2 className="font-display text-[24px] text-ink">Goals &amp; targets</h2>
@@ -141,34 +191,104 @@ function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p
             ))}
           </div>
         </Field>
+        <div className="flex items-center justify-between">
+          <span className="eyebrow !text-[10px]">Daily targets</span>
+          <button onClick={recalculate} className="text-[12px] font-bold text-clay">
+            Recalculate from my stats
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Calories / day">
-            <input value={cal} onChange={(e) => setCal(e.target.value)} inputMode="numeric" className={`${fieldCls} text-center`} />
+            <input
+              value={cal}
+              onChange={(e) => {
+                setCal(e.target.value);
+                setRecalculated(false);
+              }}
+              inputMode="numeric"
+              className={`${fieldCls} text-center`}
+            />
           </Field>
           <Field label="Protein g">
-            <input value={protein} onChange={(e) => setProtein(e.target.value)} inputMode="numeric" className={`${fieldCls} text-center`} />
+            <input
+              value={protein}
+              onChange={(e) => {
+                setProtein(e.target.value);
+                setRecalculated(false);
+              }}
+              inputMode="numeric"
+              className={`${fieldCls} text-center`}
+            />
           </Field>
           <Field label="Carbs g">
-            <input value={carbs} onChange={(e) => setCarbs(e.target.value)} inputMode="numeric" className={`${fieldCls} text-center`} />
+            <input
+              value={carbs}
+              onChange={(e) => {
+                setCarbs(e.target.value);
+                setRecalculated(false);
+              }}
+              inputMode="numeric"
+              className={`${fieldCls} text-center`}
+            />
           </Field>
           <Field label="Fat g">
-            <input value={fat} onChange={(e) => setFat(e.target.value)} inputMode="numeric" className={`${fieldCls} text-center`} />
+            <input
+              value={fat}
+              onChange={(e) => {
+                setFat(e.target.value);
+                setRecalculated(false);
+              }}
+              inputMode="numeric"
+              className={`${fieldCls} text-center`}
+            />
           </Field>
         </div>
         <Field label="Water ml / day">
-          <input value={water} onChange={(e) => setWater(e.target.value)} inputMode="numeric" className={`${fieldCls} text-center`} />
+          <input
+            value={water}
+            onChange={(e) => {
+              setWater(e.target.value);
+              setRecalculated(false);
+            }}
+            inputMode="numeric"
+            className={`${fieldCls} text-center`}
+          />
         </Field>
+        {profile.targetsAuto === false && (
+          <p className="text-[12px] leading-relaxed text-faint">
+            These are custom — editing your profile won&apos;t change them until you tap Recalculate.
+          </p>
+        )}
       </div>
       <CtaButton
         className="mt-6 !py-3.5"
         onClick={() => {
+          const nextCal = num(cal, profile.calorieTarget);
+          const nextProtein = num(protein, profile.proteinTargetG);
+          const nextCarbs = num(carbs, profile.carbsTargetG);
+          const nextFat = num(fat, profile.fatTargetG);
+          const nextWater = num(water, profile.hydrationTargetMl);
+          // Manually edited numbers lock in as a deliberate override; leaving
+          // them untouched (goal-only change), or using Recalculate, keeps
+          // auto-recalculation on.
+          const unchanged =
+            nextCal === profile.calorieTarget &&
+            nextProtein === profile.proteinTargetG &&
+            nextCarbs === profile.carbsTargetG &&
+            nextFat === profile.fatTargetG &&
+            nextWater === profile.hydrationTargetMl;
+          // Recalculate always turns auto mode on; a genuine manual edit always
+          // locks it off; leaving the numbers untouched preserves whatever the
+          // lock state already was (opening and re-saving isn't a decision).
+          const targetsAuto = recalculated ? true : unchanged ? profile.targetsAuto ?? true : false;
           onSave({
             goal: goal || profile.goal,
-            calorieTarget: num(cal, profile.calorieTarget),
-            proteinTargetG: num(protein, profile.proteinTargetG),
-            carbsTargetG: num(carbs, profile.carbsTargetG),
-            fatTargetG: num(fat, profile.fatTargetG),
-            hydrationTargetMl: num(water, profile.hydrationTargetMl),
+            calorieTarget: nextCal,
+            proteinTargetG: nextProtein,
+            carbsTargetG: nextCarbs,
+            fatTargetG: nextFat,
+            hydrationTargetMl: nextWater,
+            targetsAuto,
           });
           onClose();
         }}
@@ -222,7 +342,24 @@ function ScheduleSheet({ profile, onSave, onClose }: { profile: Profile; onSave:
       <CtaButton
         className="mt-6 !py-3.5"
         onClick={() => {
-          onSave({ experience: experience || undefined, daysPerWeek: days ?? undefined, equipment });
+          const patch: Partial<Profile> = { experience: experience || undefined, daysPerWeek: days ?? undefined, equipment };
+          if (profile.targetsAuto !== false) {
+            Object.assign(
+              patch,
+              computeTargets({
+                name: profile.name,
+                goal: profile.goal,
+                experience: patch.experience,
+                daysPerWeek: patch.daysPerWeek,
+                equipment: patch.equipment,
+                bodyweightKg: profile.bodyweightKg,
+                heightCm: profile.heightCm,
+                age: profile.age,
+                sex: profile.sex,
+              })
+            );
+          }
+          onSave(patch);
           onClose();
         }}
       >
@@ -277,6 +414,7 @@ export function SettingsScreen({
   onAddMemory,
   onRemoveMemory,
   onRestore,
+  onSuggestPlan,
   onResetAll,
   onClose,
 }: {
@@ -287,6 +425,7 @@ export function SettingsScreen({
   onAddMemory: (note: string, category: MemoryCategory) => void;
   onRemoveMemory: (memory: MemoryEntry) => void;
   onRestore: (store: JarvisStore) => void;
+  onSuggestPlan: () => void;
   onResetAll: () => void;
   onClose: () => void;
 }) {
@@ -360,7 +499,11 @@ export function SettingsScreen({
           <Row icon={UserRound} label="Athlete profile" onClick={() => setSheet('profile')} />
           <Row icon={Target} label="Goals & daily targets" value={p.goal || undefined} onClick={() => setSheet('goals')} />
           <Row icon={CalendarRange} label="Equipment & schedule" value={p.daysPerWeek ? `${p.daysPerWeek} days` : undefined} onClick={() => setSheet('schedule')} />
+          <Row icon={Wand2} label="Suggest a plan for me" value="From your goal" onClick={onSuggestPlan} />
         </Card>
+        <p className="mt-2 px-1 text-[11px] leading-relaxed text-faintest">
+          Builds a full week from your goal, equipment, and schedule above — you'll see a preview before anything changes.
+        </p>
 
         {/* Coach notes */}
         <Eyebrow className="mt-8">Coach notes</Eyebrow>
