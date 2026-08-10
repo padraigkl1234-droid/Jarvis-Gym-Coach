@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { Play, Trash2, Plus, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { type ExerciseType, type JarvisStore, type PlanDay, todayStr } from '@/lib/store';
-import { Card, Chip, CtaButton, Eyebrow, fieldCls } from '@/components/ui';
+import { Card, CtaButton, Eyebrow, fieldCls } from '@/components/ui';
 
 const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -232,10 +232,6 @@ export function MoveTab({
     [exercises[i], exercises[j]] = [exercises[j], exercises[i]];
     onSavePlanDay({ ...dayPlan, exercises });
   };
-
-  const p = store.profile;
-  const equipSummary =
-    p.equipment && p.equipment.length > 0 ? (p.equipment.length > 2 ? 'Full gym' : p.equipment.join(' · ')) : null;
 
   return (
     <div>
@@ -538,18 +534,6 @@ export function MoveTab({
           {dayPlan ? 'Edit this day' : 'Build this day'} →
         </button>
       )}
-
-      {/* Training parameters */}
-      <Card className="mt-8 p-[18px]">
-        <Eyebrow>Training parameters</Eyebrow>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {p.goal && <Chip active>{p.goal}</Chip>}
-          {p.experience && <Chip>{p.experience}</Chip>}
-          {p.daysPerWeek && <Chip>{p.daysPerWeek} days / wk</Chip>}
-          {equipSummary && <Chip>{equipSummary}</Chip>}
-          {!p.goal && !p.experience && <span className="text-[13px] text-faint">Set your goal and schedule in Settings.</span>}
-        </div>
-      </Card>
     </div>
   );
 }
