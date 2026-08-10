@@ -35,14 +35,12 @@ function writeCache(message: string) {
  * Home-screen card that actually uses goal / experience / equipment / coach
  * notes for something: one short AI coaching message a day, grounded in
  * those fields plus a compact 7-day activity summary. Cached per day so it
- * doesn't re-fire on every app open; Premium-gated same as the rest of the
- * AI features (server 403s otherwise).
+ * doesn't re-fire on every app open.
  */
 export function CoachInsight({ store }: { store: JarvisStore }) {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     const cached = readCache();
@@ -52,7 +50,6 @@ export function CoachInsight({ store }: { store: JarvisStore }) {
   const fetchInsight = async () => {
     setLoading(true);
     setError(null);
-    setLocked(false);
     try {
       const p = store.profile;
       const stats = buildStats(store, { days: 7 });
@@ -65,7 +62,6 @@ export function CoachInsight({ store }: { store: JarvisStore }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          subscriptionTier: p.subscriptionTier,
           name: p.name,
           goal: p.goal,
           experience: p.experience,
@@ -75,10 +71,6 @@ export function CoachInsight({ store }: { store: JarvisStore }) {
         }),
       });
 
-      if (res.status === 403) {
-        setLocked(true);
-        return;
-      }
       if (!res.ok) throw new Error('request failed');
       const data = await res.json();
       if (!data.message) throw new Error('empty message');
@@ -98,11 +90,7 @@ export function CoachInsight({ store }: { store: JarvisStore }) {
         <span className="text-[12px] font-bold uppercase tracking-wide text-clay">Coach insight</span>
       </div>
 
-      {locked ? (
-        <p className="mt-2.5 text-[13px] leading-relaxed text-muted">
-          Personalized coaching insights are a Premium feature.
-        </p>
-      ) : message ? (
+      {message ? (
         <>
           <p className="mt-2.5 text-[15px] leading-relaxed text-ink">{message}</p>
           <button

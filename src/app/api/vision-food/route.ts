@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'genkit';
 import { ai } from '@/ai/genkit';
-import { requirePremium } from '@/lib/tier';
 
 // Vision analysis of a real photo can take a while — don't let the platform
 // kill the function at its short default.
@@ -22,14 +21,10 @@ const VisionResult = z.object({
  * Vision food recognition: takes a photo of a meal (base64 data URL) and
  * returns identified food with estimated macros, so the client can prompt
  * "I detected X (~N kcal). Log this?" without going through text chat.
- * Premium-gated.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-
-    const gate = requirePremium(body?.subscriptionTier);
-    if (gate) return gate;
 
     const image: string = typeof body?.image === 'string' ? body.image : '';
     if (!image.startsWith('data:image/')) {
