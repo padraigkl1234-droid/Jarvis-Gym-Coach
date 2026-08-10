@@ -7,9 +7,20 @@ import { ROOM_SPOTS, type RoomSpot } from '@/lib/roomSprites';
 import { type AvatarState, type AvatarPose } from '@/lib/avatarSprites';
 import { Eyebrow } from '@/components/ui';
 
-const WALK_MS = 2200;
+// A walk breaks into three beats so it reads as a person, not a teleport:
+// stand up in place -> glide across the floor at a steady height -> settle
+// into the destination's pose (sit down / step up to the bench).
+const STAND_MS = 350;
+const GLIDE_MS = 1700;
+const SETTLE_MS = 350;
+const WALK_BOTTOM = 6; // floor-level height used only mid-glide
+
 const MIN_DWELL_MS = 6000;
 const DWELL_JITTER_MS = 5000;
+
+const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
+
+type Phase = 'resting' | 'standing' | 'gliding' | 'settling';
 
 function poseFor(spot: RoomSpot, mood: AvatarState): AvatarPose {
   if (spot === 'sofa') return 'sitting';
@@ -40,7 +51,7 @@ const LABEL: Record<AvatarState, string> = {
 export function PetRoom({ mood, name }: { mood: AvatarState; name: string }) {
   const spots = useMemo<RoomSpot[]>(() => (mood === 'flexed' || mood === 'charged' ? ['tv', 'sofa'] : ['tv', 'sofa', 'bench']), [mood]);
   const [spot, setSpot] = useState<RoomSpot>('tv');
-  const [moving, setMoving] = useState(false);
+  const [phase, setPhase] = useState<Phase>('resting');
   const spotRef = useRef(spot);
   spotRef.current = spot;
 
@@ -49,13 +60,15 @@ export function PetRoom({ mood, name }: { mood: AvatarState; name: string }) {
   }, [spots]);
 
   useEffect(() => {
-    let dwellTimer: ReturnType<typeof setTimeout>;
-    let walkTimer: ReturnType<typeof setTimeout>;
+    let t1: ReturnType<typeof setTimeout>;
+    let t2: ReturnType<typeof setTimeout>;
+    let t3: ReturnType<typeof setTimeout>;
+    let t4: ReturnType<typeof setTimeout>;
     let cancelled = false;
 
     function tick() {
       const dwell = MIN_DWELL_MS + Math.random() * DWELL_JITTER_MS;
-      dwellTimer = setTimeout(() => {
+      t1 = setTimeout(() => {
         if (cancelled) return;
         const options = spots.filter((s) => s !== spotRef.current);
         if (options.length === 0) {
@@ -63,41 +76,59 @@ export function PetRoom({ mood, name }: { mood: AvatarState; name: string }) {
           return;
         }
         const next = options[Math.floor(Math.random() * options.length)];
-        setSpot(next);
-        setMoving(true);
-        walkTimer = setTimeout(() => {
+
+        // Beat 1: stand up in place.
+        setPhase('standing');
+        t2 = setTimeout(() => {
           if (cancelled) return;
-          setMoving(false);
-          tick();
-        }, WALK_MS);
+          // Beat 2: glide across the floor toward the new spot.
+          setSpot(next);
+          setPhase('gliding');
+          t3 = setTimeout(() => {
+            if (cancelled) return;
+            // Beat 3: settle into the destination's pose/height.
+            setPhase('settling');
+            t4 = setTimeout(() => {
+              if (cancelled) return;
+              setPhase('resting');
+              tick();
+            }, SETTLE_MS);
+          }, GLIDE_MS);
+        }, STAND_MS);
       }, dwell);
     }
     tick();
 
     return () => {
       cancelled = true;
-      clearTimeout(dwellTimer);
-      clearTimeout(walkTimer);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
     };
   }, [spots]);
 
-  const pose = moving ? 'idle' : poseFor(spot, mood);
-  const { left, bottom } = ROOM_SPOTS[spot];
+  const walking = phase === 'gliding';
+  const pose = phase === 'standing' || phase === 'gliding' ? 'idle' : poseFor(spot, mood);
+  const bottom = phase === 'gliding' ? WALK_BOTTOM : ROOM_SPOTS[spot].bottom;
+  const bottomMs = phase === 'gliding' ? GLIDE_MS : SETTLE_MS;
 
   return (
     <div className="mt-7">
       <div className="relative overflow-hidden rounded-[22px]" style={{ aspectRatio: '40 / 24' }}>
         <PixelRoom className="absolute inset-0 h-full w-full" />
         <div
-          className={`absolute ${moving ? 'pet-walking' : ''}`}
+          className="absolute"
           style={{
-            left: `${left}%`,
+            left: `${ROOM_SPOTS[spot].left}%`,
             bottom: `${bottom}%`,
             transform: 'translateX(-50%)',
-            transition: `left ${WALK_MS}ms ease-in-out, bottom ${WALK_MS}ms ease-in-out`,
+            transition: `left ${GLIDE_MS}ms ${EASE}, bottom ${bottomMs}ms ${EASE}`,
           }}
         >
-          <PixelAvatar state={pose} size={56} />
+          <div className={walking ? 'pet-walking' : ''}>
+            <PixelAvatar state={pose} size={56} />
+          </div>
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between">

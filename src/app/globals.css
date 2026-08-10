@@ -53,13 +53,16 @@ button:not(:disabled):active {
   transform: translateY(1px) scale(0.99);
 }
 
-/* Pet room: a gentle bob while the avatar walks between spots. */
+/* Pet room: a gentle walking gait — applied to an inner element, kept separate
+   from the outer positioning transform so the two never fight each other. */
 .pet-walking {
-  animation: pet-bob 0.45s ease-in-out infinite;
+  animation: pet-bob 0.5s ease-in-out infinite;
 }
 @keyframes pet-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(-1.5deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-2px) rotate(1.5deg); }
 }
 
 /* TV screen glow breathes gently, like it's switched on. */
