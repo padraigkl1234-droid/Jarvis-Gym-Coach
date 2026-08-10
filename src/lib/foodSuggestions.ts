@@ -5,13 +5,16 @@
  * without blowing past what's left of the others. No AI call, instant.
  */
 
+export type DietTag = 'vegetarian' | 'vegan' | 'pescatarian';
+export const DIETARY_STYLES = ['No preference', 'Vegetarian', 'Vegan', 'Pescatarian'] as const;
+
 export interface FoodOption {
   name: string;
   calories: number;
   proteinG: number;
   carbsG: number;
   fatG: number;
-  diet: ('vegetarian' | 'vegan')[]; // omnivore if empty
+  diet: DietTag[]; // omnivore if empty
 }
 
 export const FOOD_LIBRARY: FoodOption[] = [
@@ -19,16 +22,16 @@ export const FOOD_LIBRARY: FoodOption[] = [
   { name: 'Grilled Chicken Breast (150g)', calories: 248, proteinG: 46, carbsG: 0, fatG: 5, diet: [] },
   { name: 'Greek Yoghurt, plain (200g)', calories: 130, proteinG: 22, carbsG: 9, fatG: 0, diet: ['vegetarian'] },
   { name: 'Cottage Cheese (200g)', calories: 180, proteinG: 24, carbsG: 6, fatG: 5, diet: ['vegetarian'] },
-  { name: 'Tuna, in water (1 can)', calories: 140, proteinG: 32, carbsG: 0, fatG: 1, diet: [] },
+  { name: 'Tuna, in water (1 can)', calories: 140, proteinG: 32, carbsG: 0, fatG: 1, diet: ['pescatarian'] },
   { name: 'Egg Whites (6)', calories: 106, proteinG: 22, carbsG: 2, fatG: 0, diet: ['vegetarian'] },
   { name: 'Whey Protein Shake', calories: 120, proteinG: 24, carbsG: 3, fatG: 1, diet: ['vegetarian'] },
   { name: 'Turkey Breast (150g)', calories: 165, proteinG: 34, carbsG: 0, fatG: 2, diet: [] },
-  { name: 'Prawns (150g)', calories: 150, proteinG: 32, carbsG: 1, fatG: 2, diet: [] },
+  { name: 'Prawns (150g)', calories: 150, proteinG: 32, carbsG: 1, fatG: 2, diet: ['pescatarian'] },
   { name: 'Tofu, firm (200g)', calories: 176, proteinG: 20, carbsG: 4, fatG: 10, diet: ['vegetarian', 'vegan'] },
 
   // Balanced meals
   { name: 'Chicken & Rice Bowl', calories: 520, proteinG: 40, carbsG: 60, fatG: 12, diet: [] },
-  { name: 'Salmon, Sweet Potato & Greens', calories: 560, proteinG: 38, carbsG: 45, fatG: 22, diet: [] },
+  { name: 'Salmon, Sweet Potato & Greens', calories: 560, proteinG: 38, carbsG: 45, fatG: 22, diet: ['pescatarian'] },
   { name: 'Turkey Wrap', calories: 420, proteinG: 32, carbsG: 40, fatG: 14, diet: [] },
   { name: 'Beef Stir Fry with Rice', calories: 580, proteinG: 36, carbsG: 55, fatG: 20, diet: [] },
   { name: 'Tofu & Veg Stir Fry', calories: 400, proteinG: 24, carbsG: 45, fatG: 14, diet: ['vegetarian', 'vegan'] },
@@ -79,6 +82,7 @@ export interface Suggestion {
 function dietFilter(diet: string | undefined) {
   const d = (diet ?? '').toLowerCase();
   if (d.includes('vegan')) return (f: FoodOption) => f.diet.includes('vegan');
+  if (d.includes('pescatarian')) return (f: FoodOption) => f.diet.includes('vegetarian') || f.diet.includes('pescatarian');
   if (d.includes('vegetarian')) return (f: FoodOption) => f.diet.includes('vegetarian');
   return () => true;
 }
@@ -111,7 +115,7 @@ export function suggestMeals(remaining: Remaining, targets: Targets, dietaryStyl
 
   scored.sort((a, b) => b.score - a.score);
 
-  return scored.slice(0, 5).map(({ food }) => {
+  return scored.slice(0, 3).map(({ food }) => {
     const macroG = food[priority.macro];
     const reason =
       priority.room > 0.4

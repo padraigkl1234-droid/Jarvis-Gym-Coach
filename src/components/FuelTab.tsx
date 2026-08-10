@@ -194,9 +194,12 @@ function SuggestionsCard({
 
   return (
     <Card className="mt-3 rounded-[18px] px-[18px] py-4">
-      <div className="flex items-center gap-2">
-        <Sparkles size={15} className="text-clay" />
-        <span className="text-[15px] font-bold text-ink">Suggestions</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles size={15} className="text-clay" />
+          <span className="text-[15px] font-bold text-ink">Suggestions</span>
+        </div>
+        {dietaryStyle && dietaryStyle !== 'No preference' && <span className="text-[12px] font-semibold text-faint">{dietaryStyle}</span>}
       </div>
       {remaining.calories <= 0 ? (
         <p className="mt-2 text-[13px] text-muted">

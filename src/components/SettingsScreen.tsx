@@ -13,6 +13,7 @@ import {
   type MemoryEntry,
   type Profile,
 } from '@/lib/store';
+import { DIETARY_STYLES } from '@/lib/foodSuggestions';
 import { Card, Chip, CtaButton, Eyebrow, Field, fieldCls, Sheet, Toggle } from '@/components/ui';
 
 export interface Prefs {
@@ -148,6 +149,7 @@ function AthleteProfileSheet({ profile, onSave, onClose }: { profile: Profile; o
 
 function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p: Partial<Profile>) => void; onClose: () => void }) {
   const [goal, setGoal] = useState(profile.goal);
+  const [dietaryStyle, setDietaryStyle] = useState(profile.dietaryStyle ?? 'No preference');
   const [cal, setCal] = useState(profile.calorieTarget.toString());
   const [protein, setProtein] = useState(profile.proteinTargetG.toString());
   const [carbs, setCarbs] = useState(profile.carbsTargetG.toString());
@@ -190,6 +192,16 @@ function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p
               </Chip>
             ))}
           </div>
+        </Field>
+        <Field label="Dietary restriction">
+          <div className="flex flex-wrap gap-2">
+            {DIETARY_STYLES.map((d) => (
+              <Chip key={d} active={dietaryStyle === d} onClick={() => setDietaryStyle(d)}>
+                {d}
+              </Chip>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[11px] text-faintest">Meal suggestions on Fuel respect this.</p>
         </Field>
         <div className="flex items-center justify-between">
           <span className="eyebrow !text-[10px]">Daily targets</span>
@@ -283,6 +295,7 @@ function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p
           const targetsAuto = recalculated ? true : unchanged ? profile.targetsAuto ?? true : false;
           onSave({
             goal: goal || profile.goal,
+            dietaryStyle,
             calorieTarget: nextCal,
             proteinTargetG: nextProtein,
             carbsTargetG: nextCarbs,
