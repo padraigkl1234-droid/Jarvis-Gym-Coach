@@ -1,33 +1,73 @@
 /**
- * The pixel-art apartment behind the Home avatar: wall, wood floor, a window
- * with a dusk skyline, a wall-mounted TV, a sofa, a potted plant, and a
- * weight bench with a barbell. Same grid technique as avatarSprites.ts —
- * built once at module load, rendered by PixelRoom as crisp SVG squares.
+ * The pixel-art apartment behind the Home avatar. Higher-resolution pass:
+ * ceiling, two-tone wainscoted wall, wood floor with a rug, a big window
+ * with a multi-pane dusk skyline (lit windows included) and curtains, a
+ * wall-mounted TV on a console, a cushioned sofa with a throw pillow, a
+ * layered potted plant, and a weight bench with shaded barbell plates —
+ * plus soft contact shadows under each piece for a bit of depth. Same grid
+ * technique as avatarSprites.ts, rendered by PixelRoom as crisp SVG squares.
  */
 
 export const ROOM_PALETTE: Record<string, string> = {
-  a: '#EFE5D3', // wall
-  b: '#E4D5BC', // wall trim / baseboard
-  f: '#B98F63', // floor
-  e: '#A97D50', // floor plank line
-  n: '#4A4038', // window / TV frame (dark wood)
-  q: '#E8B98F', // sky upper
-  r: '#C97B5B', // sky lower (dusk)
-  m: '#6B4636', // building silhouette (mid)
-  o: '#54372A', // building silhouette (dark)
-  s: '#8A9A7C', // sofa body (sage)
-  t: '#6F7D63', // sofa shading
-  u: '#5A5650', // bench frame
-  v: '#B4552F', // bench pad (clay)
-  w: '#2A2620', // barbell / TV screen off
-  x: '#B4552F', // plant pot (clay)
-  y: '#7C8B6F', // plant leaves (sage)
-  z: '#657056', // plant leaves, dark
-  g: '#E8CDB8', // TV screen glow
+  // Ceiling
+  A: '#F7F1E6',
+  B: '#EDE3D0',
+  // Wall
+  a: '#F2E9DA',
+  b: '#DDD0B8',
+  c: '#C9BB9E',
+  // Floor
+  f: '#C29A6E',
+  e: '#B48A61',
+  d: '#9C7550',
+  // Rug
+  i: '#C9836A',
+  j: '#A85F49',
+  k: '#E3AE8E',
+  // Window frame + sky + skyline
+  n: '#4A4038',
+  N: '#5C4F42',
+  q: '#F0C9A0',
+  Q: '#E0A57C',
+  r: '#C97B5B',
+  m: '#7A5240',
+  o: '#5C3D2E',
+  O: '#452C21',
+  L: '#F4D48A',
+  // Curtains
+  u: '#8A9A7C',
+  U: '#6F7D63',
+  // TV
+  w: '#2A2620',
+  v: '#3A4A52',
+  g: '#E8CDB8',
+  h: '#C9836A',
+  // Sofa
+  s: '#8A9A7C',
+  S: '#9BA98C',
+  t: '#6F7D63',
+  T: '#5C6852',
+  p: '#B4552F',
+  P: '#8B3D20',
+  // Plant
+  x: '#B4552F',
+  X: '#C46B44',
+  y: '#7C8B6F',
+  Y: '#8FA07E',
+  z: '#657056',
+  // Bench
+  G: '#5A5650',
+  H: '#403D38',
+  V: '#B4552F',
+  W: '#8B3D20',
+  Z: '#2A2620',
+  D: '#54504A',
+  // Contact shadow
+  '_': '#96754F',
 };
 
-const W = 40;
-const H = 24;
+const W = 84;
+const H = 50;
 
 function blank(): string[][] {
   return Array.from({ length: H }, () => Array.from({ length: W }, () => '.'));
@@ -41,52 +81,110 @@ function rect(g: string[][], x0: number, y0: number, x1: number, y1: number, ch:
   for (let y = y0; y <= y1; y++) span(g, y, x0, x1, ch);
 }
 
+function vline(g: string[][], x: number, y0: number, y1: number, ch: string) {
+  for (let y = y0; y <= y1; y++) if (g[y]) g[y][x] = ch;
+}
+
 function buildRoom(): string[][] {
   const g = blank();
 
-  // Wall + floor.
-  rect(g, 0, 0, W - 1, 16, 'a');
-  span(g, 16, 0, W - 1, 'b');
-  rect(g, 0, 17, W - 1, H - 1, 'f');
-  for (let x = 0; x < W; x += 4) for (let y = 17; y < H; y++) g[y][x] = 'e';
+  // Ceiling, wall, floor.
+  rect(g, 0, 0, W - 1, 1, 'A');
+  span(g, 1, 0, W - 1, 'B');
+  rect(g, 0, 2, W - 1, 33, 'a');
+  rect(g, 0, 30, W - 1, 33, 'b'); // wainscot panel band
+  span(g, 33, 0, W - 1, 'c'); // baseboard trim
+  rect(g, 0, 34, W - 1, H - 1, 'f');
+  for (let x = 0; x < W; x++) {
+    for (let y = 34; y < H; y++) {
+      if ((x + y) % 7 === 0) g[y][x] = 'e';
+    }
+    if (x % 9 === 0) vline(g, x, 34, H - 1, 'd');
+  }
 
-  // Window with a dusk skyline, cols 27-37, rows 1-10.
-  rect(g, 27, 1, 37, 10, 'n');
-  rect(g, 28, 2, 36, 5, 'q');
-  rect(g, 28, 6, 36, 9, 'r');
-  rect(g, 30, 7, 31, 9, 'o');
-  rect(g, 32, 5, 33, 9, 'm');
-  rect(g, 34, 8, 35, 9, 'o');
-  span(g, 5, 28, 36, 'n'); // horizontal pane divider
-  for (let y = 2; y <= 9; y++) g[y][32] = g[y][32] === '.' ? 'n' : g[y][32]; // vertical divider, skyline stays on top
+  // Rug under the sofa.
+  rect(g, 30, 44, 60, 49, 'i');
+  rect(g, 30, 44, 60, 44, 'j');
+  rect(g, 30, 49, 60, 49, 'j');
+  vline(g, 30, 44, 49, 'j');
+  vline(g, 60, 44, 49, 'j');
+  rect(g, 34, 46, 56, 47, 'k');
 
-  // Wall-mounted TV, cols 8-15, rows 7-12.
-  rect(g, 8, 7, 15, 12, 'n');
-  rect(g, 9, 8, 14, 11, 'g');
+  // Window, cols 57-80, rows 3-24, dusk skyline with lit windows.
+  rect(g, 57, 3, 80, 24, 'n');
+  rect(g, 58, 4, 79, 9, 'q');
+  rect(g, 58, 10, 79, 16, 'Q');
+  rect(g, 58, 17, 79, 23, 'r');
+  // Skyline silhouettes, varied heights.
+  rect(g, 60, 15, 63, 23, 'o');
+  rect(g, 65, 11, 68, 23, 'O');
+  rect(g, 70, 17, 72, 23, 'm');
+  rect(g, 74, 13, 77, 23, 'o');
+  rect(g, 62, 9, 63, 15, 'O'); // antenna-ish tower cap
+  // Lit windows dotted on the buildings.
+  for (const [x, y] of [
+    [61, 17], [61, 20], [66, 14], [67, 18], [67, 21], [71, 19], [75, 15], [76, 19], [76, 21],
+  ]) {
+    g[y][x] = 'L';
+  }
+  // Pane dividers (drawn after skyline so the frame stays crisp).
+  vline(g, 68, 4, 24, 'n');
+  span(g, 13, 58, 79, 'n');
+  rect(g, 57, 3, 80, 4, 'N'); // top frame highlight
+  // Curtains framing the window.
+  rect(g, 53, 2, 56, 32, 'u');
+  vline(g, 53, 2, 32, 'U');
+  vline(g, 56, 2, 32, 'U');
+  rect(g, 81, 2, W - 1, 32, 'u');
+  vline(g, W - 1, 2, 32, 'U');
 
-  // Potted plant, cols 0-6.
-  rect(g, 2, 19, 4, 20, 'x');
-  rect(g, 1, 21, 5, 22, 'x');
-  rect(g, 1, 14, 5, 17, 'y');
-  rect(g, 0, 16, 2, 19, 'y');
-  rect(g, 4, 16, 6, 18, 'z');
-  span(g, 13, 2, 4, 'y');
+  // Wall-mounted TV on a low console, cols 15-33.
+  rect(g, 15, 12, 33, 24, 'n');
+  rect(g, 16, 13, 32, 23, 'w');
+  rect(g, 17, 14, 31, 22, 'v');
+  rect(g, 19, 16, 24, 18, 'g'); // "on screen" content blocks
+  rect(g, 26, 19, 29, 21, 'h');
+  rect(g, 12, 27, 36, 32, 'n');
+  rect(g, 13, 28, 35, 31, 'N');
+  span(g, 32, 12, 36, '_');
 
-  // Sofa, cols 16-26.
-  rect(g, 16, 16, 26, 19, 's');
-  rect(g, 16, 20, 26, 22, 't');
-  rect(g, 16, 17, 17, 22, 't');
-  rect(g, 25, 17, 26, 22, 't');
-  span(g, 23, 17, 25, 'u');
+  // Potted plant, cols 2-16.
+  rect(g, 6, 40, 10, 43, 'x');
+  rect(g, 5, 44, 11, 46, 'x');
+  span(g, 40, 6, 10, 'X'); // rim highlight on the pot
+  rect(g, 4, 27, 13, 36, 'y');
+  rect(g, 2, 31, 6, 39, 'y');
+  rect(g, 10, 30, 16, 38, 'z');
+  rect(g, 6, 25, 11, 30, 'Y');
+  rect(g, 3, 34, 5, 36, 'z');
+  rect(g, 3, 46, 14, 47, '_');
 
-  // Weight bench + barbell, cols 28-38.
-  span(g, 18, 28, 38, 'w');
-  rect(g, 28, 17, 29, 18, 'w');
-  rect(g, 37, 17, 38, 18, 'w');
-  rect(g, 29, 20, 37, 20, 'v');
-  rect(g, 29, 21, 37, 21, 'u');
-  rect(g, 30, 22, 31, 23, 'u');
-  rect(g, 35, 22, 36, 23, 'u');
+  // Sofa, cols 32-58.
+  rect(g, 32, 33, 58, 39, 's');
+  rect(g, 32, 33, 58, 34, 'S');
+  rect(g, 32, 40, 58, 45, 't');
+  rect(g, 32, 34, 34, 45, 'T');
+  rect(g, 56, 34, 58, 45, 'T');
+  vline(g, 41, 40, 45, 'T');
+  vline(g, 49, 40, 45, 'T');
+  rect(g, 34, 44, 39, 45, 'p'); // throw pillow
+  rect(g, 34, 44, 39, 44, 'P');
+  rect(g, 34, 46, 36, 48, 'G');
+  rect(g, 54, 46, 56, 48, 'G');
+  rect(g, 31, 47, 59, 48, '_');
+
+  // Weight bench + barbell, cols 62-82.
+  span(g, 36, 62, 82, 'Z');
+  rect(g, 62, 35, 64, 38, 'D');
+  rect(g, 80, 35, 82, 38, 'D');
+  rect(g, 63, 36, 65, 39, 'Z');
+  rect(g, 79, 36, 81, 39, 'Z');
+  rect(g, 65, 41, 79, 42, 'V');
+  rect(g, 65, 41, 79, 41, 'V');
+  rect(g, 65, 43, 79, 44, 'G');
+  rect(g, 66, 45, 68, 48, 'H');
+  rect(g, 76, 45, 78, 48, 'H');
+  rect(g, 64, 48, 80, 49, '_');
 
   return g;
 }
@@ -96,9 +194,9 @@ export const ROOM_GRID_SIZE = { width: W, height: H };
 
 /** Named spots the avatar walks between, as CSS percentages within the room card. */
 export const ROOM_SPOTS = {
-  tv: { left: 30, bottom: 6 },
-  sofa: { left: 50, bottom: 11 },
-  bench: { left: 79, bottom: 14 },
+  tv: { left: 27, bottom: 8 },
+  sofa: { left: 55, bottom: 13 },
+  bench: { left: 86, bottom: 15 },
 } as const;
 
 export type RoomSpot = keyof typeof ROOM_SPOTS;
