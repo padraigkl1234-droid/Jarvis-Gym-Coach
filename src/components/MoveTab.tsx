@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Play, Trash2, Plus, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { Play, Trash2, Plus, ChevronUp, ChevronDown, ArrowUpDown, Search } from 'lucide-react';
 import { type ExerciseType, type JarvisStore, type PlanDay, todayStr } from '@/lib/store';
+import { type LibraryExercise } from '@/lib/exercises';
 import { Card, CtaButton, Eyebrow, fieldCls } from '@/components/ui';
+import { ExercisePicker } from '@/components/ExercisePicker';
 
 const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -23,17 +25,20 @@ const emptyRow = (): Draft => ({ name: '', type: 'strength', sets: '3', reps: '8
 function DayEditor({
   weekday,
   initial,
+  equipment,
   onSave,
   onClear,
   onClose,
 }: {
   weekday: number;
   initial: PlanDay | undefined;
+  equipment: string[] | undefined;
   onSave: (day: PlanDay) => void;
   onClear: () => void;
   onClose: () => void;
 }) {
   const [label, setLabel] = useState(initial?.label ?? '');
+  const [pickerRow, setPickerRow] = useState<number | null>(null);
   const [rows, setRows] = useState<Draft[]>(
     initial && initial.exercises.length > 0
       ? initial.exercises.map((e) => ({
@@ -95,6 +100,13 @@ function DayEditor({
           <Card key={i} className="p-3">
             <div className="flex items-center gap-2">
               <input value={r.name} onChange={(e) => setRow(i, { name: e.target.value })} placeholder="Exercise" className={`${fieldCls} flex-1 !bg-canvas`} />
+              <button
+                onClick={() => setPickerRow(i)}
+                aria-label={`Browse exercises for row ${i + 1}`}
+                className="p-2 text-hairline transition-colors hover:text-clay"
+              >
+                <Search className="h-4 w-4" />
+              </button>
               <button
                 onClick={() => setRows((cur) => (cur.length > 1 ? cur.filter((_, k) => k !== i) : cur))}
                 aria-label={`Remove exercise ${i + 1}`}
@@ -159,6 +171,22 @@ function DayEditor({
         >
           Make this a rest day
         </button>
+      )}
+      {pickerRow !== null && (
+        <ExercisePicker
+          equipment={equipment}
+          onClose={() => setPickerRow(null)}
+          onPick={(ex: LibraryExercise) =>
+            setRow(pickerRow, {
+              name: ex.name,
+              type: ex.type,
+              sets: ex.sets?.toString() ?? '3',
+              reps: ex.reps ?? '',
+              durationMin: ex.durationMin?.toString() ?? '',
+              distanceKm: ex.distanceKm?.toString() ?? '',
+            })
+          }
+        />
       )}
     </div>
   );
@@ -305,6 +333,7 @@ export function MoveTab({
         <DayEditor
           weekday={selectedWd}
           initial={dayPlan}
+          equipment={store.profile.equipment}
           onSave={onSavePlanDay}
           onClear={() => onRemovePlanDay(selectedWd)}
           onClose={() => setEditing(false)}
