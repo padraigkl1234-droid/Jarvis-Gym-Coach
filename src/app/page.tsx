@@ -8,6 +8,7 @@ import { BodyTab } from '@/components/BodyTab';
 import { ProgressScreen } from '@/components/ProgressScreen';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { SettingsScreen, type Prefs } from '@/components/SettingsScreen';
+import { generateSuggestedPlan } from '@/lib/planGenerator';
 import { CtaButton, Eyebrow, Field, fieldCls, Sheet } from '@/components/ui';
 import {
   loadStore,
@@ -157,6 +158,11 @@ export default function ValorisPage() {
     setPendingPlan(null);
     setTab('move');
   }, [pendingPlan, commitStore]);
+
+  const handleSuggestPlan = useCallback(() => {
+    setPendingPlan(generateSuggestedPlan(storeRef.current.profile));
+    setSettingsOpen(false);
+  }, []);
 
   const handleTogglePref = useCallback((key: keyof Prefs) => {
     setPrefs((cur) => {
@@ -474,6 +480,7 @@ export default function ValorisPage() {
           onAddMemory={handleAddMemory}
           onRemoveMemory={handleRemoveMemory}
           onRestore={(restored) => commitStore(restored)}
+          onSuggestPlan={handleSuggestPlan}
           onResetAll={handleResetAll}
           onClose={() => setSettingsOpen(false)}
         />
