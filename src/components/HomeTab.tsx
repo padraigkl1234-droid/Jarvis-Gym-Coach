@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import { type JarvisStore, todayStr } from '@/lib/store';
 import { Bar, Eyebrow } from '@/components/ui';
+import { CoachInsight } from '@/components/CoachInsight';
 
 const MANUAL_KEY = 'valoris.checklist.manual.v1';
 
@@ -167,6 +168,8 @@ export function HomeTab({
           <div className="mt-4 text-[13px] font-bold text-white">{sessionDone ? 'Session complete ✓' : 'Start session →'}</div>
         </button>
       )}
+
+      <CoachInsight store={store} />
 
       {/* Today's focus */}
       <div className="mt-8">
