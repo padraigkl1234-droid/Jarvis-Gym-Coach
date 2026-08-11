@@ -6,15 +6,19 @@
 
 export type AvatarState = 'idle' | 'full' | 'flexed' | 'charged';
 /** Everything PixelAvatar can actually render — mood states plus room-only poses. */
-export type AvatarPose = AvatarState | 'sitting';
+export type AvatarPose = AvatarState | 'sitting' | 'sleeping' | 'walk1' | 'walk2';
 
 export const AVATAR_PALETTE: Record<string, string> = {
   h: '#3A2E22', // hair
+  H: '#4F3F2E', // hair highlight (side-part sheen)
   s: '#E3B48C', // skin
-  k: '#2A2620', // outline / eyes / mouth
+  k: '#2A2620', // outline / eyes / mouth / brows
   c: '#B4552F', // shirt (clay)
+  o: '#9C4527', // shirt shadow (hem / collar notch)
   d: '#8B3D20', // shorts (clay-dark)
+  l: '#A8613C', // shorts waistband trim
   w: '#F5F4EE', // shoes (cream)
+  e: '#D8D2C4', // shoe heel shadow
   g: '#7C8B6F', // sage accent (headband)
   z: '#C9A98A', // bicep highlight
 };
@@ -34,12 +38,16 @@ function px(g: string[][], x: number, y: number, ch: string) {
   if (g[y]) g[y][x] = ch;
 }
 
-/** Head + neck occupy rows 0-8, well spaced: hair / forehead / eyes / gap / mouth / chin / neck. */
+/** Head + neck occupy rows 0-8: hair / forehead+brows / eyes / gap / mouth / chin / neck,
+ *  with small ear bumps and a hair-part highlight for a touch more shape. */
 function head(g: string[][], eyes: 'open' | 'closed' | 'happy', mouth: 'flat' | 'smile') {
   span(g, 0, 6, 11, 'h'); // hair top
   span(g, 1, 5, 12, 'h');
+  px(g, 7, 1, 'H'); // side-part sheen
   span(g, 2, 5, 12, 'h'); // hair, solid (no fringe noise)
-  span(g, 3, 5, 12, 's'); // forehead, blank
+  px(g, 4, 3, 's'); // ears
+  px(g, 13, 3, 's');
+  span(g, 3, 5, 12, 's'); // forehead
   span(g, 4, 5, 12, 's'); // eye row (marks added below)
   span(g, 5, 5, 12, 's'); // gap row, blank
   span(g, 6, 6, 11, 's'); // mouth row (marks added below)
@@ -68,19 +76,49 @@ function head(g: string[][], eyes: 'open' | 'closed' | 'happy', mouth: 'flat' | 
   }
 }
 
-/** Shirt/shorts/legs/shoes occupy rows 9-22. Straight rectangles — no taper — so arms
- *  (drawn on top, same row range) always sit flush against the torso with no gaps. */
-function torsoAndLegs(g: string[][], bellyBulge: boolean) {
+/** Shirt + shorts occupy rows 9-17, with a collar notch, a hem shadow, and a
+ *  waistband trim line for a bit more shape. Straight rectangles — no taper —
+ *  so arms (drawn on top, same row range) always sit flush with no gaps. */
+function torso(g: string[][], bellyBulge: boolean) {
   const t0 = bellyBulge ? 4 : 5;
   const t1 = bellyBulge ? 13 : 12;
   for (const y of [9, 10, 11, 12, 13]) span(g, y, t0, t1, 'c');
+  span(g, 13, t0, t1, 'o'); // hem shadow
+  px(g, 8, 9, 'o'); // collar notch
+  px(g, 9, 9, 'o');
   for (const y of [14, 15, 16, 17]) span(g, y, t0, t1, 'd');
+  span(g, 14, t0, t1, 'l'); // waistband trim
+}
+
+/** Standing legs + shoes, rows 18-22, with a small heel-shadow accent. */
+function legsStanding(g: string[][]) {
   for (const y of [18, 19, 20, 21]) {
     span(g, y, 5, 7, 's');
     span(g, y, 10, 12, 's');
   }
   span(g, 22, 4, 7, 'w');
+  px(g, 4, 22, 'e');
   span(g, 22, 10, 13, 'w');
+  px(g, 13, 22, 'e');
+}
+
+/** A walking stride: the lead leg is planted flat and stepped outward, the
+ *  trailing leg is shorter with its heel lifted a row off the ground — two
+ *  calls with opposite `lead` values alternate into a real walk cycle. */
+function legsWalking(g: string[][], lead: 'left' | 'right') {
+  const left = { legs: [4, 6] as const, shoe: [3, 6] as const, heel: 3 };
+  const right = { legs: [11, 13] as const, shoe: [11, 14] as const, heel: 14 };
+  const front = lead === 'left' ? left : right;
+  const back = lead === 'left' ? right : left;
+
+  // Front leg: stepped forward, foot planted flat on the ground.
+  for (const y of [18, 19, 20, 21]) span(g, y, front.legs[0], front.legs[1], 's');
+  span(g, 22, front.shoe[0], front.shoe[1], 'w');
+  px(g, front.heel, 22, 'e');
+
+  // Back leg: trailing, heel lifted off the ground mid-stride.
+  for (const y of [18, 19, 20]) span(g, y, back.legs[0], back.legs[1], 's');
+  span(g, 21, back.shoe[0], back.shoe[1], 'w');
 }
 
 function armsDown(g: string[][]) {
@@ -124,38 +162,60 @@ function zzz(g: string[][]) {
   span(g, 4, 12, 16, 'k');
 }
 
-/** Shortened legs so the figure reads as sitting once composited onto a sofa/seat. */
-function torsoAndLegsSitting(g: string[][]) {
+/** Shortened torso/legs so the figure reads as sitting once composited onto a sofa/seat. */
+function torsoSitting(g: string[][]) {
   for (const y of [9, 10, 11, 12, 13]) span(g, y, 5, 12, 'c');
+  span(g, 13, 5, 12, 'o');
+  px(g, 8, 9, 'o');
+  px(g, 9, 9, 'o');
   for (const y of [14, 15]) span(g, y, 5, 12, 'd');
+  span(g, 14, 5, 12, 'l');
   span(g, 16, 5, 7, 's');
   span(g, 16, 10, 12, 's');
   span(g, 17, 4, 7, 'w');
+  px(g, 4, 17, 'e');
   span(g, 17, 10, 13, 'w');
+  px(g, 13, 17, 'e');
 }
 
 function buildPose(state: AvatarPose): string[][] {
   const g = blank();
   if (state === 'idle') {
     head(g, 'open', 'flat');
-    torsoAndLegs(g, false);
+    torso(g, false);
+    legsStanding(g);
     armsDown(g);
   } else if (state === 'full') {
     head(g, 'closed', 'smile');
-    torsoAndLegs(g, true);
+    torso(g, true);
+    legsStanding(g);
     armsRestingOnBelly(g);
     zzz(g);
   } else if (state === 'flexed') {
     head(g, 'open', 'flat');
-    torsoAndLegs(g, false);
+    torso(g, false);
+    legsStanding(g);
     armsFlexed(g);
   } else if (state === 'sitting') {
     head(g, 'open', 'smile');
-    torsoAndLegsSitting(g);
+    torsoSitting(g);
+    armsDown(g);
+  } else if (state === 'sleeping') {
+    // Napping on the sofa: seated, eyes closed, hands resting on the belly.
+    head(g, 'closed', 'smile');
+    torsoSitting(g);
+    armsRestingOnBelly(g);
+    zzz(g);
+  } else if (state === 'walk1' || state === 'walk2') {
+    head(g, 'open', 'flat');
+    torso(g, false);
+    legsWalking(g, state === 'walk1' ? 'left' : 'right');
     armsDown(g);
   } else {
+    // charged
     head(g, 'happy', 'smile');
-    torsoAndLegs(g, false);
+    torso(g, false);
+    legsStanding(g);
     armsFlexed(g);
   }
   return g;
@@ -167,6 +227,9 @@ export const AVATAR_POSES: Record<AvatarPose, string[][]> = {
   flexed: buildPose('flexed'),
   charged: buildPose('charged'),
   sitting: buildPose('sitting'),
+  sleeping: buildPose('sleeping'),
+  walk1: buildPose('walk1'),
+  walk2: buildPose('walk2'),
 };
 
 export const AVATAR_GRID_SIZE = { width: W, height: H };

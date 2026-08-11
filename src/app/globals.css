@@ -53,25 +53,32 @@ button:not(:disabled):active {
   transform: translateY(1px) scale(0.99);
 }
 
-/* Pet room: a gentle walking gait — applied to an inner element, kept separate
-   from the outer positioning transform so the two never fight each other. */
+/* Pet room: a light vertical bob while walking — the real stride comes from
+   the avatar's own leg-swap frames, so this just adds a touch of body weight.
+   Applied to an inner element, kept separate from the outer positioning
+   transform so the two never fight each other. */
 .pet-walking {
-  animation: pet-bob 0.5s ease-in-out infinite;
+  animation: pet-bob 0.52s ease-in-out infinite;
 }
 @keyframes pet-bob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-2px) rotate(-1.5deg); }
-  50% { transform: translateY(0) rotate(0deg); }
-  75% { transform: translateY(-2px) rotate(1.5deg); }
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-1px); }
+  50% { transform: translateY(0); }
+  75% { transform: translateY(-1px); }
 }
 
-/* TV screen glow breathes gently, like it's switched on. */
-.tv-glow {
-  animation: tv-pulse 3s ease-in-out infinite;
+/* TV screen content flickers on a staggered per-cell delay (set inline) so
+   the picture reads as something actually playing, not a static glow. */
+.tv-content {
+  animation-name: tv-flicker;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
-@keyframes tv-pulse {
+@keyframes tv-flicker {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.75; }
+  20% { opacity: 0.5; }
+  45% { opacity: 0.85; }
+  70% { opacity: 0.6; }
 }
 
 @media (prefers-reduced-motion: reduce) {

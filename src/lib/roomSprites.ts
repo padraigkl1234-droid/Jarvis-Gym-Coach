@@ -1,11 +1,12 @@
 /**
- * The pixel-art apartment behind the Home avatar. Higher-resolution pass:
- * ceiling, two-tone wainscoted wall, wood floor with a rug, a big window
- * with a multi-pane dusk skyline (lit windows included) and curtains, a
- * wall-mounted TV on a console, a cushioned sofa with a throw pillow, a
- * layered potted plant, and a weight bench with shaded barbell plates —
- * plus soft contact shadows under each piece for a bit of depth. Same grid
- * technique as avatarSprites.ts, rendered by PixelRoom as crisp SVG squares.
+ * The pixel-art apartment behind the Home avatar: ceiling, two-tone
+ * wainscoted wall, wood floor with a rug, a big window with a multi-pane
+ * dusk skyline (lit windows included) and curtains, a wall-mounted TV on a
+ * console with a framed print beside it, a pendant lamp over the reading
+ * corner, a cushioned sofa with a throw pillow, a layered potted plant, and
+ * a weight bench with shaded barbell plates — plus soft contact shadows
+ * under each piece for a bit of depth. Same grid technique as
+ * avatarSprites.ts, rendered by PixelRoom as crisp SVG squares.
  */
 
 export const ROOM_PALETTE: Record<string, string> = {
@@ -62,9 +63,22 @@ export const ROOM_PALETTE: Record<string, string> = {
   W: '#8B3D20',
   Z: '#2A2620',
   D: '#54504A',
+  // TV "on-screen" content (cycled/flickered by CSS so it reads as playing)
+  C: '#4A7A6B',
+  E: '#D9A441',
+  F: '#243038',
+  // Wall art print
+  R: '#3A342C',
+  l: '#C97B5B',
+  // Pendant lamp over the reading corner
+  M: '#3A342C',
   // Contact shadow
   '_': '#96754F',
 };
+
+/** Palette keys drawn on the TV screen — CSS gives these a staggered flicker
+ *  so the picture reads as something actually playing, not a static glow. */
+export const TV_CONTENT_KEYS = ['g', 'h', 'C', 'E'];
 
 const W = 84;
 const H = 50;
@@ -142,11 +156,26 @@ function buildRoom(): string[][] {
   rect(g, 15, 12, 33, 24, 'n');
   rect(g, 16, 13, 32, 23, 'w');
   rect(g, 17, 14, 31, 22, 'v');
-  rect(g, 19, 16, 24, 18, 'g'); // "on screen" content blocks
+  rect(g, 19, 16, 24, 18, 'g'); // "on screen" content blocks — CSS flickers these
   rect(g, 26, 19, 29, 21, 'h');
+  rect(g, 20, 20, 23, 21, 'C');
+  rect(g, 25, 15, 29, 17, 'E');
+  span(g, 14, 17, 31, 'F'); // top screen vignette
+  span(g, 22, 17, 31, 'F'); // bottom screen vignette
   rect(g, 12, 27, 36, 32, 'n');
   rect(g, 13, 28, 35, 31, 'N');
   span(g, 32, 12, 36, '_');
+
+  // Framed wall art between the TV and the window.
+  rect(g, 40, 10, 51, 22, 'R');
+  rect(g, 41, 11, 50, 21, 'a');
+  rect(g, 43, 13, 48, 19, 'l');
+  rect(g, 44, 15, 47, 17, 'C');
+
+  // Pendant lamp hanging over the reading corner by the plant.
+  vline(g, 10, 0, 16, 'M');
+  rect(g, 7, 16, 13, 18, 'M');
+  rect(g, 8, 17, 12, 18, 'L');
 
   // Potted plant, cols 2-16.
   rect(g, 6, 40, 10, 43, 'x');
