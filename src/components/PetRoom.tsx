@@ -57,17 +57,20 @@ export function PetRoom({
   name,
   avatarCustomization = DEFAULT_AVATAR_CUSTOMIZATION,
   roomCustomization = DEFAULT_ROOM_CUSTOMIZATION,
+  trophyCount,
 }: {
   mood: AvatarState;
   name: string;
   avatarCustomization?: AvatarCustomization;
   roomCustomization?: RoomCustomization;
+  /** Real earned-trophy count — tiers how full the trophy-shelf decor looks. Omit for the full showcase look. */
+  trophyCount?: number;
 }) {
   const avatarPalette = useMemo(() => buildAvatarPalette(avatarCustomization), [avatarCustomization]);
   const roomPalette = useMemo(() => buildRoomPalette(roomCustomization), [roomCustomization]);
   const roomGrid = useMemo(
-    () => buildRoom({ tvChannel: roomCustomization.tvChannel, decor: roomCustomization.decor }),
-    [roomCustomization.tvChannel, roomCustomization.decor]
+    () => buildRoom({ tvChannel: roomCustomization.tvChannel, decor: roomCustomization.decor, trophyCount }),
+    [roomCustomization.tvChannel, roomCustomization.decor, trophyCount]
   );
   const spots = useMemo<RoomSpot[]>(() => {
     if (mood === 'full') return ['sofa']; // nap spot only — no wandering while asleep

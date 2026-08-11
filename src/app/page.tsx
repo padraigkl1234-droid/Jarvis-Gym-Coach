@@ -8,6 +8,7 @@ import { BodyTab } from '@/components/BodyTab';
 import { ProgressScreen } from '@/components/ProgressScreen';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { SettingsScreen, type Prefs } from '@/components/SettingsScreen';
+import { TrophiesScreen } from '@/components/TrophiesScreen';
 import { generateSuggestedPlan } from '@/lib/planGenerator';
 import { CtaButton, Eyebrow, Field, fieldCls, Sheet } from '@/components/ui';
 import {
@@ -113,6 +114,7 @@ export default function ValorisPage() {
   const [hydrated, setHydrated] = useState(false);
   const [tab, setTab] = useState<Tab>('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [trophiesOpen, setTrophiesOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [measureOpen, setMeasureOpen] = useState(false);
   const [prefs, setPrefs] = useState<Prefs>({ reminders: false });
@@ -420,7 +422,9 @@ export default function ValorisPage() {
     <div className="min-h-[100dvh] bg-canvas text-ink">
       <main className="mx-auto max-w-md px-6 pb-[108px] pt-4">
         <div key={tab} className="view-in">
-          {tab === 'home' && <HomeTab store={store} onStartSession={handleStartSession} onOpenSettings={() => setSettingsOpen(true)} />}
+          {tab === 'home' && (
+            <HomeTab store={store} onStartSession={handleStartSession} onOpenSettings={() => setSettingsOpen(true)} onOpenTrophies={() => setTrophiesOpen(true)} />
+          )}
           {tab === 'move' && (
             <MoveTab
               store={store}
@@ -437,7 +441,7 @@ export default function ValorisPage() {
             <FuelTab store={store} onAddMeal={handleAddMeal} onEditMeal={handleEditMeal} onDeleteMeal={handleDeleteMeal} onSetWater={handleSetWater} />
           )}
           {tab === 'body' && <BodyTab store={store} onOpenLog={() => setMeasureOpen(true)} onDeleteMetric={handleDeleteMetric} />}
-          {tab === 'progress' && <ProgressScreen store={store} />}
+          {tab === 'progress' && <ProgressScreen store={store} onOpenTrophies={() => setTrophiesOpen(true)} />}
         </div>
       </main>
 
@@ -495,6 +499,8 @@ export default function ValorisPage() {
           onClose={() => setSettingsOpen(false)}
         />
       )}
+
+      {trophiesOpen && <TrophiesScreen store={store} onClose={() => setTrophiesOpen(false)} />}
 
       {quickAddOpen && (
         <Sheet onClose={() => setQuickAddOpen(false)} label="Quick add">

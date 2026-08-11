@@ -178,6 +178,11 @@ export function CustomizeSheet({
         <div className="mt-4 space-y-4">
           <OptionPicker label="TV channel" value={draftRoom.tvChannel} options={TV_CHANNEL_OPTIONS} onChange={(tvChannel) => setDraftRoom((cur) => ({ ...cur, tvChannel }))} />
           <OptionPicker label="Reading corner" value={draftRoom.decor} options={DECOR_OPTIONS} onChange={(decor) => setDraftRoom((cur) => ({ ...cur, decor }))} />
+          {draftRoom.decor === 'trophies' && (
+            <p className="-mt-2 text-[11px] leading-relaxed text-faintest">
+              Shown at its fullest here — on Home it starts empty and fills up as you actually earn trophies.
+            </p>
+          )}
           {(Object.keys(ROOM_COLOR_LABELS) as (keyof typeof ROOM_COLOR_LABELS)[]).map((key) => (
             <SwatchPicker
               key={key}

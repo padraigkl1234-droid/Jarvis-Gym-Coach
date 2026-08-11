@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Trophy } from 'lucide-react';
 import { type JarvisStore } from '@/lib/store';
 import { buildStats } from '@/lib/stats';
+import { earnedTrophyCount, TOTAL_TROPHY_COUNT } from '@/lib/trophies';
 import { Card, Chip, Eyebrow, TrendChart } from '@/components/ui';
 import { SessionLog } from '@/components/SessionLog';
 
@@ -43,11 +44,12 @@ function StatCard({
   );
 }
 
-export function ProgressScreen({ store }: { store: JarvisStore }) {
+export function ProgressScreen({ store, onOpenTrophies }: { store: JarvisStore; onOpenTrophies: () => void }) {
   const [days, setDays] = useState(30);
   const [logOpen, setLogOpen] = useState(false);
   const stats = useMemo(() => buildStats(store, { days }), [store, days]);
   const { summary } = stats;
+  const trophiesEarned = useMemo(() => earnedTrophyCount(store), [store]);
 
   const completedSessions = useMemo(() => stats.completedSessions.filter((s) => s.status === 'completed'), [stats]);
   const rangeLabel = RANGES.find((r) => r.days === days)?.label ?? `${days}D`;
@@ -94,6 +96,22 @@ export function ProgressScreen({ store }: { store: JarvisStore }) {
           />
           <StatCard label="Total volume" value={summary.totalVolumeKg.toLocaleString()} unit="kg lifted" />
         </div>
+
+        {/* Trophies */}
+        <Card className="mt-3 rounded-2xl" onClick={onOpenTrophies}>
+          <div className="flex items-center gap-3.5 px-4 py-3.5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-clay-soft text-clay">
+              <Trophy size={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-bold text-ink">Trophies</span>
+              <span className="block text-[12px] text-faint">
+                {trophiesEarned} / {TOTAL_TROPHY_COUNT} earned
+              </span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-faintest" />
+          </div>
+        </Card>
 
         {/* Calories over time */}
         <Card className="mt-5 rounded-[20px] p-5">

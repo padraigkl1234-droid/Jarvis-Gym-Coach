@@ -174,8 +174,16 @@ function drawTvChannel(g: string[][], channel: TvChannel) {
   span(g, 22, 17, 31, 'F'); // bottom screen vignette
 }
 
-/** The reading corner is cols 2-16, rows 25-49 (floor to just under the lamp). */
-function drawDecor(g: string[][], decor: Decor) {
+/** Preview fill used when no real trophy count is supplied (e.g. the
+ *  Settings customize preview) — shows the shelf at its fullest so athletes
+ *  can see what they're working toward. */
+const TROPHY_SHELF_PREVIEW_COUNT = 12;
+
+/** The reading corner is cols 2-16, rows 25-49 (floor to just under the lamp).
+ *  For the 'trophies' decor, `trophyCount` (real trophies earned) tiers how
+ *  full the shelf looks — empty at 0, filling up as more are earned — so it
+ *  doubles as an actual trophy display, not just static decoration. */
+function drawDecor(g: string[][], decor: Decor, trophyCount = TROPHY_SHELF_PREVIEW_COUNT) {
   if (decor === 'bookshelf') {
     rect(g, 3, 27, 15, 48, 'H'); // frame
     rect(g, 4, 28, 14, 47, 'G'); // back panel
@@ -191,21 +199,27 @@ function drawDecor(g: string[][], decor: Decor) {
     rect(g, 3, 27, 15, 48, 'H'); // frame
     rect(g, 4, 28, 14, 47, 'G'); // back panel
     span(g, 38, 4, 14, 'H'); // shelf board
-    // A big trophy, center.
-    rect(g, 8, 28, 11, 32, 'C');
-    rect(g, 9, 33, 10, 36, 'C');
-    rect(g, 8, 37, 11, 37, 'C');
-    px(g, 9, 29, 'L');
-    // A smaller trophy, left — tapered cup/stem/base so it reads as a trophy
-    // too, not just a block. Base aligned with the same shelf line (row 37).
-    rect(g, 5, 32, 7, 34, 'E'); // cup
-    vline(g, 6, 35, 36, 'E'); // stem
-    rect(g, 5, 37, 7, 37, 'E'); // base
-    // A couple of medals on ribbons, bottom shelf.
-    rect(g, 6, 42, 7, 43, 'C');
-    px(g, 6, 41, 'K');
-    rect(g, 10, 43, 11, 44, 'E');
-    px(g, 10, 42, 'K');
+    if (trophyCount >= 1) {
+      // A big trophy, center — the first one earned takes pride of place.
+      rect(g, 8, 28, 11, 32, 'C');
+      rect(g, 9, 33, 10, 36, 'C');
+      rect(g, 8, 37, 11, 37, 'C');
+      px(g, 9, 29, 'L');
+    }
+    if (trophyCount >= 5) {
+      // A smaller trophy, left — tapered cup/stem/base so it reads as a
+      // trophy too, not just a block. Base aligned with the shelf (row 37).
+      rect(g, 5, 32, 7, 34, 'E'); // cup
+      vline(g, 6, 35, 36, 'E'); // stem
+      rect(g, 5, 37, 7, 37, 'E'); // base
+    }
+    if (trophyCount >= 10) {
+      // A couple of medals on ribbons, bottom shelf.
+      rect(g, 6, 42, 7, 43, 'C');
+      px(g, 6, 41, 'K');
+      rect(g, 10, 43, 11, 44, 'E');
+      px(g, 10, 42, 'K');
+    }
     span(g, 48, 3, 15, '_');
   } else {
     // Plant (default).
@@ -221,8 +235,8 @@ function drawDecor(g: string[][], decor: Decor) {
   }
 }
 
-function buildRoom(opts: { tvChannel?: TvChannel; decor?: Decor } = {}): string[][] {
-  const { tvChannel = 'football', decor = 'plant' } = opts;
+function buildRoom(opts: { tvChannel?: TvChannel; decor?: Decor; trophyCount?: number } = {}): string[][] {
+  const { tvChannel = 'football', decor = 'plant', trophyCount } = opts;
   const g = blank();
 
   // Ceiling, wall, floor.
@@ -296,7 +310,7 @@ function buildRoom(opts: { tvChannel?: TvChannel; decor?: Decor } = {}): string[
   rect(g, 8, 17, 12, 18, 'L');
 
   // Reading-corner decor (plant / bookshelf / trophy shelf), cols 2-16.
-  drawDecor(g, decor);
+  drawDecor(g, decor, trophyCount);
 
   // Sofa, cols 32-58.
   rect(g, 32, 33, 58, 39, 's');

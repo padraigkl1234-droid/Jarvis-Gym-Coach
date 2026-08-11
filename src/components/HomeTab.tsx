@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, ChevronRight, Trophy } from 'lucide-react';
 import { type JarvisStore, todayStr } from '@/lib/store';
-import { Bar, Eyebrow } from '@/components/ui';
+import { Bar, Card, Eyebrow } from '@/components/ui';
 import { CoachInsight } from '@/components/CoachInsight';
 import { PetRoom } from '@/components/PetRoom';
 import { type AvatarState } from '@/lib/avatarSprites';
+import { earnedTrophyCount, TOTAL_TROPHY_COUNT } from '@/lib/trophies';
 
 const MANUAL_KEY = 'valoris.checklist.manual.v1';
 
@@ -29,10 +30,12 @@ export function HomeTab({
   store,
   onStartSession,
   onOpenSettings,
+  onOpenTrophies,
 }: {
   store: JarvisStore;
   onStartSession: () => void;
   onOpenSettings: () => void;
+  onOpenTrophies: () => void;
 }) {
   const [manual, setManual] = useState<Record<string, boolean>>({});
   useEffect(() => setManual(readManual()), []);
@@ -57,6 +60,8 @@ export function HomeTab({
   const avatarState: AvatarState = sessionDone && caloriesFull ? 'charged' : sessionDone ? 'flexed' : caloriesFull ? 'full' : 'idle';
 
   const estMinutes = hasSession ? planToday!.exercises.length * 9 + 3 : 0;
+
+  const trophiesEarned = useMemo(() => earnedTrophyCount(store), [store]);
 
   const items = useMemo(
     () => [
@@ -157,7 +162,29 @@ export function HomeTab({
         </div>
       </div>
 
-      <PetRoom mood={avatarState} name={firstName} avatarCustomization={store.avatarCustomization} roomCustomization={store.roomCustomization} />
+      <PetRoom
+        mood={avatarState}
+        name={firstName}
+        avatarCustomization={store.avatarCustomization}
+        roomCustomization={store.roomCustomization}
+        trophyCount={trophiesEarned}
+      />
+
+      {/* Trophies */}
+      <Card className="mt-5 rounded-2xl" onClick={onOpenTrophies}>
+        <div className="flex items-center gap-3.5 px-4 py-3.5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-clay-soft text-clay">
+            <Trophy size={18} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-bold text-ink">Trophies</span>
+            <span className="block text-[12px] text-faint">
+              {trophiesEarned} / {TOTAL_TROPHY_COUNT} earned
+            </span>
+          </span>
+          <ChevronRight size={16} className="shrink-0 text-faintest" />
+        </div>
+      </Card>
 
       {/* Today's session card */}
       {hasSession && (
