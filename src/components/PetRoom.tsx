@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PixelRoom } from '@/components/PixelRoom';
 import { PixelAvatar } from '@/components/PixelAvatar';
-import { ROOM_SPOTS, ROOM_GRID_SIZE, buildRoomPalette, type RoomSpot } from '@/lib/roomSprites';
+import { ROOM_SPOTS, ROOM_GRID_SIZE, buildRoom, buildRoomPalette, type RoomSpot } from '@/lib/roomSprites';
 import { buildAvatarPalette, type AvatarState, type AvatarPose } from '@/lib/avatarSprites';
 import { DEFAULT_AVATAR_CUSTOMIZATION, DEFAULT_ROOM_CUSTOMIZATION, type AvatarCustomization, type RoomCustomization } from '@/lib/customization';
 import { Eyebrow } from '@/components/ui';
@@ -65,6 +65,10 @@ export function PetRoom({
 }) {
   const avatarPalette = useMemo(() => buildAvatarPalette(avatarCustomization), [avatarCustomization]);
   const roomPalette = useMemo(() => buildRoomPalette(roomCustomization), [roomCustomization]);
+  const roomGrid = useMemo(
+    () => buildRoom({ tvChannel: roomCustomization.tvChannel, decor: roomCustomization.decor }),
+    [roomCustomization.tvChannel, roomCustomization.decor]
+  );
   const spots = useMemo<RoomSpot[]>(() => {
     if (mood === 'full') return ['sofa']; // nap spot only — no wandering while asleep
     if (mood === 'flexed' || mood === 'charged') return ['tv', 'sofa'];
@@ -149,7 +153,7 @@ export function PetRoom({
   return (
     <div className="mt-7">
       <div className="relative overflow-hidden rounded-[22px]" style={{ aspectRatio: `${ROOM_GRID_SIZE.width} / ${ROOM_GRID_SIZE.height}` }}>
-        <PixelRoom className="absolute inset-0 h-full w-full" palette={roomPalette} />
+        <PixelRoom className="absolute inset-0 h-full w-full" grid={roomGrid} palette={roomPalette} tvChannel={roomCustomization.tvChannel} />
         <div
           className="absolute"
           style={{

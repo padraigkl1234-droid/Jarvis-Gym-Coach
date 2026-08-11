@@ -2,21 +2,22 @@
  * The pixel-art apartment behind the Home avatar: ceiling, two-tone
  * wainscoted wall, wood floor with a rug, a big window with a multi-pane
  * dusk skyline (lit windows included) and curtains, a wall-mounted TV
- * (playing a little football match) on a console with a framed print
- * beside it, a pendant lamp over the reading corner, a cushioned sofa with
- * a throw pillow, a layered potted plant, and a weight bench with shaded
- * barbell plates — plus soft contact shadows under each piece for a bit of
- * depth. Same grid technique as avatarSprites.ts, rendered by PixelRoom as
- * crisp SVG squares.
+ * (channel is swappable — football, a movie, the news, or off) on a console
+ * with a framed print beside it, a pendant lamp over the reading corner
+ * (decor there is also swappable — plant, bookshelf, or trophy shelf), a
+ * cushioned sofa with a throw pillow, and a weight bench with shaded barbell
+ * plates — plus soft contact shadows under each piece for a bit of depth.
+ * Same grid technique as avatarSprites.ts, rendered by PixelRoom as crisp
+ * SVG squares.
  */
 
 import { darken, lighten } from './color';
-import { DEFAULT_ROOM_CUSTOMIZATION, type RoomCustomization } from './customization';
+import { DEFAULT_ROOM_CUSTOMIZATION, type Decor, type RoomCustomization, type TvChannel } from './customization';
 
 /** Builds the full letter->hex palette from the athlete's chosen base colors
  *  (Settings > Customize room), deriving the small highlight/shadow accents
  *  so the room stays coherent no matter what they pick. Fixtures that aren't
- *  offered as a customization (window, TV, plant, bench, lamp) stay fixed. */
+ *  offered as a customization (window, TV, decor, bench, lamp) stay fixed. */
 export function buildRoomPalette(custom: RoomCustomization = DEFAULT_ROOM_CUSTOMIZATION): Record<string, string> {
   return {
     // Ceiling
@@ -47,11 +48,13 @@ export function buildRoomPalette(custom: RoomCustomization = DEFAULT_ROOM_CUSTOM
     // Curtains
     u: custom.curtains,
     U: darken(custom.curtains, 0.2),
-    // TV — a little football (soccer) match plays on screen
+    // TV
     w: '#2A2620',
-    v: '#3A4A52',
-    g: '#3E7A3E', // pitch green
-    h: '#F5F4EE', // pitch markings + ball
+    v: '#3A4A52', // screen background / letterbox / off-screen glass
+    g: '#3E7A3E', // football pitch green
+    h: '#F5F4EE', // pitch markings + ball + news ticker text
+    J: '#2E5C8A', // news headline bar
+    K: '#C0392B', // news ticker bar
     // Sofa
     s: custom.sofa,
     S: lighten(custom.sofa, 0.14),
@@ -59,7 +62,7 @@ export function buildRoomPalette(custom: RoomCustomization = DEFAULT_ROOM_CUSTOM
     T: darken(custom.sofa, 0.33),
     p: '#B4552F', // throw pillow — a fixed clay accent
     P: '#8B3D20',
-    // Plant
+    // Reading-corner decor (plant / bookshelf / trophy shelf)
     x: '#B4552F',
     X: '#C46B44',
     y: '#7C8B6F',
@@ -72,9 +75,10 @@ export function buildRoomPalette(custom: RoomCustomization = DEFAULT_ROOM_CUSTOM
     W: '#8B3D20',
     Z: '#2A2620',
     D: '#54504A',
-    // TV kit colours (players shimmer via CSS so the pitch reads as live)
-    C: '#D9A441', // away kit
-    E: '#22405C', // home kit
+    // TV kit colours / accent shimmer (also reused as book-spine colors on
+    // the bookshelf and cup shine on the trophy shelf)
+    C: '#D9A441',
+    E: '#22405C',
     F: '#243038', // screen vignette
     // Wall art print
     R: '#3A342C',
@@ -88,12 +92,14 @@ export function buildRoomPalette(custom: RoomCustomization = DEFAULT_ROOM_CUSTOM
 
 export const ROOM_PALETTE: Record<string, string> = buildRoomPalette();
 
-/** Player-kit keys on the TV pitch — CSS gives these a staggered flicker so
- *  the picture reads as something actually playing, not a static glow. */
+/** Cells that CSS gives a staggered flicker so bits of the TV screen read as
+ *  something actually playing/lit, not a static picture — shared across
+ *  every channel design. */
 export const TV_CONTENT_KEYS = ['C', 'E'];
 
-/** Grid-unit spots the animated "ball" cycles between on the TV pitch — a few
- *  small dots that take turns fading in/out, reading as a ball in motion. */
+/** Grid-unit spots the animated "ball" cycles between on the football pitch —
+ *  a few small dots that take turns fading in/out, reading as a ball in
+ *  motion. Only meaningful (and only rendered) when tvChannel is 'football'. */
 export const TV_BALL_SPOTS: { x: number; y: number }[] = [
   { x: 21, y: 18 },
   { x: 24, y: 17 },
@@ -123,7 +129,100 @@ function px(g: string[][], x: number, y: number, ch: string) {
   if (g[y]) g[y][x] = ch;
 }
 
-function buildRoom(): string[][] {
+/** The TV screen's picture area is cols 17-31, rows 14-22 (inside the bezel). */
+function drawTvChannel(g: string[][], channel: TvChannel) {
+  if (channel === 'football') {
+    rect(g, 18, 15, 30, 21, 'g'); // pitch, inset like a live broadcast picture
+    vline(g, 24, 15, 21, 'h'); // halfway line
+    vline(g, 18, 17, 19, 'h'); // near goal mouth
+    vline(g, 30, 17, 19, 'h'); // far goal mouth
+    px(g, 20, 16, 'E'); // players — CSS shimmers these
+    px(g, 28, 20, 'E');
+    px(g, 23, 20, 'C');
+    px(g, 26, 16, 'C');
+  } else if (channel === 'movie') {
+    span(g, 14, 17, 31, 'w'); // thick letterbox bars
+    span(g, 15, 17, 31, 'w');
+    span(g, 21, 17, 31, 'w');
+    span(g, 22, 17, 31, 'w');
+    rect(g, 17, 16, 31, 17, 'q'); // sunset sky
+    rect(g, 17, 18, 31, 19, 'Q');
+    span(g, 20, 17, 31, 'r'); // horizon line
+    rect(g, 19, 19, 22, 20, 'o'); // silhouette hills
+    rect(g, 25, 19, 29, 20, 'o');
+    px(g, 28, 16, 'C'); // sun glow — shimmers
+    px(g, 20, 17, 'E'); // a distant light — shimmers
+    return; // this channel draws its own top/bottom bars, skip the shared vignette below
+  } else if (channel === 'news') {
+    rect(g, 17, 14, 31, 17, 'v'); // studio backdrop
+    rect(g, 17, 18, 31, 19, 'J'); // headline bar
+    rect(g, 17, 20, 31, 22, 'K'); // ticker bar
+    px(g, 18, 15, 'C'); // logo — shimmers
+    px(g, 19, 15, 'C');
+    px(g, 19, 21, 'E'); // ticker text — shimmers
+    px(g, 22, 21, 'E');
+    px(g, 25, 21, 'E');
+    px(g, 28, 21, 'E');
+  } else {
+    // Off — a dark, dead screen with a faint diagonal reflection streak.
+    px(g, 20, 16, 'N');
+    px(g, 21, 17, 'N');
+    px(g, 22, 18, 'N');
+    return; // no vignette needed on a screen that's off
+  }
+  span(g, 14, 17, 31, 'F'); // top screen vignette
+  span(g, 22, 17, 31, 'F'); // bottom screen vignette
+}
+
+/** The reading corner is cols 2-16, rows 25-49 (floor to just under the lamp). */
+function drawDecor(g: string[][], decor: Decor) {
+  if (decor === 'bookshelf') {
+    rect(g, 3, 27, 15, 48, 'H'); // frame
+    rect(g, 4, 28, 14, 47, 'G'); // back panel
+    span(g, 34, 4, 14, 'H'); // shelf board
+    span(g, 41, 4, 14, 'H'); // shelf board
+    const spines = ['L', 'C', 'E', 'V', 'o', 'L', 'C', 'E', 'V'];
+    for (let i = 0; i < spines.length; i++) vline(g, 5 + i, 29, 33, spines[i]); // top shelf books
+    for (let i = 0; i < spines.length; i++) vline(g, 5 + i, 36, 40, spines[(i + 4) % spines.length]); // middle shelf books
+    rect(g, 6, 43, 12, 47, 'X'); // a plant accent on the bottom shelf
+    rect(g, 6, 43, 12, 43, 'Y');
+    span(g, 48, 3, 15, '_');
+  } else if (decor === 'trophies') {
+    rect(g, 3, 27, 15, 48, 'H'); // frame
+    rect(g, 4, 28, 14, 47, 'G'); // back panel
+    span(g, 38, 4, 14, 'H'); // shelf board
+    // A big trophy, center.
+    rect(g, 8, 28, 11, 32, 'C');
+    rect(g, 9, 33, 10, 36, 'C');
+    rect(g, 8, 37, 11, 37, 'C');
+    px(g, 9, 29, 'L');
+    // A smaller trophy, left — tapered cup/stem/base so it reads as a trophy
+    // too, not just a block. Base aligned with the same shelf line (row 37).
+    rect(g, 5, 32, 7, 34, 'E'); // cup
+    vline(g, 6, 35, 36, 'E'); // stem
+    rect(g, 5, 37, 7, 37, 'E'); // base
+    // A couple of medals on ribbons, bottom shelf.
+    rect(g, 6, 42, 7, 43, 'C');
+    px(g, 6, 41, 'K');
+    rect(g, 10, 43, 11, 44, 'E');
+    px(g, 10, 42, 'K');
+    span(g, 48, 3, 15, '_');
+  } else {
+    // Plant (default).
+    rect(g, 6, 40, 10, 43, 'x');
+    rect(g, 5, 44, 11, 46, 'x');
+    span(g, 40, 6, 10, 'X'); // rim highlight on the pot
+    rect(g, 4, 27, 13, 36, 'y');
+    rect(g, 2, 31, 6, 39, 'y');
+    rect(g, 10, 30, 16, 38, 'z');
+    rect(g, 6, 25, 11, 30, 'Y');
+    rect(g, 3, 34, 5, 36, 'z');
+    rect(g, 3, 46, 14, 47, '_');
+  }
+}
+
+function buildRoom(opts: { tvChannel?: TvChannel; decor?: Decor } = {}): string[][] {
+  const { tvChannel = 'football', decor = 'plant' } = opts;
   const g = blank();
 
   // Ceiling, wall, floor.
@@ -179,17 +278,8 @@ function buildRoom(): string[][] {
   // Wall-mounted TV on a low console, cols 15-33.
   rect(g, 15, 12, 33, 24, 'n');
   rect(g, 16, 13, 32, 23, 'w');
-  rect(g, 17, 14, 31, 22, 'v'); // screen bg / letterbox bars
-  rect(g, 18, 15, 30, 21, 'g'); // pitch, inset like a live broadcast picture
-  vline(g, 24, 15, 21, 'h'); // halfway line
-  vline(g, 18, 17, 19, 'h'); // near goal mouth
-  vline(g, 30, 17, 19, 'h'); // far goal mouth
-  px(g, 20, 16, 'E'); // players — CSS shimmers these
-  px(g, 28, 20, 'E');
-  px(g, 23, 20, 'C');
-  px(g, 26, 16, 'C');
-  span(g, 14, 17, 31, 'F'); // top screen vignette
-  span(g, 22, 17, 31, 'F'); // bottom screen vignette
+  rect(g, 17, 14, 31, 22, 'v'); // screen bg — the channel draws its content on top
+  drawTvChannel(g, tvChannel);
   rect(g, 12, 27, 36, 32, 'n');
   rect(g, 13, 28, 35, 31, 'N');
   span(g, 32, 12, 36, '_');
@@ -200,21 +290,13 @@ function buildRoom(): string[][] {
   rect(g, 43, 13, 48, 19, 'l');
   rect(g, 44, 15, 47, 17, 'C');
 
-  // Pendant lamp hanging over the reading corner by the plant.
+  // Pendant lamp hanging over the reading corner.
   vline(g, 10, 0, 16, 'M');
   rect(g, 7, 16, 13, 18, 'M');
   rect(g, 8, 17, 12, 18, 'L');
 
-  // Potted plant, cols 2-16.
-  rect(g, 6, 40, 10, 43, 'x');
-  rect(g, 5, 44, 11, 46, 'x');
-  span(g, 40, 6, 10, 'X'); // rim highlight on the pot
-  rect(g, 4, 27, 13, 36, 'y');
-  rect(g, 2, 31, 6, 39, 'y');
-  rect(g, 10, 30, 16, 38, 'z');
-  rect(g, 6, 25, 11, 30, 'Y');
-  rect(g, 3, 34, 5, 36, 'z');
-  rect(g, 3, 46, 14, 47, '_');
+  // Reading-corner decor (plant / bookshelf / trophy shelf), cols 2-16.
+  drawDecor(g, decor);
 
   // Sofa, cols 32-58.
   rect(g, 32, 33, 58, 39, 's');
@@ -246,6 +328,7 @@ function buildRoom(): string[][] {
   return g;
 }
 
+export { buildRoom };
 export const ROOM_GRID = buildRoom();
 export const ROOM_GRID_SIZE = { width: W, height: H };
 

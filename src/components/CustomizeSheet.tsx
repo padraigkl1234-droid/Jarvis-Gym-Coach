@@ -4,12 +4,14 @@ import React, { useMemo, useState } from 'react';
 import { PixelAvatar } from '@/components/PixelAvatar';
 import { PixelRoom } from '@/components/PixelRoom';
 import { buildAvatarPalette } from '@/lib/avatarSprites';
-import { buildRoomPalette, ROOM_GRID_SIZE } from '@/lib/roomSprites';
+import { buildRoom, buildRoomPalette, ROOM_GRID_SIZE } from '@/lib/roomSprites';
 import {
   AVATAR_SWATCHES,
+  DECOR_OPTIONS,
   DEFAULT_AVATAR_CUSTOMIZATION,
   DEFAULT_ROOM_CUSTOMIZATION,
   ROOM_SWATCHES,
+  TV_CHANNEL_OPTIONS,
   type AvatarCustomization,
   type RoomCustomization,
 } from '@/lib/customization';
@@ -23,7 +25,7 @@ const AVATAR_LABELS: Record<keyof AvatarCustomization, string> = {
   shoes: 'Shoes',
 };
 
-const ROOM_LABELS: Record<keyof RoomCustomization, string> = {
+const ROOM_COLOR_LABELS: Record<'wall' | 'floor' | 'sofa' | 'curtains' | 'rug', string> = {
   wall: 'Wall',
   floor: 'Floor',
   sofa: 'Sofa',
@@ -84,6 +86,32 @@ function SwatchPicker({
   );
 }
 
+/** A row of labeled chips for picking between a few whole-look options
+ *  (TV channel, reading-corner decor) rather than a color. */
+function OptionPicker<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <Field label={label}>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <Chip key={o.value} active={value === o.value} onClick={() => onChange(o.value)}>
+            {o.label}
+          </Chip>
+        ))}
+      </div>
+    </Field>
+  );
+}
+
 export function CustomizeSheet({
   avatar,
   room,
@@ -101,6 +129,10 @@ export function CustomizeSheet({
 
   const avatarPalette = useMemo(() => buildAvatarPalette(draftAvatar), [draftAvatar]);
   const roomPalette = useMemo(() => buildRoomPalette(draftRoom), [draftRoom]);
+  const roomGrid = useMemo(
+    () => buildRoom({ tvChannel: draftRoom.tvChannel, decor: draftRoom.decor }),
+    [draftRoom.tvChannel, draftRoom.decor]
+  );
 
   return (
     <Sheet onClose={onClose} label="Customize your avatar and room">
@@ -109,7 +141,7 @@ export function CustomizeSheet({
 
       {/* Live preview */}
       <div className="relative mt-4 overflow-hidden rounded-[18px]" style={{ aspectRatio: `${ROOM_GRID_SIZE.width} / ${ROOM_GRID_SIZE.height}` }}>
-        <PixelRoom className="absolute inset-0 h-full w-full" palette={roomPalette} />
+        <PixelRoom className="absolute inset-0 h-full w-full" grid={roomGrid} palette={roomPalette} tvChannel={draftRoom.tvChannel} />
       </div>
       <div className="mt-3 flex justify-center">
         <PixelAvatar state="idle" size={72} palette={avatarPalette} />
@@ -144,10 +176,12 @@ export function CustomizeSheet({
 
       {tab === 'room' && (
         <div className="mt-4 space-y-4">
-          {(Object.keys(ROOM_LABELS) as (keyof RoomCustomization)[]).map((key) => (
+          <OptionPicker label="TV channel" value={draftRoom.tvChannel} options={TV_CHANNEL_OPTIONS} onChange={(tvChannel) => setDraftRoom((cur) => ({ ...cur, tvChannel }))} />
+          <OptionPicker label="Reading corner" value={draftRoom.decor} options={DECOR_OPTIONS} onChange={(decor) => setDraftRoom((cur) => ({ ...cur, decor }))} />
+          {(Object.keys(ROOM_COLOR_LABELS) as (keyof typeof ROOM_COLOR_LABELS)[]).map((key) => (
             <SwatchPicker
               key={key}
-              label={ROOM_LABELS[key]}
+              label={ROOM_COLOR_LABELS[key]}
               value={draftRoom[key]}
               options={ROOM_SWATCHES[key]}
               onChange={(hex) => setDraftRoom((cur) => ({ ...cur, [key]: hex }))}
