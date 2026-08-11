@@ -8,7 +8,18 @@ import { AVATAR_GRID_SIZE, AVATAR_PALETTE, AVATAR_POSES, type AvatarPose } from 
 // gaps between adjacent cells (see PixelRoom for the same fix).
 const OVERLAP = 1.06;
 
-export function PixelAvatar({ state, size = 120, className = '' }: { state: AvatarPose; size?: number; className?: string }) {
+export function PixelAvatar({
+  state,
+  size = 120,
+  className = '',
+  palette = AVATAR_PALETTE,
+}: {
+  state: AvatarPose;
+  size?: number;
+  className?: string;
+  /** Letter->hex override, e.g. from the athlete's Settings > Customize avatar picks. Defaults to the stock look. */
+  palette?: Record<string, string>;
+}) {
   const { width, height } = AVATAR_GRID_SIZE;
   const grid = AVATAR_POSES[state];
   const rects: React.ReactNode[] = [];
@@ -16,7 +27,7 @@ export function PixelAvatar({ state, size = 120, className = '' }: { state: Avat
     for (let x = 0; x < width; x++) {
       const ch = grid[y][x];
       if (ch === '.') continue;
-      rects.push(<rect key={`${x}-${y}`} x={x} y={y} width={OVERLAP} height={OVERLAP} fill={AVATAR_PALETTE[ch] ?? '#000'} />);
+      rects.push(<rect key={`${x}-${y}`} x={x} y={y} width={OVERLAP} height={OVERLAP} fill={palette[ch] ?? '#000'} />);
     }
   }
   return (

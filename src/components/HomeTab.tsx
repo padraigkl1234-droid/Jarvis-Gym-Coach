@@ -157,7 +157,7 @@ export function HomeTab({
         </div>
       </div>
 
-      <PetRoom mood={avatarState} name={firstName} />
+      <PetRoom mood={avatarState} name={firstName} avatarCustomization={store.avatarCustomization} roomCustomization={store.roomCustomization} />
 
       {/* Today's session card */}
       {hasSession && (

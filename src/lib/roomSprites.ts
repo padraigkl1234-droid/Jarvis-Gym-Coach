@@ -10,72 +10,83 @@
  * crisp SVG squares.
  */
 
-export const ROOM_PALETTE: Record<string, string> = {
-  // Ceiling
-  A: '#F7F1E6',
-  B: '#EDE3D0',
-  // Wall
-  a: '#F2E9DA',
-  b: '#DDD0B8',
-  c: '#C9BB9E',
-  // Floor
-  f: '#C29A6E',
-  e: '#B48A61',
-  d: '#9C7550',
-  // Rug
-  i: '#C9836A',
-  j: '#A85F49',
-  k: '#E3AE8E',
-  // Window frame + sky + skyline
-  n: '#4A4038',
-  N: '#5C4F42',
-  q: '#F0C9A0',
-  Q: '#E0A57C',
-  r: '#C97B5B',
-  m: '#7A5240',
-  o: '#5C3D2E',
-  O: '#452C21',
-  L: '#F4D48A',
-  // Curtains
-  u: '#8A9A7C',
-  U: '#6F7D63',
-  // TV — a little football (soccer) match plays on screen
-  w: '#2A2620',
-  v: '#3A4A52',
-  g: '#3E7A3E', // pitch green
-  h: '#F5F4EE', // pitch markings + ball
-  // Sofa
-  s: '#8A9A7C',
-  S: '#9BA98C',
-  t: '#6F7D63',
-  T: '#5C6852',
-  p: '#B4552F',
-  P: '#8B3D20',
-  // Plant
-  x: '#B4552F',
-  X: '#C46B44',
-  y: '#7C8B6F',
-  Y: '#8FA07E',
-  z: '#657056',
-  // Bench
-  G: '#5A5650',
-  H: '#403D38',
-  V: '#B4552F',
-  W: '#8B3D20',
-  Z: '#2A2620',
-  D: '#54504A',
-  // TV kit colours (players shimmer via CSS so the pitch reads as live)
-  C: '#D9A441', // away kit
-  E: '#22405C', // home kit
-  F: '#243038', // screen vignette
-  // Wall art print
-  R: '#3A342C',
-  l: '#C97B5B',
-  // Pendant lamp over the reading corner
-  M: '#3A342C',
-  // Contact shadow
-  '_': '#96754F',
-};
+import { darken, lighten } from './color';
+import { DEFAULT_ROOM_CUSTOMIZATION, type RoomCustomization } from './customization';
+
+/** Builds the full letter->hex palette from the athlete's chosen base colors
+ *  (Settings > Customize room), deriving the small highlight/shadow accents
+ *  so the room stays coherent no matter what they pick. Fixtures that aren't
+ *  offered as a customization (window, TV, plant, bench, lamp) stay fixed. */
+export function buildRoomPalette(custom: RoomCustomization = DEFAULT_ROOM_CUSTOMIZATION): Record<string, string> {
+  return {
+    // Ceiling
+    A: '#F7F1E6',
+    B: '#EDE3D0',
+    // Wall
+    a: custom.wall,
+    b: darken(custom.wall, 0.12), // wainscot panel band
+    c: darken(custom.wall, 0.21), // baseboard trim
+    // Floor
+    f: custom.floor,
+    e: darken(custom.floor, 0.1), // plank shading
+    d: darken(custom.floor, 0.24), // plank seams
+    // Rug
+    i: custom.rug,
+    j: darken(custom.rug, 0.25),
+    k: lighten(custom.rug, 0.36),
+    // Window frame + sky + skyline
+    n: '#4A4038',
+    N: '#5C4F42',
+    q: '#F0C9A0',
+    Q: '#E0A57C',
+    r: '#C97B5B',
+    m: '#7A5240',
+    o: '#5C3D2E',
+    O: '#452C21',
+    L: '#F4D48A',
+    // Curtains
+    u: custom.curtains,
+    U: darken(custom.curtains, 0.2),
+    // TV — a little football (soccer) match plays on screen
+    w: '#2A2620',
+    v: '#3A4A52',
+    g: '#3E7A3E', // pitch green
+    h: '#F5F4EE', // pitch markings + ball
+    // Sofa
+    s: custom.sofa,
+    S: lighten(custom.sofa, 0.14),
+    t: darken(custom.sofa, 0.2),
+    T: darken(custom.sofa, 0.33),
+    p: '#B4552F', // throw pillow — a fixed clay accent
+    P: '#8B3D20',
+    // Plant
+    x: '#B4552F',
+    X: '#C46B44',
+    y: '#7C8B6F',
+    Y: '#8FA07E',
+    z: '#657056',
+    // Bench
+    G: '#5A5650',
+    H: '#403D38',
+    V: '#B4552F',
+    W: '#8B3D20',
+    Z: '#2A2620',
+    D: '#54504A',
+    // TV kit colours (players shimmer via CSS so the pitch reads as live)
+    C: '#D9A441', // away kit
+    E: '#22405C', // home kit
+    F: '#243038', // screen vignette
+    // Wall art print
+    R: '#3A342C',
+    l: '#C97B5B',
+    // Pendant lamp over the reading corner
+    M: '#3A342C',
+    // Contact shadow
+    '_': '#96754F',
+  };
+}
+
+export const ROOM_PALETTE: Record<string, string> = buildRoomPalette();
 
 /** Player-kit keys on the TV pitch — CSS gives these a staggered flicker so
  *  the picture reads as something actually playing, not a static glow. */

@@ -3,8 +3,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PixelRoom } from '@/components/PixelRoom';
 import { PixelAvatar } from '@/components/PixelAvatar';
-import { ROOM_SPOTS, ROOM_GRID_SIZE, type RoomSpot } from '@/lib/roomSprites';
-import { type AvatarState, type AvatarPose } from '@/lib/avatarSprites';
+import { ROOM_SPOTS, ROOM_GRID_SIZE, buildRoomPalette, type RoomSpot } from '@/lib/roomSprites';
+import { buildAvatarPalette, type AvatarState, type AvatarPose } from '@/lib/avatarSprites';
+import { DEFAULT_AVATAR_CUSTOMIZATION, DEFAULT_ROOM_CUSTOMIZATION, type AvatarCustomization, type RoomCustomization } from '@/lib/customization';
 import { Eyebrow } from '@/components/ui';
 
 // A walk breaks into three beats so it reads as a person, not a teleport:
@@ -51,7 +52,19 @@ const LABEL: Record<AvatarState, string> = {
  * Purely decorative/for-fun; today's actual mood still comes from real
  * calorie/workout data, same as before.
  */
-export function PetRoom({ mood, name }: { mood: AvatarState; name: string }) {
+export function PetRoom({
+  mood,
+  name,
+  avatarCustomization = DEFAULT_AVATAR_CUSTOMIZATION,
+  roomCustomization = DEFAULT_ROOM_CUSTOMIZATION,
+}: {
+  mood: AvatarState;
+  name: string;
+  avatarCustomization?: AvatarCustomization;
+  roomCustomization?: RoomCustomization;
+}) {
+  const avatarPalette = useMemo(() => buildAvatarPalette(avatarCustomization), [avatarCustomization]);
+  const roomPalette = useMemo(() => buildRoomPalette(roomCustomization), [roomCustomization]);
   const spots = useMemo<RoomSpot[]>(() => {
     if (mood === 'full') return ['sofa']; // nap spot only — no wandering while asleep
     if (mood === 'flexed' || mood === 'charged') return ['tv', 'sofa'];
@@ -136,7 +149,7 @@ export function PetRoom({ mood, name }: { mood: AvatarState; name: string }) {
   return (
     <div className="mt-7">
       <div className="relative overflow-hidden rounded-[22px]" style={{ aspectRatio: `${ROOM_GRID_SIZE.width} / ${ROOM_GRID_SIZE.height}` }}>
-        <PixelRoom className="absolute inset-0 h-full w-full" />
+        <PixelRoom className="absolute inset-0 h-full w-full" palette={roomPalette} />
         <div
           className="absolute"
           style={{
@@ -147,7 +160,7 @@ export function PetRoom({ mood, name }: { mood: AvatarState; name: string }) {
           }}
         >
           <div className={walking ? 'pet-walking' : ''}>
-            <PixelAvatar state={pose} size={56} />
+            <PixelAvatar state={pose} size={56} palette={avatarPalette} />
           </div>
         </div>
       </div>

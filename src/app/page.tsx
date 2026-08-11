@@ -28,6 +28,7 @@ import {
   type Profile,
   type WorkoutSession,
 } from '@/lib/store';
+import type { AvatarCustomization, RoomCustomization } from '@/lib/customization';
 
 type Tab = 'home' | 'move' | 'fuel' | 'body' | 'progress';
 
@@ -369,6 +370,14 @@ export default function ValorisPage() {
     [commitStore]
   );
 
+  const handleSaveCustomization = useCallback(
+    (avatarCustomization: AvatarCustomization, roomCustomization: RoomCustomization) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, avatarCustomization, roomCustomization });
+    },
+    [commitStore]
+  );
+
   const handleAddMemory = useCallback(
     (note: string, category: MemoryCategory) => {
       const cur = storeRef.current;
@@ -481,6 +490,7 @@ export default function ValorisPage() {
           onRemoveMemory={handleRemoveMemory}
           onRestore={(restored) => commitStore(restored)}
           onSuggestPlan={handleSuggestPlan}
+          onSaveCustomization={handleSaveCustomization}
           onResetAll={handleResetAll}
           onClose={() => setSettingsOpen(false)}
         />

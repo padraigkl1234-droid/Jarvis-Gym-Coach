@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { ArrowLeft, ChevronRight, UserRound, Target, CalendarRange, Download, Upload, Bell, Ruler, Plus, Wand2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight, UserRound, Target, CalendarRange, Download, Upload, Bell, Ruler, Plus, Wand2, Palette } from 'lucide-react';
 import {
   MEMORY_CATEGORIES,
   computeTargets,
@@ -15,6 +15,8 @@ import {
 } from '@/lib/store';
 import { DIETARY_STYLES } from '@/lib/foodSuggestions';
 import { Card, Chip, CtaButton, Eyebrow, Field, fieldCls, Sheet, Toggle } from '@/components/ui';
+import { CustomizeSheet } from '@/components/CustomizeSheet';
+import type { AvatarCustomization, RoomCustomization } from '@/lib/customization';
 
 export interface Prefs {
   reminders: boolean;
@@ -428,6 +430,7 @@ export function SettingsScreen({
   onRemoveMemory,
   onRestore,
   onSuggestPlan,
+  onSaveCustomization,
   onResetAll,
   onClose,
 }: {
@@ -439,12 +442,13 @@ export function SettingsScreen({
   onRemoveMemory: (memory: MemoryEntry) => void;
   onRestore: (store: JarvisStore) => void;
   onSuggestPlan: () => void;
+  onSaveCustomization: (avatar: AvatarCustomization, room: RoomCustomization) => void;
   onResetAll: () => void;
   onClose: () => void;
 }) {
   const { data: session } = useSession();
   const [googleReady, setGoogleReady] = useState(false);
-  const [sheet, setSheet] = useState<'profile' | 'goals' | 'schedule' | 'note' | null>(null);
+  const [sheet, setSheet] = useState<'profile' | 'goals' | 'schedule' | 'note' | 'customize' | null>(null);
   const [armDelete, setArmDelete] = useState(false);
   const [restorePreview, setRestorePreview] = useState<JarvisStore | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
@@ -517,6 +521,12 @@ export function SettingsScreen({
         <p className="mt-2 px-1 text-[11px] leading-relaxed text-faintest">
           Builds a full week from your goal, equipment, and schedule above — you'll see a preview before anything changes.
         </p>
+
+        {/* Personalize */}
+        <Eyebrow className="mt-8">Personalize</Eyebrow>
+        <Card className="mt-2 rounded-2xl">
+          <Row icon={Palette} label="Customize avatar & room" value="Home tab" onClick={() => setSheet('customize')} />
+        </Card>
 
         {/* Coach notes */}
         <Eyebrow className="mt-8">Coach notes</Eyebrow>
@@ -595,6 +605,14 @@ export function SettingsScreen({
       {sheet === 'goals' && <GoalsSheet profile={p} onSave={onProfileSave} onClose={() => setSheet(null)} />}
       {sheet === 'schedule' && <ScheduleSheet profile={p} onSave={onProfileSave} onClose={() => setSheet(null)} />}
       {sheet === 'note' && <NoteComposer onAdd={onAddMemory} onClose={() => setSheet(null)} />}
+      {sheet === 'customize' && (
+        <CustomizeSheet
+          avatar={store.avatarCustomization}
+          room={store.roomCustomization}
+          onSave={onSaveCustomization}
+          onClose={() => setSheet(null)}
+        />
+      )}
 
       {restorePreview && (
         <Sheet onClose={() => setRestorePreview(null)} label="Restore backup">

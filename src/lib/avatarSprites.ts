@@ -4,24 +4,34 @@
  * SVG squares — genuine low-res "bit style" art, no image assets.
  */
 
+import { darken, lighten } from './color';
+import { DEFAULT_AVATAR_CUSTOMIZATION, type AvatarCustomization } from './customization';
+
 export type AvatarState = 'idle' | 'full' | 'flexed' | 'charged';
 /** Everything PixelAvatar can actually render — mood states plus room-only poses. */
 export type AvatarPose = AvatarState | 'sitting' | 'sleeping' | 'walk1' | 'walk2';
 
-export const AVATAR_PALETTE: Record<string, string> = {
-  h: '#3A2E22', // hair
-  H: '#4F3F2E', // hair highlight (side-part sheen)
-  s: '#E3B48C', // skin
-  k: '#2A2620', // outline / eyes / mouth / brows
-  c: '#B4552F', // shirt (clay)
-  o: '#9C4527', // shirt shadow (hem / collar notch)
-  d: '#8B3D20', // shorts (clay-dark)
-  l: '#A8613C', // shorts waistband trim
-  w: '#F5F4EE', // shoes (cream)
-  e: '#D8D2C4', // shoe heel shadow
-  g: '#7C8B6F', // sage accent (headband)
-  z: '#C9A98A', // bicep highlight
-};
+/** Builds the full letter->hex palette from the athlete's chosen base colors
+ *  (Settings > Customize avatar), deriving the small highlight/shadow accents
+ *  so the sprite stays coherent no matter what they pick. */
+export function buildAvatarPalette(custom: AvatarCustomization = DEFAULT_AVATAR_CUSTOMIZATION): Record<string, string> {
+  return {
+    h: custom.hair,
+    H: lighten(custom.hair, 0.08), // hair highlight (side-part sheen)
+    s: custom.skin,
+    k: '#2A2620', // outline / eyes / mouth / brows
+    c: custom.shirt,
+    o: darken(custom.shirt, 0.16), // shirt shadow (hem / collar notch)
+    d: custom.shorts,
+    l: lighten(custom.shorts, 0.19), // shorts waistband trim
+    w: custom.shoes,
+    e: darken(custom.shoes, 0.14), // shoe heel shadow
+    g: '#7C8B6F', // sage accent (unused by any pose yet)
+    z: darken(custom.skin, 0.06), // bicep highlight
+  };
+}
+
+export const AVATAR_PALETTE: Record<string, string> = buildAvatarPalette();
 
 const W = 18;
 const H = 23;

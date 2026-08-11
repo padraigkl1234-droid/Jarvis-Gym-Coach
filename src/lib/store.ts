@@ -4,6 +4,13 @@
  * copy and return it, and the client persists whatever comes back.
  */
 
+import {
+  DEFAULT_AVATAR_CUSTOMIZATION,
+  DEFAULT_ROOM_CUSTOMIZATION,
+  type AvatarCustomization,
+  type RoomCustomization,
+} from './customization';
+
 export type SubscriptionTier = 'free' | 'premium';
 
 export interface Profile {
@@ -155,6 +162,9 @@ export interface JarvisStore {
   water: WaterEntry[];
   metrics: MetricEntry[];
   memories: MemoryEntry[];
+  /** How the athlete has restyled the Home-tab avatar/apartment (Settings > Customize). */
+  avatarCustomization: AvatarCustomization;
+  roomCustomization: RoomCustomization;
 }
 
 export const DEFAULT_STORE: JarvisStore = {
@@ -176,6 +186,8 @@ export const DEFAULT_STORE: JarvisStore = {
   water: [],
   metrics: [],
   memories: [],
+  avatarCustomization: DEFAULT_AVATAR_CUSTOMIZATION,
+  roomCustomization: DEFAULT_ROOM_CUSTOMIZATION,
 };
 
 /** Compact unique id for sessions (works in browser and Node runtimes). */
@@ -265,6 +277,10 @@ function normalize(parsed: any): JarvisStore {
     ...structuredClone(DEFAULT_STORE),
     ...parsed,
     profile: { ...DEFAULT_STORE.profile, ...(parsed?.profile ?? {}) },
+    // Backfill customization (added after the first release) — merge over
+    // defaults so a partially-saved object from an older shape still works.
+    avatarCustomization: { ...DEFAULT_AVATAR_CUSTOMIZATION, ...(parsed?.avatarCustomization ?? {}) },
+    roomCustomization: { ...DEFAULT_ROOM_CUSTOMIZATION, ...(parsed?.roomCustomization ?? {}) },
   };
   // Backfill category on memories saved before categories existed.
   store.memories = (store.memories ?? []).map((m: any) => ({

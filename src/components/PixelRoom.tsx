@@ -10,7 +10,14 @@ import { ROOM_GRID, ROOM_GRID_SIZE, ROOM_PALETTE, TV_BALL_SPOTS, TV_CONTENT_KEYS
 // like the wall or window sky.
 const OVERLAP = 1.06;
 
-export function PixelRoom({ className = '' }: { className?: string }) {
+export function PixelRoom({
+  className = '',
+  palette = ROOM_PALETTE,
+}: {
+  className?: string;
+  /** Letter->hex override, e.g. from the athlete's Settings > Customize room picks. Defaults to the stock look. */
+  palette?: Record<string, string>;
+}) {
   const { width, height } = ROOM_GRID_SIZE;
   const rects: React.ReactNode[] = [];
   for (let y = 0; y < height; y++) {
@@ -30,7 +37,7 @@ export function PixelRoom({ className = '' }: { className?: string }) {
           y={y}
           width={OVERLAP}
           height={OVERLAP}
-          fill={ROOM_PALETTE[ch] ?? '#000'}
+          fill={palette[ch] ?? '#000'}
           className={isTvContent ? 'tv-content' : undefined}
           style={style}
         />
@@ -49,7 +56,7 @@ export function PixelRoom({ className = '' }: { className?: string }) {
           y={p.y}
           width={OVERLAP}
           height={OVERLAP}
-          fill="#F5F4EE"
+          fill={palette.h ?? '#F5F4EE'}
           className="tv-ball"
           style={{ animationDelay: `${i}s` }}
         />
