@@ -1,12 +1,13 @@
 /**
  * The pixel-art apartment behind the Home avatar: ceiling, two-tone
  * wainscoted wall, wood floor with a rug, a big window with a multi-pane
- * dusk skyline (lit windows included) and curtains, a wall-mounted TV on a
- * console with a framed print beside it, a pendant lamp over the reading
- * corner, a cushioned sofa with a throw pillow, a layered potted plant, and
- * a weight bench with shaded barbell plates — plus soft contact shadows
- * under each piece for a bit of depth. Same grid technique as
- * avatarSprites.ts, rendered by PixelRoom as crisp SVG squares.
+ * dusk skyline (lit windows included) and curtains, a wall-mounted TV
+ * (playing a little football match) on a console with a framed print
+ * beside it, a pendant lamp over the reading corner, a cushioned sofa with
+ * a throw pillow, a layered potted plant, and a weight bench with shaded
+ * barbell plates — plus soft contact shadows under each piece for a bit of
+ * depth. Same grid technique as avatarSprites.ts, rendered by PixelRoom as
+ * crisp SVG squares.
  */
 
 export const ROOM_PALETTE: Record<string, string> = {
@@ -38,11 +39,11 @@ export const ROOM_PALETTE: Record<string, string> = {
   // Curtains
   u: '#8A9A7C',
   U: '#6F7D63',
-  // TV
+  // TV — a little football (soccer) match plays on screen
   w: '#2A2620',
   v: '#3A4A52',
-  g: '#E8CDB8',
-  h: '#C9836A',
+  g: '#3E7A3E', // pitch green
+  h: '#F5F4EE', // pitch markings + ball
   // Sofa
   s: '#8A9A7C',
   S: '#9BA98C',
@@ -63,10 +64,10 @@ export const ROOM_PALETTE: Record<string, string> = {
   W: '#8B3D20',
   Z: '#2A2620',
   D: '#54504A',
-  // TV "on-screen" content (cycled/flickered by CSS so it reads as playing)
-  C: '#4A7A6B',
-  E: '#D9A441',
-  F: '#243038',
+  // TV kit colours (players shimmer via CSS so the pitch reads as live)
+  C: '#D9A441', // away kit
+  E: '#22405C', // home kit
+  F: '#243038', // screen vignette
   // Wall art print
   R: '#3A342C',
   l: '#C97B5B',
@@ -76,9 +77,17 @@ export const ROOM_PALETTE: Record<string, string> = {
   '_': '#96754F',
 };
 
-/** Palette keys drawn on the TV screen — CSS gives these a staggered flicker
- *  so the picture reads as something actually playing, not a static glow. */
-export const TV_CONTENT_KEYS = ['g', 'h', 'C', 'E'];
+/** Player-kit keys on the TV pitch — CSS gives these a staggered flicker so
+ *  the picture reads as something actually playing, not a static glow. */
+export const TV_CONTENT_KEYS = ['C', 'E'];
+
+/** Grid-unit spots the animated "ball" cycles between on the TV pitch — a few
+ *  small dots that take turns fading in/out, reading as a ball in motion. */
+export const TV_BALL_SPOTS: { x: number; y: number }[] = [
+  { x: 21, y: 18 },
+  { x: 24, y: 17 },
+  { x: 27, y: 19 },
+];
 
 const W = 84;
 const H = 50;
@@ -97,6 +106,10 @@ function rect(g: string[][], x0: number, y0: number, x1: number, y1: number, ch:
 
 function vline(g: string[][], x: number, y0: number, y1: number, ch: string) {
   for (let y = y0; y <= y1; y++) if (g[y]) g[y][x] = ch;
+}
+
+function px(g: string[][], x: number, y: number, ch: string) {
+  if (g[y]) g[y][x] = ch;
 }
 
 function buildRoom(): string[][] {
@@ -155,11 +168,15 @@ function buildRoom(): string[][] {
   // Wall-mounted TV on a low console, cols 15-33.
   rect(g, 15, 12, 33, 24, 'n');
   rect(g, 16, 13, 32, 23, 'w');
-  rect(g, 17, 14, 31, 22, 'v');
-  rect(g, 19, 16, 24, 18, 'g'); // "on screen" content blocks — CSS flickers these
-  rect(g, 26, 19, 29, 21, 'h');
-  rect(g, 20, 20, 23, 21, 'C');
-  rect(g, 25, 15, 29, 17, 'E');
+  rect(g, 17, 14, 31, 22, 'v'); // screen bg / letterbox bars
+  rect(g, 18, 15, 30, 21, 'g'); // pitch, inset like a live broadcast picture
+  vline(g, 24, 15, 21, 'h'); // halfway line
+  vline(g, 18, 17, 19, 'h'); // near goal mouth
+  vline(g, 30, 17, 19, 'h'); // far goal mouth
+  px(g, 20, 16, 'E'); // players — CSS shimmers these
+  px(g, 28, 20, 'E');
+  px(g, 23, 20, 'C');
+  px(g, 26, 16, 'C');
   span(g, 14, 17, 31, 'F'); // top screen vignette
   span(g, 22, 17, 31, 'F'); // bottom screen vignette
   rect(g, 12, 27, 36, 32, 'n');

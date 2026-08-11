@@ -81,6 +81,19 @@ button:not(:disabled):active {
   70% { opacity: 0.6; }
 }
 
+/* The TV "ball": a few dots on the pitch that take turns fading in (delay
+   staggered per dot, inline) so it reads as one ball moving around. */
+.tv-ball {
+  opacity: 0;
+  animation: tv-ball-fade 3s ease-in-out infinite;
+}
+@keyframes tv-ball-fade {
+  0%, 100% { opacity: 0; }
+  8% { opacity: 1; }
+  22% { opacity: 1; }
+  32% { opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -3,6 +3,11 @@
 import React from 'react';
 import { AVATAR_GRID_SIZE, AVATAR_PALETTE, AVATAR_POSES, type AvatarPose } from '@/lib/avatarSprites';
 
+// Cells are drawn very slightly oversized so neighbouring rects overlap by a
+// hair — otherwise scaling the SVG to an arbitrary size can leave hairline
+// gaps between adjacent cells (see PixelRoom for the same fix).
+const OVERLAP = 1.06;
+
 export function PixelAvatar({ state, size = 120, className = '' }: { state: AvatarPose; size?: number; className?: string }) {
   const { width, height } = AVATAR_GRID_SIZE;
   const grid = AVATAR_POSES[state];
@@ -11,7 +16,7 @@ export function PixelAvatar({ state, size = 120, className = '' }: { state: Avat
     for (let x = 0; x < width; x++) {
       const ch = grid[y][x];
       if (ch === '.') continue;
-      rects.push(<rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill={AVATAR_PALETTE[ch] ?? '#000'} />);
+      rects.push(<rect key={`${x}-${y}`} x={x} y={y} width={OVERLAP} height={OVERLAP} fill={AVATAR_PALETTE[ch] ?? '#000'} />);
     }
   }
   return (
