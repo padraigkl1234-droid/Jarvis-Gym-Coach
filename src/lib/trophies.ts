@@ -4,6 +4,10 @@
  * sets/sessions/meals/water/metrics, and (once earned) the date the
  * milestone was first crossed, worked out by replaying the relevant entries
  * in chronological order rather than just checking the current total.
+ *
+ * There are a lot of these (75+), so most are built by small generator
+ * functions over a list of tiers/lifts rather than hand-typed one by one —
+ * far less room for a copy-paste typo across nearly identical trophies.
  */
 
 import type { JarvisStore } from './store';
@@ -41,8 +45,10 @@ interface TrophyDef {
   evaluate: (store: JarvisStore) => { current: number; earnedDate: string | null };
 }
 
+type Progress = { current: number; earnedDate: string | null };
+
 /** Running sum of dated values; earnedDate is the date the cumulative total first hit `target`. */
-function sumMilestone(items: { date: string; value: number }[], target: number): { current: number; earnedDate: string | null } {
+function sumMilestone(items: { date: string; value: number }[], target: number): Progress {
   const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date));
   let total = 0;
   let earnedDate: string | null = null;
@@ -54,7 +60,7 @@ function sumMilestone(items: { date: string; value: number }[], target: number):
 }
 
 /** Best single dated value; earnedDate is the date it first hit `target`. */
-function maxMilestone(items: { date: string; value: number }[], target: number): { current: number; earnedDate: string | null } {
+function maxMilestone(items: { date: string; value: number }[], target: number): Progress {
   const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date));
   let best = 0;
   let earnedDate: string | null = null;
@@ -66,7 +72,7 @@ function maxMilestone(items: { date: string; value: number }[], target: number):
 }
 
 /** Count of qualifying dates; earnedDate is the date the Nth one landed. */
-function countMilestone(dates: string[], target: number): { current: number; earnedDate: string | null } {
+function countMilestone(dates: string[], target: number): Progress {
   const sorted = [...dates].sort();
   const current = sorted.length;
   const earnedDate = current >= target ? sorted[target - 1] : null;
@@ -78,7 +84,7 @@ function daysBetween(a: string, b: string): number {
 }
 
 /** Longest run of consecutive calendar days in `dates`; earnedDate is the day the run first reached `target` days long. */
-function streakMilestone(dates: string[], target: number): { current: number; earnedDate: string | null } {
+function streakMilestone(dates: string[], target: number): Progress {
   const uniq = Array.from(new Set(dates)).sort();
   let bestLen = 0;
   let runLen = 0;
@@ -114,14 +120,201 @@ function waterDaysHit(store: JarvisStore): string[] {
   return store.water.filter((w) => w.ml >= target).map((w) => w.date);
 }
 
+function calorieDaysHit(store: JarvisStore): string[] {
+  const target = store.profile.calorieTarget;
+  if (!target) return [];
+  const byDate = new Map<string, number>();
+  for (const m of store.meals) byDate.set(m.date, (byDate.get(m.date) ?? 0) + m.calories);
+  return Array.from(byDate.entries())
+    .filter(([, kcal]) => kcal >= target * 0.9 && kcal <= target * 1.1)
+    .map(([d]) => d);
+}
+
 function activityDates(store: JarvisStore): string[] {
   const sessionDates = store.sessions.filter((s) => s.status === 'completed').map((s) => s.date);
   const setDates = store.sets.map((s) => s.date);
   return [...sessionDates, ...setDates];
 }
 
+/* ---- Generators — one function per "family" of near-identical trophies ---- */
+
+/** Cumulative-rep trophies for a lift, matched by keyword against the logged exercise name. */
+function repMilestones(idPrefix: string, exerciseLabel: string, keywords: string[], tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `${idPrefix}-reps-${target}`,
+    label: `${exerciseLabel} x${target.toLocaleString()}`,
+    description: `Log ${target.toLocaleString()} total ${exerciseLabel.toLowerCase()} reps.`,
+    category: 'strength',
+    target,
+    unit: 'reps',
+    evaluate: (s) =>
+      sumMilestone(
+        s.sets.filter((x) => x.reps != null && matchesAny(x.exercise, keywords)).map((x) => ({ date: x.date, value: x.reps! })),
+        target
+      ),
+  }));
+}
+
+/** Best-single-set weight trophies for a lift, matched by keyword against the logged exercise name. */
+function weightMilestones(idPrefix: string, exerciseLabel: string, keywords: string[], tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `${idPrefix}-kg-${target}`,
+    label: `${exerciseLabel} ${target}kg`,
+    description: `Log a single ${exerciseLabel.toLowerCase()} set at ${target}kg or more.`,
+    category: 'strength',
+    target,
+    unit: 'kg',
+    evaluate: (s) =>
+      maxMilestone(
+        s.sets.filter((x) => x.weightKg != null && matchesAny(x.exercise, keywords)).map((x) => ({ date: x.date, value: x.weightKg! })),
+        target
+      ),
+  }));
+}
+
+/** Lifetime cumulative cardio distance, exercise-agnostic. */
+function cardioLifetimeDistance(tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `cardio-lifetime-${target}`,
+    label: `${target}km Club`,
+    description: `Rack up ${target}km of cardio, lifetime.`,
+    category: 'cardio',
+    target,
+    unit: 'km',
+    evaluate: (s) => sumMilestone(s.sets.filter((x) => x.distanceKm != null).map((x) => ({ date: x.date, value: x.distanceKm! })), target),
+  }));
+}
+
+/** Best single-session distance on a specific cardio activity (e.g. rides). */
+function cardioActivityDistance(idPrefix: string, activityLabel: string, keywords: string[], tiers: { target: number; label: string }[]): TrophyDef[] {
+  return tiers.map((t) => ({
+    id: `${idPrefix}-${t.target}`,
+    label: t.label,
+    description: `Cover ${t.target}km in a single ${activityLabel.toLowerCase()}.`,
+    category: 'cardio',
+    target: t.target,
+    unit: 'km',
+    evaluate: (s) =>
+      maxMilestone(
+        s.sets.filter((x) => x.distanceKm != null && matchesAny(x.exercise, keywords)).map((x) => ({ date: x.date, value: x.distanceKm! })),
+        t.target
+      ),
+  }));
+}
+
+/** Best single cardio session duration, exercise-agnostic. */
+function cardioDuration(tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `cardio-duration-${target}`,
+    label: `${target}-Minute Cardio`,
+    description: `Complete a single cardio session of ${target} minutes or more.`,
+    category: 'cardio',
+    target,
+    unit: 'min',
+    evaluate: (s) => maxMilestone(s.sets.filter((x) => x.durationMin != null).map((x) => ({ date: x.date, value: x.durationMin! })), target),
+  }));
+}
+
+/** Count of logged cardio entries (anything with a duration or distance), lifetime. */
+function cardioSessionCount(tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `cardio-sessions-${target}`,
+    label: `${target} Cardio Sessions`,
+    description: `Log ${target} cardio sessions, lifetime.`,
+    category: 'cardio',
+    target,
+    unit: 'sessions',
+    evaluate: (s) => countMilestone(s.sets.filter((x) => x.distanceKm != null || x.durationMin != null).map((x) => x.date), target),
+  }));
+}
+
+function consistencySessions(tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `consistency-sessions-${target}`,
+    label: target === 1 ? 'First Session' : `${target} Sessions`,
+    description: target === 1 ? 'Complete your first workout.' : `Complete ${target} workouts.`,
+    category: 'consistency',
+    target,
+    unit: 'sessions',
+    evaluate: (s) => countMilestone(s.sessions.filter((x) => x.status === 'completed').map((x) => x.date), target),
+  }));
+}
+
+function consistencyStreaks(tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `consistency-streak-${target}`,
+    label: `${target}-Day Streak`,
+    description: `Log training on ${target} consecutive days.`,
+    category: 'consistency',
+    target,
+    unit: 'days',
+    evaluate: (s) => streakMilestone(activityDates(s), target),
+  }));
+}
+
+function nutritionMealCounts(tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `nutrition-meals-${target}`,
+    label: target === 1 ? 'First Meal Logged' : `${target.toLocaleString()} Meals Logged`,
+    description: target === 1 ? 'Log your first meal on Fuel.' : `Log ${target.toLocaleString()} meals, lifetime.`,
+    category: 'nutrition',
+    target,
+    unit: 'meals',
+    evaluate: (s) => countMilestone(s.meals.map((m) => m.date), target),
+  }));
+}
+
+function nutritionProteinDays(tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `nutrition-protein-${target}`,
+    label: `Protein x${target}`,
+    description: `Hit your protein target on ${target} different days.`,
+    category: 'nutrition',
+    target,
+    unit: 'days',
+    evaluate: (s) => countMilestone(proteinDaysHit(s), target),
+  }));
+}
+
+function nutritionWaterDays(tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `nutrition-water-${target}`,
+    label: `Hydration x${target}`,
+    description: `Hit your water target on ${target} different days.`,
+    category: 'nutrition',
+    target,
+    unit: 'days',
+    evaluate: (s) => countMilestone(waterDaysHit(s), target),
+  }));
+}
+
+function nutritionCalorieDays(tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `nutrition-calories-${target}`,
+    label: `On Target x${target}`,
+    description: `Land within 10% of your calorie target on ${target} different days.`,
+    category: 'nutrition',
+    target,
+    unit: 'days',
+    evaluate: (s) => countMilestone(calorieDaysHit(s), target),
+  }));
+}
+
+function bodyMetricCounts(tiers: number[]): TrophyDef[] {
+  return tiers.map((target) => ({
+    id: `body-metrics-${target}`,
+    label: target === 1 ? 'First Measurement' : `${target} Measurements`,
+    description: target === 1 ? 'Log your first body measurement.' : `Log a measurement on ${target} different days.`,
+    category: 'body',
+    target,
+    unit: 'logs',
+    evaluate: (s) => countMilestone(s.metrics.map((m) => m.date), target),
+  }));
+}
+
 const TROPHY_DEFS: TrophyDef[] = [
-  // Cardio — distance is exercise-agnostic (a run, a ride, a row all count).
+  // ---- Cardio ----
+  // Single-session distance, exercise-agnostic (a run, a ride, a row all count).
   {
     id: 'cardio-5k',
     label: 'First 5K',
@@ -158,65 +351,26 @@ const TROPHY_DEFS: TrophyDef[] = [
     unit: 'km',
     evaluate: (s) => maxMilestone(s.sets.filter((x) => x.distanceKm != null).map((x) => ({ date: x.date, value: x.distanceKm! })), 42.2),
   },
-  {
-    id: 'cardio-50-lifetime',
-    label: '50km Club',
-    description: 'Rack up 50km of cardio, lifetime.',
-    category: 'cardio',
-    target: 50,
-    unit: 'km',
-    evaluate: (s) => sumMilestone(s.sets.filter((x) => x.distanceKm != null).map((x) => ({ date: x.date, value: x.distanceKm! })), 50),
-  },
-  {
-    id: 'cardio-100-lifetime',
-    label: '100km Club',
-    description: 'Rack up 100km of cardio, lifetime.',
-    category: 'cardio',
-    target: 100,
-    unit: 'km',
-    evaluate: (s) => sumMilestone(s.sets.filter((x) => x.distanceKm != null).map((x) => ({ date: x.date, value: x.distanceKm! })), 100),
-  },
+  ...cardioLifetimeDistance([50, 100, 250, 500, 1000]),
+  ...cardioActivityDistance('cardio-ride', 'ride', ['cycl', 'bike', 'ride'], [
+    { target: 20, label: 'First 20K Ride' },
+    { target: 50, label: 'First 50K Ride' },
+    { target: 100, label: 'Century Ride' },
+  ]),
+  ...cardioDuration([30, 60, 90]),
+  ...cardioSessionCount([10, 25, 50, 100]),
 
-  // Strength
-  {
-    id: 'strength-bench-50',
-    label: 'Bench Press x50',
-    description: 'Log 50 total bench press reps.',
-    category: 'strength',
-    target: 50,
-    unit: 'reps',
-    evaluate: (s) =>
-      sumMilestone(
-        s.sets.filter((x) => x.reps != null && matchesAny(x.exercise, ['bench press'])).map((x) => ({ date: x.date, value: x.reps! })),
-        50
-      ),
-  },
-  {
-    id: 'strength-squat-50',
-    label: 'Squat x50',
-    description: 'Log 50 total squat reps.',
-    category: 'strength',
-    target: 50,
-    unit: 'reps',
-    evaluate: (s) =>
-      sumMilestone(
-        s.sets.filter((x) => x.reps != null && matchesAny(x.exercise, ['squat'])).map((x) => ({ date: x.date, value: x.reps! })),
-        50
-      ),
-  },
-  {
-    id: 'strength-deadlift-50',
-    label: 'Deadlift x50',
-    description: 'Log 50 total deadlift reps.',
-    category: 'strength',
-    target: 50,
-    unit: 'reps',
-    evaluate: (s) =>
-      sumMilestone(
-        s.sets.filter((x) => x.reps != null && matchesAny(x.exercise, ['deadlift'])).map((x) => ({ date: x.date, value: x.reps! })),
-        50
-      ),
-  },
+  // ---- Strength ----
+  ...weightMilestones('bench', 'Bench Press', ['bench press'], [40, 60, 80, 100, 120]),
+  ...weightMilestones('squat', 'Squat', ['squat'], [60, 80, 100, 140, 180]),
+  ...weightMilestones('deadlift', 'Deadlift', ['deadlift'], [80, 100, 140, 180, 220]),
+  ...weightMilestones('ohp', 'Overhead Press', ['overhead press', 'shoulder press'], [30, 40, 60, 80]),
+  ...weightMilestones('row', 'Row', ['row'], [40, 60, 80, 100]),
+  ...repMilestones('bench', 'Bench Press', ['bench press'], [50, 250, 1000]),
+  ...repMilestones('squat', 'Squat', ['squat'], [50, 250, 1000]),
+  ...repMilestones('deadlift', 'Deadlift', ['deadlift'], [50, 250, 1000]),
+  ...repMilestones('pullup', 'Pull-Up', ['pull-up', 'pull up'], [50, 250, 1000]),
+  ...repMilestones('pushup', 'Push-Up', ['push-up', 'push up'], [100, 500, 2000]),
   {
     id: 'strength-century',
     label: 'Century Lift',
@@ -227,7 +381,7 @@ const TROPHY_DEFS: TrophyDef[] = [
     evaluate: (s) => maxMilestone(s.sets.filter((x) => x.weightKg != null).map((x) => ({ date: x.date, value: x.weightKg! })), 100),
   },
   {
-    id: 'strength-1000-reps',
+    id: 'strength-total-reps-1000',
     label: '1,000 Reps',
     description: 'Log 1,000 reps, lifetime, across all lifts.',
     category: 'strength',
@@ -236,7 +390,7 @@ const TROPHY_DEFS: TrophyDef[] = [
     evaluate: (s) => sumMilestone(s.sets.filter((x) => x.reps != null).map((x) => ({ date: x.date, value: x.reps! })), 1000),
   },
   {
-    id: 'strength-5000-reps',
+    id: 'strength-total-reps-5000',
     label: '5,000 Reps',
     description: 'Log 5,000 reps, lifetime, across all lifts.',
     category: 'strength',
@@ -244,110 +398,54 @@ const TROPHY_DEFS: TrophyDef[] = [
     unit: 'reps',
     evaluate: (s) => sumMilestone(s.sets.filter((x) => x.reps != null).map((x) => ({ date: x.date, value: x.reps! })), 5000),
   },
-
-  // Consistency
   {
-    id: 'consistency-first-session',
-    label: 'First Session',
-    description: 'Complete your first workout.',
-    category: 'consistency',
-    target: 1,
-    unit: 'sessions',
-    evaluate: (s) => countMilestone(s.sessions.filter((x) => x.status === 'completed').map((x) => x.date), 1),
-  },
-  {
-    id: 'consistency-10-sessions',
-    label: '10 Sessions',
-    description: 'Complete 10 workouts.',
-    category: 'consistency',
-    target: 10,
-    unit: 'sessions',
-    evaluate: (s) => countMilestone(s.sessions.filter((x) => x.status === 'completed').map((x) => x.date), 10),
-  },
-  {
-    id: 'consistency-50-sessions',
-    label: '50 Sessions',
-    description: 'Complete 50 workouts.',
-    category: 'consistency',
-    target: 50,
-    unit: 'sessions',
-    evaluate: (s) => countMilestone(s.sessions.filter((x) => x.status === 'completed').map((x) => x.date), 50),
-  },
-  {
-    id: 'consistency-100-sessions',
-    label: '100 Sessions',
-    description: 'Complete 100 workouts.',
-    category: 'consistency',
-    target: 100,
-    unit: 'sessions',
-    evaluate: (s) => countMilestone(s.sessions.filter((x) => x.status === 'completed').map((x) => x.date), 100),
-  },
-  {
-    id: 'consistency-7-streak',
-    label: '7-Day Streak',
-    description: 'Log training on 7 consecutive days.',
-    category: 'consistency',
-    target: 7,
-    unit: 'days',
-    evaluate: (s) => streakMilestone(activityDates(s), 7),
-  },
-  {
-    id: 'consistency-30-streak',
-    label: '30-Day Streak',
-    description: 'Log training on 30 consecutive days.',
-    category: 'consistency',
-    target: 30,
-    unit: 'days',
-    evaluate: (s) => streakMilestone(activityDates(s), 30),
+    id: 'strength-total-reps-10000',
+    label: '10,000 Reps',
+    description: 'Log 10,000 reps, lifetime, across all lifts.',
+    category: 'strength',
+    target: 10000,
+    unit: 'reps',
+    evaluate: (s) => sumMilestone(s.sets.filter((x) => x.reps != null).map((x) => ({ date: x.date, value: x.reps! })), 10000),
   },
 
-  // Nutrition
-  {
-    id: 'nutrition-first-meal',
-    label: 'First Meal Logged',
-    description: 'Log your first meal on Fuel.',
-    category: 'nutrition',
-    target: 1,
-    unit: 'meals',
-    evaluate: (s) => countMilestone(s.meals.map((m) => m.date), 1),
-  },
-  {
-    id: 'nutrition-protein-7',
-    label: 'Protein Pro',
-    description: 'Hit your protein target on 7 different days.',
-    category: 'nutrition',
-    target: 7,
-    unit: 'days',
-    evaluate: (s) => countMilestone(proteinDaysHit(s), 7),
-  },
-  {
-    id: 'nutrition-water-7',
-    label: 'Hydration Habit',
-    description: 'Hit your water target on 7 different days.',
-    category: 'nutrition',
-    target: 7,
-    unit: 'days',
-    evaluate: (s) => countMilestone(waterDaysHit(s), 7),
-  },
+  // ---- Consistency ----
+  ...consistencySessions([1, 5, 10, 25, 50, 100, 200, 365]),
+  ...consistencyStreaks([3, 7, 14, 30, 60, 100]),
 
-  // Body
+  // ---- Nutrition ----
+  ...nutritionMealCounts([1, 10, 50, 100, 365]),
+  ...nutritionProteinDays([3, 7, 14, 30]),
+  ...nutritionWaterDays([3, 7, 14, 30]),
+  ...nutritionCalorieDays([7, 30]),
+
+  // ---- Body ----
+  ...bodyMetricCounts([1, 4, 10, 25, 52]),
   {
-    id: 'body-first-metric',
-    label: 'First Measurement',
-    description: 'Log your first body measurement.',
+    id: 'body-first-bodyfat',
+    label: 'First Body Fat % Logged',
+    description: 'Log your body fat percentage for the first time.',
     category: 'body',
     target: 1,
     unit: 'logs',
-    evaluate: (s) => countMilestone(s.metrics.map((m) => m.date), 1),
+    evaluate: (s) => countMilestone(s.metrics.filter((m) => m.bodyFatPct != null).map((m) => m.date), 1),
   },
   {
-    id: 'body-4-metrics',
-    label: 'Progress Tracker',
-    description: 'Log a measurement on 4 different days.',
+    id: 'body-first-resting-hr',
+    label: 'First Resting HR Logged',
+    description: 'Log your resting heart rate for the first time.',
     category: 'body',
-    target: 4,
+    target: 1,
     unit: 'logs',
-    evaluate: (s) => countMilestone(s.metrics.map((m) => m.date), 4),
+    evaluate: (s) => countMilestone(s.metrics.filter((m) => m.restingHr != null).map((m) => m.date), 1),
+  },
+  {
+    id: 'body-first-sleep',
+    label: 'First Sleep Logged',
+    description: 'Log your sleep hours for the first time.',
+    category: 'body',
+    target: 1,
+    unit: 'logs',
+    evaluate: (s) => countMilestone(s.metrics.filter((m) => m.sleepHours != null).map((m) => m.date), 1),
   },
 ];
 
