@@ -14,9 +14,10 @@ export interface DailyMacros {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  fibreG: number;
   waterMl: number;
   mealCount: number;
-  targets: { calories: number; proteinG: number; carbsG: number; fatG: number; waterMl: number };
+  targets: { calories: number; proteinG: number; carbsG: number; fatG: number; fibreG: number; waterMl: number };
 }
 
 export interface ExerciseDay {
@@ -105,6 +106,7 @@ export function buildDailyMacros(store: JarvisStore, since: string): DailyMacros
       proteinG: 0,
       carbsG: 0,
       fatG: 0,
+      fibreG: 0,
       waterMl: 0,
       mealCount: 0,
       targets: {
@@ -112,6 +114,7 @@ export function buildDailyMacros(store: JarvisStore, since: string): DailyMacros
         proteinG: p.proteinTargetG,
         carbsG: p.carbsTargetG,
         fatG: p.fatTargetG,
+        fibreG: p.fibreTargetG,
         waterMl: p.hydrationTargetMl,
       },
     });
@@ -122,6 +125,7 @@ export function buildDailyMacros(store: JarvisStore, since: string): DailyMacros
     d.proteinG += m.proteinG;
     d.carbsG += m.carbsG;
     d.fatG += m.fatG;
+    d.fibreG += m.fibreG;
     d.mealCount += 1;
   }
   for (const w of store.water) {
@@ -135,6 +139,7 @@ export function buildDailyMacros(store: JarvisStore, since: string): DailyMacros
       proteinG: Math.round(d.proteinG),
       carbsG: Math.round(d.carbsG),
       fatG: Math.round(d.fatG),
+      fibreG: Math.round(d.fibreG),
     }))
     .sort((a, b) => b.date.localeCompare(a.date));
 }

@@ -22,6 +22,7 @@ interface DayGroup {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  fibreG: number;
 }
 
 export function FoodDiary({
@@ -38,12 +39,13 @@ export function FoodDiary({
   const days = useMemo<DayGroup[]>(() => {
     const byDate: Record<string, DayGroup> = {};
     for (const m of store.meals) {
-      const g = (byDate[m.date] ??= { date: m.date, meals: [], calories: 0, proteinG: 0, carbsG: 0, fatG: 0 });
+      const g = (byDate[m.date] ??= { date: m.date, meals: [], calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fibreG: 0 });
       g.meals.push(m);
       g.calories += m.calories;
       g.proteinG += m.proteinG;
       g.carbsG += m.carbsG;
       g.fatG += m.fatG;
+      g.fibreG += m.fibreG;
     }
     return Object.values(byDate)
       .map((g) => ({ ...g, meals: [...g.meals].sort((a, b) => a.time.localeCompare(b.time)) }))
@@ -90,7 +92,7 @@ export function FoodDiary({
                         <div className="text-[15px] font-bold text-ink">{fmtDay(d.date)}</div>
                         <div className="mt-0.5 text-[12px] text-faint">
                           {d.meals.length} item{d.meals.length === 1 ? '' : 's'} · P{Math.round(d.proteinG)} / C{Math.round(d.carbsG)} / F
-                          {Math.round(d.fatG)}
+                          {Math.round(d.fatG)} / Fi{Math.round(d.fibreG)}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2.5">

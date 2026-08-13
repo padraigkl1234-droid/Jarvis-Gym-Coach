@@ -219,6 +219,7 @@ export function OnboardingFlow({
               [
                 ['Calories', `${targets.calorieTarget.toLocaleString()}`, 'kcal / day'],
                 ['Protein', `${targets.proteinTargetG}`, 'g / day'],
+                ['Fibre', `${targets.fibreTargetG}`, 'g / day'],
                 ['Carbs', `${targets.carbsTargetG}`, 'g / day'],
                 ['Fat', `${targets.fatTargetG}`, 'g / day'],
                 ['Water', `${(targets.hydrationTargetMl / 1000).toFixed(1)}`, 'L / day'],

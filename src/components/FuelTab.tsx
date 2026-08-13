@@ -46,7 +46,7 @@ function AddMealForm({
   onClose,
 }: {
   slot: MealSlot;
-  onAdd: (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; slot: MealSlot }) => void;
+  onAdd: (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; fibreG: number; slot: MealSlot }) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState('');
@@ -54,6 +54,7 @@ function AddMealForm({
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [fibre, setFibre] = useState('');
   const num = (s: string) => {
     const n = parseFloat(s);
     return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -65,19 +66,20 @@ function AddMealForm({
       onSubmit={(e) => {
         e.preventDefault();
         if (!valid) return;
-        onAdd({ name: name.trim(), calories: num(kcal), proteinG: num(protein), carbsG: num(carbs), fatG: num(fat), slot });
+        onAdd({ name: name.trim(), calories: num(kcal), proteinG: num(protein), carbsG: num(carbs), fatG: num(fat), fibreG: num(fibre), slot });
         onClose();
       }}
       className="mt-3 space-y-2 border-t border-divider pt-3"
     >
       <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What did you eat?" className={`${fieldCls} !bg-canvas`} />
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-1.5">
         {(
           [
             ['kcal', kcal, setKcal],
             ['P g', protein, setProtein],
             ['C g', carbs, setCarbs],
             ['F g', fat, setFat],
+            ['Fi g', fibre, setFibre],
           ] as const
         ).map(([ph, val, set]) => (
           <input
@@ -86,7 +88,7 @@ function AddMealForm({
             onChange={(e) => set(e.target.value)}
             inputMode="numeric"
             placeholder={ph}
-            className={`${fieldCls} !bg-canvas !px-2 text-center`}
+            className={`${fieldCls} !bg-canvas !px-1.5 text-center`}
           />
         ))}
       </div>
@@ -122,6 +124,7 @@ function EditMealSheet({
   const [protein, setProtein] = useState(String(meal.proteinG));
   const [carbs, setCarbs] = useState(String(meal.carbsG));
   const [fat, setFat] = useState(String(meal.fatG));
+  const [fibre, setFibre] = useState(String(meal.fibreG));
   const num = (s: string, fallback: number) => {
     const n = parseFloat(s);
     return Number.isFinite(n) && n >= 0 ? n : fallback;
@@ -135,12 +138,15 @@ function EditMealSheet({
         <Field label="Name">
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={fieldCls} />
         </Field>
-        <div className="grid grid-cols-4 gap-2">
-          <Field label="Kcal">
-            <input value={kcal} onChange={(e) => setKcal(e.target.value)} inputMode="numeric" className={`${fieldCls} !px-2 text-center`} />
-          </Field>
+        <Field label="Kcal">
+          <input value={kcal} onChange={(e) => setKcal(e.target.value)} inputMode="numeric" className={`${fieldCls} !px-2 text-center`} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Protein g">
             <input value={protein} onChange={(e) => setProtein(e.target.value)} inputMode="numeric" className={`${fieldCls} !px-2 text-center`} />
+          </Field>
+          <Field label="Fibre g">
+            <input value={fibre} onChange={(e) => setFibre(e.target.value)} inputMode="numeric" className={`${fieldCls} !px-2 text-center`} />
           </Field>
           <Field label="Carbs g">
             <input value={carbs} onChange={(e) => setCarbs(e.target.value)} inputMode="numeric" className={`${fieldCls} !px-2 text-center`} />
@@ -160,6 +166,7 @@ function EditMealSheet({
             proteinG: num(protein, meal.proteinG),
             carbsG: num(carbs, meal.carbsG),
             fatG: num(fat, meal.fatG),
+            fibreG: num(fibre, meal.fibreG),
           });
           onClose();
         }}
@@ -214,7 +221,7 @@ function SuggestionsCard({
               <div className="min-w-0">
                 <div className="text-[14px] font-semibold text-ink">{s.food.name}</div>
                 <div className="mt-0.5 text-[12px] text-faint">
-                  {s.food.calories} kcal · P{s.food.proteinG} C{s.food.carbsG} F{s.food.fatG}
+                  {s.food.calories} kcal · P{s.food.proteinG} C{s.food.carbsG} F{s.food.fatG} Fi{s.food.fibreG}
                 </div>
                 <div className="mt-0.5 text-[11px] font-semibold text-sage">{s.reason}</div>
               </div>
@@ -241,7 +248,7 @@ export function FuelTab({
   onSetWater,
 }: {
   store: JarvisStore;
-  onAddMeal: (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; slot: MealSlot }) => void;
+  onAddMeal: (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; fibreG: number; slot: MealSlot }) => void;
   onEditMeal: (meal: MealEntry, patch: Partial<MealEntry>) => void;
   onDeleteMeal: (meal: MealEntry) => void;
   onSetWater: (ml: number) => void;
@@ -257,6 +264,7 @@ export function FuelTab({
   const protein = meals.reduce((a, m) => a + m.proteinG, 0);
   const carbs = meals.reduce((a, m) => a + m.carbsG, 0);
   const fat = meals.reduce((a, m) => a + m.fatG, 0);
+  const fibre = meals.reduce((a, m) => a + m.fibreG, 0);
   const remaining = Math.max(0, p.calorieTarget - kcal);
   const remainingMacros = {
     calories: remaining,
@@ -268,7 +276,15 @@ export function FuelTab({
 
   const logSuggestion = (food: FoodOption) => {
     const hour = new Date().getHours();
-    onAddMeal({ name: food.name, calories: food.calories, proteinG: food.proteinG, carbsG: food.carbsG, fatG: food.fatG, slot: slotForHour(hour) });
+    onAddMeal({
+      name: food.name,
+      calories: food.calories,
+      proteinG: food.proteinG,
+      carbsG: food.carbsG,
+      fatG: food.fatG,
+      fibreG: food.fibreG,
+      slot: slotForHour(hour),
+    });
   };
 
   return (
@@ -302,8 +318,9 @@ export function FuelTab({
         <div className="mt-4">
           <Bar pct={p.calorieTarget > 0 ? (kcal / p.calorieTarget) * 100 : 0} fill="bg-clay-bright" track="bg-ondark-track" />
         </div>
-        <div className="mt-[22px] grid grid-cols-3 gap-[22px]">
+        <div className="mt-[22px] grid grid-cols-2 gap-x-[22px] gap-y-4">
           <MacroMini label="Protein" value={protein} target={p.proteinTargetG} fill="bg-sage-bright" />
+          <MacroMini label="Fibre" value={fibre} target={p.fibreTargetG} fill="bg-fibre" />
           <MacroMini label="Carbs" value={carbs} target={p.carbsTargetG} fill="bg-carb" />
           <MacroMini label="Fat" value={fat} target={p.fatTargetG} fill="bg-fatm" />
         </div>

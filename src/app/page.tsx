@@ -309,7 +309,7 @@ export default function ValorisPage() {
   /* ---- Nutrition ---- */
 
   const handleAddMeal = useCallback(
-    (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; slot: MealSlot }) => {
+    (meal: { name: string; calories: number; proteinG: number; carbsG: number; fatG: number; fibreG: number; slot: MealSlot }) => {
       const cur = storeRef.current;
       const now = new Date();
       commitStore({ ...cur, meals: [...cur.meals, { date: todayStr(now), time: timeStr(now), ...meal }] });

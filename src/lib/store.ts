@@ -33,6 +33,7 @@ export interface Profile {
   proteinTargetG: number;
   carbsTargetG: number;
   fatTargetG: number;
+  fibreTargetG: number;
   hydrationTargetMl: number;
   // When true (the default), targets recalculate automatically whenever
   // stats/goal/schedule change. Set false the moment the athlete manually
@@ -70,6 +71,7 @@ export interface MealEntry {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  fibreG: number;
   slot?: MealSlot; // explicit meal section; derived from time when absent
 }
 
@@ -177,6 +179,7 @@ export const DEFAULT_STORE: JarvisStore = {
     proteinTargetG: 160,
     carbsTargetG: 280,
     fatTargetG: 80,
+    fibreTargetG: 35,
     hydrationTargetMl: 3000,
   },
   plan: [],
@@ -216,7 +219,7 @@ export interface OnboardingInput {
  */
 export function computeTargets(input: OnboardingInput): Pick<
   Profile,
-  'calorieTarget' | 'proteinTargetG' | 'carbsTargetG' | 'fatTargetG' | 'hydrationTargetMl'
+  'calorieTarget' | 'proteinTargetG' | 'carbsTargetG' | 'fatTargetG' | 'fibreTargetG' | 'hydrationTargetMl'
 > {
   const goal = input.goal.toLowerCase();
   const kg = input.bodyweightKg;
@@ -253,9 +256,11 @@ export function computeTargets(input: OnboardingInput): Pick<
   const proteinTargetG = kg ? Math.round(proteinPerKg * kg) : Math.round((calories * 0.3) / 4);
   const fatTargetG = Math.round((calories * 0.25) / 9);
   const carbsTargetG = Math.max(0, Math.round((calories - proteinTargetG * 4 - fatTargetG * 9) / 4));
+  // ~14g fibre per 1000 kcal (the standard US/EU dietary guideline).
+  const fibreTargetG = Math.round((calories / 1000) * 14);
   const hydrationTargetMl = kg ? Math.round((kg * 35) / 100) * 100 : 3000;
 
-  return { calorieTarget: calories, proteinTargetG, carbsTargetG, fatTargetG, hydrationTargetMl };
+  return { calorieTarget: calories, proteinTargetG, carbsTargetG, fatTargetG, fibreTargetG, hydrationTargetMl };
 }
 
 export function todayStr(d: Date = new Date()): string {
@@ -290,6 +295,8 @@ function normalize(parsed: any): JarvisStore {
   }));
   // Backfill sessions (added after the first release).
   store.sessions = store.sessions ?? [];
+  // Backfill fibre on meals logged before it was tracked.
+  store.meals = (store.meals ?? []).map((m: any) => ({ ...m, fibreG: m.fibreG ?? 0 }));
   // Grandfather devices onboarded before tiers existed onto premium.
   if (parsed?.profile?.onboarded && parsed.profile.subscriptionTier === undefined) {
     store.profile.subscriptionTier = 'premium';

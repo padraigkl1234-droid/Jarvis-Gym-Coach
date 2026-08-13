@@ -44,6 +44,7 @@ export default {
         },
         carb: '#D3A15E',
         fatm: '#C97F63',
+        fibre: '#8C7A9E',
       },
       boxShadow: {
         fab: '0 10px 22px -4px rgba(180,85,47,.6)',

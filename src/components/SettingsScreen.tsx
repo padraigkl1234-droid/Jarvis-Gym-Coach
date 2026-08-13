@@ -156,6 +156,7 @@ function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p
   const [protein, setProtein] = useState(profile.proteinTargetG.toString());
   const [carbs, setCarbs] = useState(profile.carbsTargetG.toString());
   const [fat, setFat] = useState(profile.fatTargetG.toString());
+  const [fibre, setFibre] = useState(profile.fibreTargetG.toString());
   const [water, setWater] = useState(profile.hydrationTargetMl.toString());
   const [recalculated, setRecalculated] = useState(false);
   const num = (s: string, fallback: number) => {
@@ -179,6 +180,7 @@ function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p
     setProtein(t.proteinTargetG.toString());
     setCarbs(t.carbsTargetG.toString());
     setFat(t.fatTargetG.toString());
+    setFibre(t.fibreTargetG.toString());
     setWater(t.hydrationTargetMl.toString());
   };
 
@@ -234,6 +236,17 @@ function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p
               className={`${fieldCls} text-center`}
             />
           </Field>
+          <Field label="Fibre g">
+            <input
+              value={fibre}
+              onChange={(e) => {
+                setFibre(e.target.value);
+                setRecalculated(false);
+              }}
+              inputMode="numeric"
+              className={`${fieldCls} text-center`}
+            />
+          </Field>
           <Field label="Carbs g">
             <input
               value={carbs}
@@ -281,6 +294,7 @@ function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p
           const nextProtein = num(protein, profile.proteinTargetG);
           const nextCarbs = num(carbs, profile.carbsTargetG);
           const nextFat = num(fat, profile.fatTargetG);
+          const nextFibre = num(fibre, profile.fibreTargetG);
           const nextWater = num(water, profile.hydrationTargetMl);
           // Manually edited numbers lock in as a deliberate override; leaving
           // them untouched (goal-only change), or using Recalculate, keeps
@@ -290,6 +304,7 @@ function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p
             nextProtein === profile.proteinTargetG &&
             nextCarbs === profile.carbsTargetG &&
             nextFat === profile.fatTargetG &&
+            nextFibre === profile.fibreTargetG &&
             nextWater === profile.hydrationTargetMl;
           // Recalculate always turns auto mode on; a genuine manual edit always
           // locks it off; leaving the numbers untouched preserves whatever the
@@ -302,6 +317,7 @@ function GoalsSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p
             proteinTargetG: nextProtein,
             carbsTargetG: nextCarbs,
             fatTargetG: nextFat,
+            fibreTargetG: nextFibre,
             hydrationTargetMl: nextWater,
             targetsAuto,
           });

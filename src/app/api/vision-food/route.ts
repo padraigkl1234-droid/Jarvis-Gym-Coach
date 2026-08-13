@@ -13,6 +13,7 @@ const VisionResult = z.object({
   proteinG: z.number(),
   carbsG: z.number(),
   fatG: z.number(),
+  fibreG: z.number(),
   confidence: z.enum(['low', 'medium', 'high']),
   note: z.string().describe('One short line on portion assumptions, or why no food was found'),
 });
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     const response = await ai.generate({
       system:
-        'You are a sports nutritionist analysing a photo of food. Identify the meal, estimate portion size from visual cues (plate size, utensils), and estimate calories and macros. Round numbers sensibly; the name should be short and dish-like. If the photo does not show food or drink, set found to false and explain in note.',
+        'You are a sports nutritionist analysing a photo of food. Identify the meal, estimate portion size from visual cues (plate size, utensils), and estimate calories, protein, carbs, fat, and fibre. Round numbers sensibly; the name should be short and dish-like. If the photo does not show food or drink, set found to false and explain in note.',
       prompt: [{ media: { url: image } }, { text: 'Identify this food and estimate its macros.' }],
       output: { schema: VisionResult },
       // Skip the thinking phase — photo answers should come back fast.
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
       proteinG: Math.max(0, Math.round(parsed.proteinG)),
       carbsG: Math.max(0, Math.round(parsed.carbsG)),
       fatG: Math.max(0, Math.round(parsed.fatG)),
+      fibreG: Math.max(0, Math.round(parsed.fibreG)),
       confidence: parsed.confidence,
       note: parsed.note ?? '',
     });

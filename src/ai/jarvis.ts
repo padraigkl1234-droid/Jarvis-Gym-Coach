@@ -29,9 +29,10 @@ function mealTotals(date: string) {
         proteinG: acc.proteinG + m.proteinG,
         carbsG: acc.carbsG + m.carbsG,
         fatG: acc.fatG + m.fatG,
+        fibreG: acc.fibreG + m.fibreG,
         count: acc.count + 1,
       }),
-      { calories: 0, proteinG: 0, carbsG: 0, fatG: 0, count: 0 }
+      { calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fibreG: 0, count: 0 }
     );
 }
 
@@ -87,6 +88,7 @@ const updateProfileTool = ai.defineTool(
       proteinTargetG: z.number().optional(),
       carbsTargetG: z.number().optional(),
       fatTargetG: z.number().optional(),
+      fibreTargetG: z.number().optional(),
       hydrationTargetMl: z.number().optional(),
     }),
     outputSchema: z.object({ ok: z.boolean() }),
@@ -141,13 +143,14 @@ const logMealTool = ai.defineTool(
   {
     name: 'logMeal',
     description:
-      'Logs a food or meal the athlete ate today. Estimate sensible calorie and macro values from nutrition knowledge when the athlete only describes the food in words.',
+      'Logs a food or meal the athlete ate today. Estimate sensible calorie and macro values (including fibre) from nutrition knowledge when the athlete only describes the food in words.',
     inputSchema: z.object({
       name: z.string(),
       calories: z.number(),
       proteinG: z.number().optional(),
       carbsG: z.number().optional(),
       fatG: z.number().optional(),
+      fibreG: z.number().optional(),
     }),
     outputSchema: z.object({
       totalsToday: z.object({
@@ -155,10 +158,11 @@ const logMealTool = ai.defineTool(
         proteinG: z.number(),
         carbsG: z.number(),
         fatG: z.number(),
+        fibreG: z.number(),
       }),
     }),
   },
-  async ({ name, calories, proteinG, carbsG, fatG }) => {
+  async ({ name, calories, proteinG, carbsG, fatG, fibreG }) => {
     const now = new Date();
     working.meals.push({
       date: todayStr(now),
@@ -168,9 +172,10 @@ const logMealTool = ai.defineTool(
       proteinG: proteinG ?? 0,
       carbsG: carbsG ?? 0,
       fatG: fatG ?? 0,
+      fibreG: fibreG ?? 0,
     });
     const t = mealTotals(todayStr(now));
-    return { totalsToday: { calories: t.calories, proteinG: t.proteinG, carbsG: t.carbsG, fatG: t.fatG } };
+    return { totalsToday: { calories: t.calories, proteinG: t.proteinG, carbsG: t.carbsG, fatG: t.fatG, fibreG: t.fibreG } };
   }
 );
 
@@ -189,7 +194,7 @@ const removeMealTool = ai.defineTool(
     }),
     outputSchema: z.object({
       removed: z.number(),
-      totalsToday: z.object({ calories: z.number(), proteinG: z.number(), carbsG: z.number(), fatG: z.number() }),
+      totalsToday: z.object({ calories: z.number(), proteinG: z.number(), carbsG: z.number(), fatG: z.number(), fibreG: z.number() }),
     }),
   },
   async ({ nameContains, date, removeAll }) => {
@@ -202,7 +207,7 @@ const removeMealTool = ai.defineTool(
     const removeIdx = new Set(targets.map((t) => t.i));
     working.meals = working.meals.filter((_, i) => !removeIdx.has(i));
     const t = mealTotals(todayStr());
-    return { removed: targets.length, totalsToday: { calories: t.calories, proteinG: t.proteinG, carbsG: t.carbsG, fatG: t.fatG } };
+    return { removed: targets.length, totalsToday: { calories: t.calories, proteinG: t.proteinG, carbsG: t.carbsG, fatG: t.fatG, fibreG: t.fibreG } };
   }
 );
 
@@ -222,13 +227,14 @@ const editMealTool = ai.defineTool(
       proteinG: z.number().optional(),
       carbsG: z.number().optional(),
       fatG: z.number().optional(),
+      fibreG: z.number().optional(),
     }),
     outputSchema: z.object({
       edited: z.boolean(),
-      totalsToday: z.object({ calories: z.number(), proteinG: z.number(), carbsG: z.number(), fatG: z.number() }),
+      totalsToday: z.object({ calories: z.number(), proteinG: z.number(), carbsG: z.number(), fatG: z.number(), fibreG: z.number() }),
     }),
   },
-  async ({ nameContains, date, name, calories, proteinG, carbsG, fatG }) => {
+  async ({ nameContains, date, name, calories, proteinG, carbsG, fatG, fibreG }) => {
     const day = date || todayStr();
     const needle = (nameContains ?? '').trim().toLowerCase();
     let target = -1;
@@ -244,10 +250,11 @@ const editMealTool = ai.defineTool(
       if (proteinG !== undefined) m.proteinG = proteinG;
       if (carbsG !== undefined) m.carbsG = carbsG;
       if (fatG !== undefined) m.fatG = fatG;
+      if (fibreG !== undefined) m.fibreG = fibreG;
       edited = true;
     }
     const t = mealTotals(todayStr());
-    return { edited, totalsToday: { calories: t.calories, proteinG: t.proteinG, carbsG: t.carbsG, fatG: t.fatG } };
+    return { edited, totalsToday: { calories: t.calories, proteinG: t.proteinG, carbsG: t.carbsG, fatG: t.fatG, fibreG: t.fibreG } };
   }
 );
 
@@ -632,7 +639,10 @@ function buildContextBlock(now: Date): string {
   const mealList =
     todaysMeals.length > 0
       ? todaysMeals
-          .map((m) => `${m.time} ${m.name} (${Math.round(m.calories)} kcal, P${Math.round(m.proteinG)}/C${Math.round(m.carbsG)}/F${Math.round(m.fatG)})`)
+          .map(
+            (m) =>
+              `${m.time} ${m.name} (${Math.round(m.calories)} kcal, P${Math.round(m.proteinG)}/C${Math.round(m.carbsG)}/F${Math.round(m.fatG)}/Fi${Math.round(m.fibreG)})`
+          )
           .join('; ')
       : 'No individual meals logged yet today.';
 
@@ -686,7 +696,7 @@ CURRENT CONTEXT (ground truth — trust this over anything that contradicts it):
 - Weekly plan overview: ${planOverview}
 - Today's session: ${todayPlan ? describePlanDay(todayPlan) : 'No session planned for today.'}
 - Sets logged today: ${setsSummary}
-- Nutrition today: ${Math.round(meals.calories)} kcal / ${Math.round(meals.proteinG)}g protein / ${Math.round(meals.carbsG)}g carbs / ${Math.round(meals.fatG)}g fat across ${meals.count} entries (targets: ${p.calorieTarget} kcal, ${p.proteinTargetG}g protein, ${p.carbsTargetG}g carbs, ${p.fatTargetG}g fat).
+- Nutrition today: ${Math.round(meals.calories)} kcal / ${Math.round(meals.proteinG)}g protein / ${Math.round(meals.carbsG)}g carbs / ${Math.round(meals.fatG)}g fat / ${Math.round(meals.fibreG)}g fibre across ${meals.count} entries (targets: ${p.calorieTarget} kcal, ${p.proteinTargetG}g protein, ${p.carbsTargetG}g carbs, ${p.fatTargetG}g fat, ${p.fibreTargetG}g fibre).
 - Meals logged today (each entry, for reference or correction): ${mealList}
 - Hydration today: ${water}ml of ${p.hydrationTargetMl}ml target.
 
@@ -721,7 +731,7 @@ Operating the tools (act, don't just talk about it):
   The current context lists today's meals and sets, so you already know what "that" or "the last one" refers to; for older days call getHistory first, then edit or remove with the date. Only ask a question when you genuinely cannot tell which item is meant — and then name the candidates in one short sentence. Otherwise make the change and confirm it in a few words.
 - No weekly plan yet? Building one is your first priority. Ask only what you genuinely need (goal, experience, days available, equipment, injuries), then create a full 7-day plan with setPlanDays including rest/recovery days, and confirm it in one short summary.
 - Adjust the plan whenever asked with setPlanDays — one day or the whole week. Each day you pass replaces that weekday's session in full.
-- When they report food or drink, log it with logMeal / logWater, estimating calories and macros yourself from the description, then coach how it fits the day.
+- When they report food or drink, log it with logMeal / logWater, estimating calories and macros (protein, carbs, fat, fibre) yourself from the description, then coach how it fits the day.
 - CORRECT MISTAKES GRACEFULLY. If the athlete says a logged meal was wrong, a duplicate, didn't happen, or had different amounts, fix the data — use removeMeal to delete it or editMeal to correct its name, calories, or macros — then confirm the updated total. The individual meals logged today are listed in CURRENT CONTEXT; for a past day, call getHistory first to find the entry, then edit or remove it with its date. Never tell them you can't change a past log — you can.
 - During a workout, guide it live: when they begin, call startWorkout so the session is tracked; give the first exercise with target sets and reps, log each set with logSet as they report it, and tell them what's next — one step at a time, a real conversation, not an essay. When they finish, call completeWorkout so it is recorded as a completed session.
 - For progress questions (PRs, are my lifts going up, how's my week), call getHistory — it returns completed sessions, per-exercise best weights and estimated 1RMs, and daily macros — and reason over those real numbers.

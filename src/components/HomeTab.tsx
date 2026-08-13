@@ -54,6 +54,7 @@ export function HomeTab({
   const todayMeals = store.meals.filter((m) => m.date === today);
   const kcal = todayMeals.reduce((a, m) => a + m.calories, 0);
   const protein = todayMeals.reduce((a, m) => a + m.proteinG, 0);
+  const fibre = todayMeals.reduce((a, m) => a + m.fibreG, 0);
   const waterMl = store.water.filter((w) => w.date === today).reduce((a, w) => a + w.ml, 0);
   const sessionDone = store.sessions.some((s) => s.date === today && s.status === 'completed');
   const caloriesFull = p.calorieTarget > 0 && kcal >= p.calorieTarget;
@@ -159,6 +160,15 @@ export function HomeTab({
             </span>
           </div>
           <Bar pct={p.proteinTargetG > 0 ? (protein / p.proteinTargetG) * 100 : 0} fill="bg-sage" />
+        </div>
+        <div>
+          <div className="mb-2 flex items-baseline justify-between">
+            <span className="text-[13px] font-bold text-ink">Fibre</span>
+            <span className="text-[13px] text-faint">
+              <span className="font-display text-[17px] text-ink">{Math.round(fibre)}</span> / {p.fibreTargetG} g
+            </span>
+          </div>
+          <Bar pct={p.fibreTargetG > 0 ? (fibre / p.fibreTargetG) * 100 : 0} fill="bg-fibre" />
         </div>
       </div>
 
