@@ -47,8 +47,9 @@ function NavIcon({ tab, className }: { tab: Tab; className?: string }) {
     move: <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />,
     bjj: (
       <>
-        <circle cx="12" cy="5.5" r="2.5" />
-        <path d="M12 8v6M8 20l4-6 4 6M6 12l6 2 6-2" />
+        <path d="M2 9h7M15 9h7" />
+        <rect x="9" y="7" width="6" height="4" rx="1" />
+        <path d="M11 11v6l-1.5 3M13 11v6l1.5 3" />
       </>
     ),
     fuel: (
