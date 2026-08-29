@@ -406,7 +406,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Single-Leg X Sweep'],
     cue: 'Off-balance them backward before lifting the leg — lifting alone rarely tips a base.',
     description: 'From underneath the opponent’s base leg, off-balances them backward before lifting — a high-percentage finish to many leg entries.',
-    scene: 'fifty-fifty',
+    scene: 'sweep',
   },
   {
     name: 'Berimbolo',
