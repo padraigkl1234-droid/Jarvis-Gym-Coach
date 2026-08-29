@@ -19,6 +19,26 @@ export const BJJ_CATEGORY_META: Record<BjjCategory, { label: string; plural: str
   guard_pass: { label: 'Guard Pass', plural: 'Guard Passes', glyph: '⇥' },
 };
 
+export type SceneId =
+  | 'mount'
+  | 'back-control'
+  | 'side-control'
+  | 'knee-on-belly'
+  | 'north-south'
+  | 'closed-guard'
+  | 'half-guard'
+  | 'butterfly-guard'
+  | 'delariva-guard'
+  | 'turtle'
+  | 'front-headlock'
+  | 'fifty-fifty'
+  | 'standing'
+  | 'guard-pass'
+  | 'sweep'
+  | 'takedown-shot';
+
+export type Highlight = 'neck' | 'arm' | 'leg' | 'shoulder';
+
 /** A technique in the reference library: what it's attempted from, named variants, and a coaching cue. */
 export interface BjjTechniqueRef {
   name: string;
@@ -26,6 +46,9 @@ export interface BjjTechniqueRef {
   from?: string[]; // positions this is commonly attempted from
   variants?: string[]; // named variations worth cross-training
   cue?: string; // one-line coaching cue
+  description: string; // 1-2 sentence explainer for the library
+  scene: SceneId; // which diagram to show
+  highlight?: Highlight; // finishing detail to ring on the diagram
 }
 
 export const BJJ_LIBRARY: BjjTechniqueRef[] = [
@@ -36,6 +59,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Back Control', 'Turtle'],
     variants: ['Standard RNC', 'Rolling Back-Take RNC', 'Body Triangle RNC'],
     cue: 'Chin strap first to kill the frame, then float the choking arm in — don’t rush the seatbelt.',
+    description:
+      'A blood choke applied from the back, sliding one arm under the chin while the other hand supports behind the head — the single most reliable finish in the sport once the back is secured.',
+    scene: 'back-control',
+    highlight: 'neck',
   },
   {
     name: 'Triangle Choke',
@@ -43,6 +70,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Closed Guard', 'Mount'],
     variants: ['Standard Triangle', 'Reverse Triangle', 'Gogoplata setup'],
     cue: 'Angle off to 45° before locking the legs — a flat triangle almost never finishes.',
+    description:
+      'The legs form a triangle around the neck and one arm, using the opponent’s own shoulder to cut off blood flow on one side while your leg does the other.',
+    scene: 'closed-guard',
+    highlight: 'neck',
   },
   {
     name: 'Armbar',
@@ -50,6 +81,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Closed Guard', 'Mount', 'Back Control', 'Guard Passing'],
     variants: ['Juji Gatame from Guard', 'S-Mount Armbar', 'Back-Take Armbar'],
     cue: 'Control the far-side wrist and hip-escape perpendicular before extending — thumb up on the finish.',
+    description:
+      'Hyperextends the elbow by trapping the arm between your legs and driving the hips up, with your knees pinching together so it can’t rotate free.',
+    scene: 'mount',
+    highlight: 'arm',
   },
   {
     name: 'Kimura',
@@ -57,6 +92,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Side Control', 'Half Guard', 'Closed Guard', 'Turtle'],
     variants: ['Kimura Trap System', 'Standing Kimura', 'Kimura to Back Take'],
     cue: 'Figure-four the grip before you try to move the arm — the lock does the work, not your strength.',
+    description:
+      'A figure-four shoulder lock on a bent arm — one of the most transferable holds in the sport since it works from top and bottom, standing and on the ground.',
+    scene: 'side-control',
+    highlight: 'shoulder',
   },
   {
     name: 'Americana',
@@ -64,6 +103,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Side Control', 'Mount'],
     variants: ['Americana from North-South'],
     cue: 'Pin the wrist to the mat and paint the arm down toward their hip in an S-shape.',
+    description:
+      'A bent-arm shoulder lock, usually caught when an opponent pushes on your chest from underneath — pin the wrist and paint the arm down in an S-shape.',
+    scene: 'side-control',
+    highlight: 'shoulder',
   },
   {
     name: 'Guillotine Choke',
@@ -71,6 +114,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Closed Guard', 'Standing', 'Turtle'],
     variants: ['High Elbow Guillotine', 'Arm-In Guillotine', 'Marcelotine'],
     cue: 'High-elbow grip and drop your hips — a low elbow lets them posture out.',
+    description:
+      'A front choke applied when the head gets trapped under the arm, using the forearm (or collar in gi) across the throat while the legs stop them posturing away.',
+    scene: 'front-headlock',
+    highlight: 'neck',
   },
   {
     name: 'Ezekiel Choke',
@@ -78,6 +125,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Mount', 'Guard'],
     variants: ['Ezekiel from Turtle'],
     cue: 'Sleeve grip under the chin, sit up slightly for angle rather than pulling straight back.',
+    description:
+      'A sleeve-and-fist choke that needs no gi grip on the opponent — useful when your legs and torso already have them pinned but your hands are otherwise occupied.',
+    scene: 'mount',
+    highlight: 'neck',
   },
   {
     name: 'Omoplata',
@@ -85,6 +136,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Closed Guard', 'Half Guard'],
     variants: ['Omoplata to Sweep', 'Omoplata to Back Take'],
     cue: 'Control the far hip before you spin under — without it they just roll through.',
+    description:
+      'A shoulder lock that uses the legs instead of the arms, spinning the trapped arm behind the opponent’s back while your leg pins their head and shoulder to the mat.',
+    scene: 'closed-guard',
+    highlight: 'shoulder',
   },
   {
     name: 'Darce Choke (D’Arce)',
@@ -92,6 +147,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Front Headlock', 'Turtle', 'Half Guard Top'],
     variants: ['Darce from Sprawl', 'Darce to Anaconda switch'],
     cue: 'Get the far shoulder deep before you finish the grip — a shallow darce just squeezes shoulder.',
+    description:
+      'A blood choke from a front headlock or turtle, threading one arm under the far armpit and the other around the neck to form a figure-four.',
+    scene: 'front-headlock',
+    highlight: 'neck',
   },
   {
     name: 'Anaconda Choke',
@@ -99,6 +158,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Front Headlock', 'Turtle'],
     variants: ['Anaconda Roll to Mount'],
     cue: 'Commit to the roll through once locked — hesitating loses the finish.',
+    description:
+      'A close cousin of the darce set up from the opposite side, finished by rolling all the way through onto your back or into mount.',
+    scene: 'front-headlock',
+    highlight: 'neck',
   },
   {
     name: 'Rear Triangle',
@@ -106,6 +169,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Back Control'],
     variants: [],
     cue: 'Use it when they defend the RNC hand-fight — the choking arm becomes redundant with a locked leg.',
+    description:
+      'A leg-triangle finish from the back, caught when the hand-fight successfully defends the classic RNC — the same mechanism as the guard triangle, applied from behind.',
+    scene: 'back-control',
+    highlight: 'neck',
   },
   {
     name: 'Heel Hook',
@@ -113,6 +180,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['50/50 Guard', 'Ashi Garami', 'Saddle'],
     variants: ['Inside Heel Hook', 'Outside Heel Hook', 'Saddle Heel Hook'],
     cue: 'Break the knee line and control the hip before you crank — control first, torque second.',
+    description:
+      'A leg lock that twists the ankle to torque the knee — extremely fast and often not felt until real damage is done, so secure control before you ever apply torque.',
+    scene: 'fifty-fifty',
+    highlight: 'leg',
   },
   {
     name: 'Straight Ankle Lock',
@@ -120,6 +191,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Guard', 'Ashi Garami'],
     variants: ['Standing Ankle Lock'],
     cue: 'Trap the foot against your hip/armpit so they can’t rotate the ankle away from the pressure.',
+    description:
+      'Hyperextends the ankle by trapping the foot against your hip and arching your own hips — usually the first leg lock most athletes ever learn.',
+    scene: 'closed-guard',
+    highlight: 'leg',
   },
   {
     name: 'Kneebar',
@@ -127,6 +202,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Guard', 'Leg Entanglements'],
     variants: [],
     cue: 'Get hip-to-hip with your leg over theirs before extending — chasing it from distance telegraphs the escape.',
+    description:
+      'Hyperextends the knee joint like an inverted armbar for the leg — get hip-to-hip with your leg over theirs before extending, or the escape is easy.',
+    scene: 'closed-guard',
+    highlight: 'leg',
   },
   {
     name: 'Bow and Arrow Choke',
@@ -134,6 +213,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Back Control'],
     variants: [],
     cue: 'Trap the far leg with yours before you pull — without the leg trap they just sit up.',
+    description:
+      'A powerful collar choke from the back that traps one of the opponent’s legs with yours before pulling, turning your whole body into the lever.',
+    scene: 'back-control',
+    highlight: 'neck',
   },
   {
     name: 'Arm Triangle',
@@ -141,6 +224,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Side Control', 'North-South', 'Mount'],
     variants: ['Anaconda-style Arm Triangle', 'Kata Gatame'],
     cue: 'Walk your hips around 90° before you squeeze — most failed arm triangles are just missing the angle.',
+    description:
+      'Squeezes the opponent’s own shoulder against their neck using your arm and body weight — needs the correct head angle far more than raw strength.',
+    scene: 'side-control',
+    highlight: 'neck',
   },
   {
     name: 'Cross Collar Choke',
@@ -148,6 +235,9 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Closed Guard', 'Mount'],
     variants: ['Cross Collar from Back'],
     cue: 'Deep first grip to the far collar, second hand goes in palm-up for max depth.',
+    description: 'A gi choke using deep opposite-side collar grips, palms up, that closes around the neck like scissors.',
+    scene: 'mount',
+    highlight: 'neck',
   },
   {
     name: 'North-South Choke',
@@ -155,6 +245,10 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['North-South'],
     variants: [],
     cue: 'Drive your shoulder into their far cheek to stop them turning into you as you lock the choke.',
+    description:
+      'An unusual but effective choke from north-south position, driving your shoulder into the far cheek and locking the arms around the neck.',
+    scene: 'north-south',
+    highlight: 'neck',
   },
   {
     name: 'Peruvian Necktie',
@@ -162,58 +256,470 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     from: ['Turtle', 'Sprawl'],
     variants: [],
     cue: 'Sit through hard to the opposite side to load the choke rather than just pulling on the neck.',
+    description:
+      'A guillotine variant applied from turtle or a scramble, sitting through hard to the far side to load the choke rather than pulling straight back on the neck.',
+    scene: 'turtle',
+    highlight: 'neck',
   },
 
   // ---- Positions ----
-  { name: 'Mount', category: 'position', from: ['Guard Pass', 'Sweep', 'Back Take transition'], variants: ['High Mount', 'S-Mount', 'Technical Mount'], cue: 'Ride high on the chest with low hips so they can’t bridge you off.' },
-  { name: 'Back Control', category: 'position', from: ['Turtle', 'Guard Pass', 'Sweep'], variants: ['Body Triangle', 'Hooks-In Back Control'], cue: 'Chase the seatbelt grip before the hooks — grips first, legs second.' },
-  { name: 'Side Control', category: 'position', from: ['Guard Pass'], variants: ['Kesa Gatame', 'Modified Side Control'], cue: 'Keep your hips heavy and cross-face tight to stop the reguard.' },
-  { name: 'Knee on Belly', category: 'position', from: ['Side Control'], variants: [], cue: 'Keep the far-side grip live so a shrimp doesn’t buy them the reset.' },
-  { name: 'Closed Guard', category: 'position', from: [], variants: ['High Guard'], cue: 'Break their posture with a collar/wrist combo before you commit to an attack.' },
-  { name: 'Half Guard', category: 'position', from: [], variants: ['Deep Half Guard', 'Lockdown Half Guard', 'Z-Guard'], cue: 'Get the underhook or the knee shield — passive half guard just gets smashed.' },
-  { name: 'Butterfly Guard', category: 'position', from: [], variants: ['Butterfly with Overhooks'], cue: 'Keep hips close and hooks in early so the sweep is one motion, not two.' },
-  { name: 'De La Riva Guard', category: 'position', from: [], variants: ['Reverse De La Riva'], cue: 'Off-balance first with the DLR hook before attacking the far leg.' },
-  { name: 'Turtle', category: 'position', from: [], variants: [], cue: 'Keep elbows in tight to deny the far-side hooks and the seatbelt.' },
-  { name: '50/50 Guard', category: 'position', from: [], variants: [], cue: 'Win the grip fight for the far heel before either player attacks — grips decide 50/50.' },
+  {
+    name: 'Mount',
+    category: 'position',
+    from: ['Guard Pass', 'Sweep', 'Back Take transition'],
+    variants: ['High Mount', 'S-Mount', 'Technical Mount'],
+    cue: 'Ride high on the chest with low hips so they can’t bridge you off.',
+    description:
+      'Sitting astride the opponent’s torso — the single most dominant control position in jiu jitsu, from which nearly every submission is available.',
+    scene: 'mount',
+  },
+  {
+    name: 'Back Control',
+    category: 'position',
+    from: ['Turtle', 'Guard Pass', 'Sweep'],
+    variants: ['Body Triangle', 'Hooks-In Back Control'],
+    cue: 'Chase the seatbelt grip before the hooks — grips first, legs second.',
+    description:
+      'Behind the opponent with hooks or a body triangle in and a seatbelt grip around the torso — statistically the highest-percentage finishing position in the sport.',
+    scene: 'back-control',
+  },
+  {
+    name: 'Side Control',
+    category: 'position',
+    from: ['Guard Pass'],
+    variants: ['Kesa Gatame', 'Modified Side Control'],
+    cue: 'Keep your hips heavy and cross-face tight to stop the reguard.',
+    description: 'Pinned perpendicular across the opponent’s torso, using chest pressure and a cross-face to stop them recovering guard.',
+    scene: 'side-control',
+  },
+  {
+    name: 'Knee on Belly',
+    category: 'position',
+    from: ['Side Control'],
+    variants: [],
+    cue: 'Keep the far-side grip live so a shrimp doesn’t buy them the reset.',
+    description:
+      'A mobile pin with one knee driven into the stomach — uncomfortable enough to provoke a reaction, which is exactly what opens up the next attack.',
+    scene: 'knee-on-belly',
+  },
+  {
+    name: 'Closed Guard',
+    category: 'position',
+    from: [],
+    variants: ['High Guard'],
+    cue: 'Break their posture with a collar/wrist combo before you commit to an attack.',
+    description:
+      'Legs locked around the opponent’s waist from underneath — not a bad spot at all, since it controls distance and opens up sweeps and submissions alike.',
+    scene: 'closed-guard',
+  },
+  {
+    name: 'Half Guard',
+    category: 'position',
+    from: [],
+    variants: ['Deep Half Guard', 'Lockdown Half Guard', 'Z-Guard'],
+    cue: 'Get the underhook or the knee shield — passive half guard just gets smashed.',
+    description:
+      'One of the opponent’s legs is trapped between yours — a flexible, defensible position that’s also a launchpad for sweeps once you add an underhook.',
+    scene: 'half-guard',
+  },
+  {
+    name: 'Butterfly Guard',
+    category: 'position',
+    from: [],
+    variants: ['Butterfly with Overhooks'],
+    cue: 'Keep hips close and hooks in early so the sweep is one motion, not two.',
+    description: 'Seated with both feet hooked inside the opponent’s thighs, using hip elevation to sweep or take the back.',
+    scene: 'butterfly-guard',
+  },
+  {
+    name: 'De La Riva Guard',
+    category: 'position',
+    from: [],
+    variants: ['Reverse De La Riva'],
+    cue: 'Off-balance first with the DLR hook before attacking the far leg.',
+    description:
+      'An outside hook behind the opponent’s leg that lets you off-balance and attack from a distance — the gateway to a huge modern guard-passing puzzle.',
+    scene: 'delariva-guard',
+  },
+  {
+    name: 'Turtle',
+    category: 'position',
+    from: [],
+    variants: [],
+    cue: 'Keep elbows in tight to deny the far-side hooks and the seatbelt.',
+    description:
+      'Curled onto hands and knees to protect the neck and back — a defensive waypoint, though also where a lot of chokes are caught if you stay too long.',
+    scene: 'turtle',
+  },
+  {
+    name: '50/50 Guard',
+    category: 'position',
+    from: [],
+    variants: [],
+    cue: 'Win the grip fight for the far heel before either player attacks — grips decide 50/50.',
+    description:
+      'Both athletes’ legs intertwined, each with a leg trapped — a heavy leg-lock battleground where grips on the far foot usually decide who wins first.',
+    scene: 'fifty-fifty',
+  },
 
   // ---- Sweeps ----
-  { name: 'Scissor Sweep', category: 'sweep', from: ['Closed Guard'], variants: [], cue: 'Break their posture and pull the sleeve as you scissor — timing beats strength here.' },
-  { name: 'Flower Sweep (Pendulum)', category: 'sweep', from: ['Closed Guard'], variants: [], cue: 'Trap the arm and swing the leg through a wide arc, not a short kick.' },
-  { name: 'Hip Bump Sweep', category: 'sweep', from: ['Closed Guard'], variants: ['Hip Bump to Armbar'], cue: 'Post the hand near their hip and sit up fast — hesitation lets them base out.' },
-  { name: 'Butterfly Sweep', category: 'sweep', from: ['Butterfly Guard'], variants: ['Butterfly to Back Take'], cue: 'Get the underhook and elevate off the near hook while pulling the same-side shoulder.' },
-  { name: 'X-Guard Sweep', category: 'sweep', from: ['X-Guard'], variants: ['Single-Leg X Sweep'], cue: 'Off-balance them backward before lifting the leg — lifting alone rarely tips a base.' },
-  { name: 'Berimbolo', category: 'sweep', from: ['De La Riva Guard'], variants: ['Berimbolo to Back Take'], cue: 'Commit the roll through fully to the far hip or you just get passed mid-roll.' },
-  { name: 'Elevator Sweep', category: 'sweep', from: ['Guard'], variants: [], cue: 'Hook deep behind the far knee and combine with an upper-body pull for one clean motion.' },
-  { name: 'Waiter Sweep', category: 'sweep', from: ['Half Guard'], variants: [], cue: 'Underhook first, then lift through their base leg like a tray — don’t muscle it flat.' },
+  {
+    name: 'Scissor Sweep',
+    category: 'sweep',
+    from: ['Closed Guard'],
+    variants: [],
+    cue: 'Break their posture and pull the sleeve as you scissor — timing beats strength here.',
+    description: 'A closed-guard classic — one leg scissors across the opponent’s base as you pull their sleeve, timing beating strength.',
+    scene: 'closed-guard',
+  },
+  {
+    name: 'Flower Sweep (Pendulum)',
+    category: 'sweep',
+    from: ['Closed Guard'],
+    variants: [],
+    cue: 'Trap the arm and swing the leg through a wide arc, not a short kick.',
+    description: 'Traps one arm and swings a leg through a wide pendulum arc to tip the opponent forward and over.',
+    scene: 'closed-guard',
+  },
+  {
+    name: 'Hip Bump Sweep',
+    category: 'sweep',
+    from: ['Closed Guard'],
+    variants: ['Hip Bump to Armbar'],
+    cue: 'Post the hand near their hip and sit up fast — hesitation lets them base out.',
+    description: 'A fast sit-up sweep off a failed armbar attempt — post a hand near the hip and sit up before they can base out.',
+    scene: 'closed-guard',
+  },
+  {
+    name: 'Butterfly Sweep',
+    category: 'sweep',
+    from: ['Butterfly Guard'],
+    variants: ['Butterfly to Back Take'],
+    cue: 'Get the underhook and elevate off the near hook while pulling the same-side shoulder.',
+    description: 'Elevates the opponent off a butterfly hook while pulling the same-side shoulder — a staple of the seated open-guard game.',
+    scene: 'butterfly-guard',
+  },
+  {
+    name: 'X-Guard Sweep',
+    category: 'sweep',
+    from: ['X-Guard'],
+    variants: ['Single-Leg X Sweep'],
+    cue: 'Off-balance them backward before lifting the leg — lifting alone rarely tips a base.',
+    description: 'From underneath the opponent’s base leg, off-balances them backward before lifting — a high-percentage finish to many leg entries.',
+    scene: 'fifty-fifty',
+  },
+  {
+    name: 'Berimbolo',
+    category: 'sweep',
+    from: ['De La Riva Guard'],
+    variants: ['Berimbolo to Back Take'],
+    cue: 'Commit the roll through fully to the far hip or you just get passed mid-roll.',
+    description:
+      'A rolling back-take/sweep from De La Riva guard that inverts underneath the opponent to attack their back from below — technical, but a big weapon once drilled.',
+    scene: 'delariva-guard',
+  },
+  {
+    name: 'Elevator Sweep',
+    category: 'sweep',
+    from: ['Guard'],
+    variants: [],
+    cue: 'Hook deep behind the far knee and combine with an upper-body pull for one clean motion.',
+    description: 'Hooks deep behind the far knee and combines it with an upper-body pull to lift and roll the opponent over in one motion.',
+    scene: 'closed-guard',
+  },
+  {
+    name: 'Waiter Sweep',
+    category: 'sweep',
+    from: ['Half Guard'],
+    variants: [],
+    cue: 'Underhook first, then lift through their base leg like a tray — don’t muscle it flat.',
+    description: 'From half guard, an underhook plus a lift through the opponent’s base leg tips them over like a waiter losing a tray.',
+    scene: 'half-guard',
+  },
 
   // ---- Escapes ----
-  { name: 'Upa (Mount Escape)', category: 'escape', from: ['Mount'], variants: ['Upa to Single Leg'], cue: 'Trap an arm and a same-side leg before bridging — bridging without the trap just resets them.' },
-  { name: 'Elbow-Knee Escape', category: 'escape', from: ['Mount'], variants: [], cue: 'Frame on the hip first, then shrimp — the frame is what creates the space, not the shrimp.' },
-  { name: 'Side Control Escape', category: 'escape', from: ['Side Control'], variants: ['Underhook Escape to Guard', 'Turn-In Escape to Turtle'], cue: 'Get both forearm frames in before moving your hips — frames stop the crush that traps you.' },
-  { name: 'Back Escape', category: 'escape', from: ['Back Control'], variants: [], cue: 'Peel one hook at a time and turn into them — turning away lets the choke find you.' },
-  { name: 'Guard Recovery', category: 'escape', from: ['Half Guard', 'Knee on Belly'], variants: [], cue: 'Shrimp to create the angle before pulling guard back — a flat recovery attempt gets smashed.' },
-  { name: 'Kimura Escape', category: 'escape', from: ['Kimura trap'], variants: ['Rolling Kimura Escape'], cue: 'Rotate your trapped elbow toward your own hip immediately — don’t let the figure-four fully lock.' },
-  { name: 'Triangle Escape', category: 'escape', from: ['Triangle Choke'], variants: ['Stack Pass Escape'], cue: 'Posture up and stack their hips over their own head before they finish the angle.' },
+  {
+    name: 'Upa (Mount Escape)',
+    category: 'escape',
+    from: ['Mount'],
+    variants: ['Upa to Single Leg'],
+    cue: 'Trap an arm and a same-side leg before bridging — bridging without the trap just resets them.',
+    description: 'A bridging escape from bottom mount — trap an arm and same-side leg, then bridge explosively to roll the opponent over.',
+    scene: 'mount',
+  },
+  {
+    name: 'Elbow-Knee Escape',
+    category: 'escape',
+    from: ['Mount'],
+    variants: [],
+    cue: 'Frame on the hip first, then shrimp — the frame is what creates the space, not the shrimp.',
+    description: 'Frames on the hip to create space, then shrimps the hips out to rebuild guard — the fundamental way out of bottom mount.',
+    scene: 'mount',
+  },
+  {
+    name: 'Side Control Escape',
+    category: 'escape',
+    from: ['Side Control'],
+    variants: ['Underhook Escape to Guard', 'Turn-In Escape to Turtle'],
+    cue: 'Get both forearm frames in before moving your hips — frames stop the crush that traps you.',
+    description: 'Uses forearm frames on the hip and neck to create space before shrimping back to guard or turning in to turtle.',
+    scene: 'side-control',
+  },
+  {
+    name: 'Back Escape',
+    category: 'escape',
+    from: ['Back Control'],
+    variants: [],
+    cue: 'Peel one hook at a time and turn into them — turning away lets the choke find you.',
+    description: 'Peels the hooks off one at a time while turning into the opponent, since turning away just gives them the choke.',
+    scene: 'back-control',
+  },
+  {
+    name: 'Guard Recovery',
+    category: 'escape',
+    from: ['Half Guard', 'Knee on Belly'],
+    variants: [],
+    cue: 'Shrimp to create the angle before pulling guard back — a flat recovery attempt gets smashed.',
+    description: 'Shrimps to create an angle and pulls guard back after a pass attempt — half guard and knee-on-belly are the most common places to need it.',
+    scene: 'half-guard',
+  },
+  {
+    name: 'Kimura Escape',
+    category: 'escape',
+    from: ['Kimura trap'],
+    variants: ['Rolling Kimura Escape'],
+    cue: 'Rotate your trapped elbow toward your own hip immediately — don’t let the figure-four fully lock.',
+    description: 'Rotates the trapped elbow toward your own hip the instant the figure-four grip starts to lock, before the lever fully forms.',
+    scene: 'side-control',
+  },
+  {
+    name: 'Triangle Escape',
+    category: 'escape',
+    from: ['Triangle Choke'],
+    variants: ['Stack Pass Escape'],
+    cue: 'Posture up and stack their hips over their own head before they finish the angle.',
+    description: 'Postures up and stacks the opponent’s hips over their own head before the triangle angle is finished.',
+    scene: 'closed-guard',
+  },
 
   // ---- Takedowns ----
-  { name: 'Double Leg', category: 'takedown', from: [], variants: ['Double Leg to Back'], cue: 'Penetration step deep with a low level change — a shallow shot gets sprawled.' },
-  { name: 'Single Leg', category: 'takedown', from: [], variants: ['Running the Pipe', 'Single Leg to Sweep'], cue: 'Get the outside angle and control the hip, not just the ankle.' },
-  { name: 'Osoto Gari', category: 'takedown', from: [], variants: [], cue: 'Break their balance to the rear corner before you reap — timing off a push/pull, not the leg alone.' },
-  { name: 'Uchi Mata', category: 'takedown', from: [], variants: [], cue: 'Load their weight onto your supporting leg fully before you turn in.' },
-  { name: 'Arm Drag to Back Take', category: 'takedown', from: [], variants: [], cue: 'Angle off after the drag rather than staying square — the angle is what gets you the back.' },
-  { name: 'Foot Sweep (De Ashi Barai)', category: 'takedown', from: [], variants: [], cue: 'Time it to their weightless step — sweeping a weighted foot just costs you the grip fight.' },
-  { name: 'Ankle Pick', category: 'takedown', from: [], variants: [], cue: 'Combine with a collar-tie to break posture as you drop for the ankle.' },
+  {
+    name: 'Double Leg',
+    category: 'takedown',
+    from: [],
+    variants: ['Double Leg to Back'],
+    cue: 'Penetration step deep with a low level change — a shallow shot gets sprawled.',
+    description: 'A deep penetration step and a low level change to drive through both of the opponent’s legs — the bread-and-butter wrestling takedown.',
+    scene: 'takedown-shot',
+  },
+  {
+    name: 'Single Leg',
+    category: 'takedown',
+    from: [],
+    variants: ['Running the Pipe', 'Single Leg to Sweep'],
+    cue: 'Get the outside angle and control the hip, not just the ankle.',
+    description: 'Attacks one leg from an outside angle, controlling the hip rather than just the ankle before finishing the takedown.',
+    scene: 'takedown-shot',
+  },
+  {
+    name: 'Osoto Gari',
+    category: 'takedown',
+    from: [],
+    variants: [],
+    cue: 'Break their balance to the rear corner before you reap — timing off a push/pull, not the leg alone.',
+    description: 'A judo throw that off-balances the opponent to their rear corner with a push-pull before reaping the leg out from under them.',
+    scene: 'standing',
+  },
+  {
+    name: 'Uchi Mata',
+    category: 'takedown',
+    from: [],
+    variants: [],
+    cue: 'Load their weight onto your supporting leg fully before you turn in.',
+    description: 'Loads the opponent’s weight onto your supporting leg, then turns in and lifts with the inner thigh to throw them off their base.',
+    scene: 'standing',
+  },
+  {
+    name: 'Arm Drag to Back Take',
+    category: 'takedown',
+    from: [],
+    variants: [],
+    cue: 'Angle off after the drag rather than staying square — the angle is what gets you the back.',
+    description: 'Pulls the opponent’s arm across their body to create an angle, stepping around to their back before they can square back up.',
+    scene: 'standing',
+  },
+  {
+    name: 'Foot Sweep (De Ashi Barai)',
+    category: 'takedown',
+    from: [],
+    variants: [],
+    cue: 'Time it to their weightless step — sweeping a weighted foot just costs you the grip fight.',
+    description: 'Times a sweep to the exact moment the opponent’s foot is weightless mid-step — sweeping a weighted foot just burns your grip.',
+    scene: 'standing',
+  },
+  {
+    name: 'Ankle Pick',
+    category: 'takedown',
+    from: [],
+    variants: [],
+    cue: 'Combine with a collar-tie to break posture as you drop for the ankle.',
+    description: 'Combines a collar-tie to break posture with a drop for the near ankle, taking the base out from underneath.',
+    scene: 'standing',
+  },
 
   // ---- Guard Passes ----
-  { name: 'Toreando Pass', category: 'guard_pass', from: [], variants: ['Toreando to Knee Slice'], cue: 'Control both pant cuffs and step around fast — a slow toreando lets them recover to butterfly.' },
-  { name: 'Knee Cut (Knee Slice)', category: 'guard_pass', from: [], variants: ['Knee Cut to Leg Drag'], cue: 'Cross-face and underhook before sliding the knee — no upper body control means they roll you.' },
-  { name: 'Over-Under Pass', category: 'guard_pass', from: [], variants: ['Over-Under to Stack'], cue: 'Stand your near-side leg up to load pressure before driving through.' },
-  { name: 'Leg Drag Pass', category: 'guard_pass', from: [], variants: [], cue: 'Pin the dragged leg to the mat with your own leg before advancing — a floating drag gets re-guarded.' },
-  { name: 'Stack Pass', category: 'guard_pass', from: [], variants: [], cue: 'Get both grips on the same side before stacking, or they’ll just recover half guard.' },
-  { name: 'X-Pass', category: 'guard_pass', from: [], variants: [], cue: 'Post your head-side hand and swing the far leg through — keep your base wide as you land.' },
-  { name: 'Double Under Pass', category: 'guard_pass', from: [], variants: ['Double Under to Mount'], cue: 'Stand up with both underhooks before committing to the drop, or you get swept on the way up.' },
-  { name: 'Long Step Pass', category: 'guard_pass', from: [], variants: [], cue: 'Take the far knee to the mat before stepping — a short step lets the knee shield reset.' },
-  { name: 'Smash Pass', category: 'guard_pass', from: [], variants: [], cue: 'Chest pressure into the near-side shoulder before flattening the far hip.' },
+  {
+    name: 'Toreando Pass',
+    category: 'guard_pass',
+    from: [],
+    variants: ['Toreando to Knee Slice'],
+    cue: 'Control both pant cuffs and step around fast — a slow toreando lets them recover to butterfly.',
+    description: 'Controls both pant cuffs (or shins) and steps around the legs like a matador’s cape — fast, but needs speed or it invites a recovery.',
+    scene: 'guard-pass',
+  },
+  {
+    name: 'Knee Cut (Knee Slice)',
+    category: 'guard_pass',
+    from: [],
+    variants: ['Knee Cut to Leg Drag'],
+    cue: 'Cross-face and underhook before sliding the knee — no upper body control means they roll you.',
+    description: 'Cross-faces and underhooks before sliding a knee through the opponent’s half guard, converting straight to side control.',
+    scene: 'guard-pass',
+  },
+  {
+    name: 'Over-Under Pass',
+    category: 'guard_pass',
+    from: [],
+    variants: ['Over-Under to Stack'],
+    cue: 'Stand your near-side leg up to load pressure before driving through.',
+    description: 'One arm over a leg, one arm under the other — a heavy pressure pass that stands a leg up before driving through.',
+    scene: 'guard-pass',
+  },
+  {
+    name: 'Leg Drag Pass',
+    category: 'guard_pass',
+    from: [],
+    variants: [],
+    cue: 'Pin the dragged leg to the mat with your own leg before advancing — a floating drag gets re-guarded.',
+    description: 'Drags one of the opponent’s legs across your own body and pins it to the mat, taking away half of their guard retention at once.',
+    scene: 'guard-pass',
+  },
+  {
+    name: 'Stack Pass',
+    category: 'guard_pass',
+    from: [],
+    variants: [],
+    cue: 'Get both grips on the same side before stacking, or they’ll just recover half guard.',
+    description: 'Folds the opponent’s hips up and over toward their own head, using gravity and same-side grips to flatten the guard out.',
+    scene: 'guard-pass',
+  },
+  {
+    name: 'X-Pass',
+    category: 'guard_pass',
+    from: [],
+    variants: [],
+    cue: 'Post your head-side hand and swing the far leg through — keep your base wide as you land.',
+    description: 'Posts a head-side hand on the mat and swings the far leg through in an X-shaped step, landing with a wide, stable base.',
+    scene: 'guard-pass',
+  },
+  {
+    name: 'Double Under Pass',
+    category: 'guard_pass',
+    from: [],
+    variants: ['Double Under to Mount'],
+    cue: 'Stand up with both underhooks before committing to the drop, or you get swept on the way up.',
+    description: 'Both arms underhook the opponent’s legs before standing up with them — a strength-forward pass into a stacked mount or knee cut.',
+    scene: 'guard-pass',
+  },
+  {
+    name: 'Long Step Pass',
+    category: 'guard_pass',
+    from: [],
+    variants: [],
+    cue: 'Take the far knee to the mat before stepping — a short step lets the knee shield reset.',
+    description: 'Takes the far knee all the way to the mat in one long step before advancing, denying the knee-shield reset a shorter step would allow.',
+    scene: 'guard-pass',
+  },
+  {
+    name: 'Smash Pass',
+    category: 'guard_pass',
+    from: [],
+    variants: [],
+    cue: 'Chest pressure into the near-side shoulder before flattening the far hip.',
+    description: 'Drives chest pressure into the near shoulder before flattening the far hip, smothering the guard rather than out-maneuvering it.',
+    scene: 'guard-pass',
+  },
+];
+
+export interface BjjSequence {
+  id: string;
+  title: string;
+  description: string;
+  steps: string[]; // technique/position names, in order — each must exist in BJJ_LIBRARY
+}
+
+/** Curated technique chains — how positions and finishes actually connect in a live roll. */
+export const BJJ_SEQUENCES: BjjSequence[] = [
+  {
+    id: 'mount-to-back',
+    title: 'Mount → Back Take → Finish',
+    description: 'The highest-percentage path in the sport: once mount is secure, take the back the moment they turn away, then finish.',
+    steps: ['Mount', 'Back Control', 'Rear Naked Choke'],
+  },
+  {
+    id: 'pass-to-kimura',
+    title: 'Pass → Side Control → Kimura',
+    description: 'A clean top-game chain from a controlling pass straight into one of the most transferable shoulder locks in the sport.',
+    steps: ['Knee Cut (Knee Slice)', 'Side Control', 'Kimura'],
+  },
+  {
+    id: 'scissor-to-choke',
+    title: 'Scissor Sweep → Mount → Cross Collar Choke',
+    description: 'A closed-guard classic: sweep to the top, ride into full mount, then finish with a deep gi choke.',
+    steps: ['Scissor Sweep', 'Mount', 'Cross Collar Choke'],
+  },
+  {
+    id: 'butterfly-to-back',
+    title: 'Butterfly Sweep → Back Control → RNC',
+    description: 'Elevate off the butterfly hook, land in back mount, and go straight to the highest-percentage finish in jiu jitsu.',
+    steps: ['Butterfly Sweep', 'Back Control', 'Rear Naked Choke'],
+  },
+  {
+    id: 'half-guard-recovery',
+    title: 'Guard Recovery → Half Guard → Waiter Sweep → Mount',
+    description: 'When a pass gets underway, shrimp back to half guard, work the underhook, and sweep straight back to top position.',
+    steps: ['Guard Recovery', 'Half Guard', 'Waiter Sweep', 'Mount'],
+  },
+  {
+    id: 'berimbolo-chain',
+    title: 'De La Riva → Berimbolo → Back Control → Bow and Arrow',
+    description: 'The modern leg-entanglement route to the back — invert under from De La Riva, land on the back, and finish with a collar choke.',
+    steps: ['De La Riva Guard', 'Berimbolo', 'Back Control', 'Bow and Arrow Choke'],
+  },
+  {
+    id: 'turtle-darce',
+    title: 'Turtle → Darce Choke',
+    description: 'A common scramble finish — when an opponent turtles up defending a pass, the far-side headlock is right there.',
+    steps: ['Turtle', 'Darce Choke (D’Arce)'],
+  },
+  {
+    id: 'double-leg-armbar',
+    title: 'Double Leg → Side Control → Knee on Belly → Armbar',
+    description: 'A wrestling-into-jiu-jitsu chain: take the fight to the mat, advance position, and finish off the knee-on-belly reaction.',
+    steps: ['Double Leg', 'Side Control', 'Knee on Belly', 'Armbar'],
+  },
+  {
+    id: 'omoplata-chain',
+    title: 'Closed Guard → Omoplata → Back Control',
+    description: 'When the omoplata finish gets defended by rolling, ride the roll into the opponent’s back instead.',
+    steps: ['Closed Guard', 'Omoplata', 'Back Control'],
+  },
+  {
+    id: 'guillotine-chain',
+    title: 'Single Leg → Guillotine Choke',
+    description: 'A common no-gi finish off a stuffed takedown attempt — as they shoot and get sprawled on, the head is right there to trap.',
+    steps: ['Single Leg', 'Guillotine Choke'],
+  },
 ];
 
 export function findTechniqueRef(name: string): BjjTechniqueRef | undefined {

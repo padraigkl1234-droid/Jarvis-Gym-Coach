@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Plus, X, Lightbulb } from 'lucide-react';
+import { Plus, X, Lightbulb, BookOpen, ChevronRight } from 'lucide-react';
 import { type JarvisStore, type BjjLogEntry, type BjjCategory, type BjjOutcome, type BjjContext, todayStr } from '@/lib/store';
 import { Bar, Card, CtaButton, Eyebrow, Field, Sheet, fieldCls, Chip } from '@/components/ui';
 import {
   BJJ_CATEGORIES,
   BJJ_CATEGORY_META,
   BJJ_LIBRARY,
+  BJJ_SEQUENCES,
   buildCategoryBreakdown,
   buildTechniqueStats,
   buildWeeklyTrend,
@@ -16,6 +17,7 @@ import {
   type PeriodTrend,
 } from '@/lib/bjj';
 import { BjjInsight } from '@/components/BjjInsight';
+import { BjjLibrary } from '@/components/BjjLibrary';
 
 export type NewBjjLog = { category: BjjCategory; name: string; outcome: BjjOutcome; context: BjjContext; partner?: string; notes?: string };
 
@@ -234,6 +236,7 @@ export function BjjTab({
   onDeleteLog: (log: BjjLogEntry) => void;
 }) {
   const [logOpen, setLogOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [range, setRange] = useState<'weekly' | 'monthly'>('weekly');
   const [historyOpen, setHistoryOpen] = useState(false);
   const logs = store.bjjLogs;
@@ -289,6 +292,23 @@ export function BjjTab({
           <div className="mt-3 text-[12px] font-semibold text-ondark-sub">{todayLogs.length} logged today</div>
         )}
       </div>
+
+      {/* Library entry point */}
+      <button
+        onClick={() => setLibraryOpen(true)}
+        className="mt-3 flex w-full items-center gap-3.5 rounded-2xl border border-line bg-card p-4 text-left transition-colors hover:border-clay-border"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-clay-soft text-clay">
+          <BookOpen size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-bold text-ink">Technique library</span>
+          <span className="block text-[12px] text-faint">
+            {BJJ_LIBRARY.length} techniques · {BJJ_SEQUENCES.length} sequences — diagrams, cues, and variants
+          </span>
+        </span>
+        <ChevronRight size={18} className="shrink-0 text-hairline" />
+      </button>
 
       <BjjInsight store={store} />
 
@@ -419,6 +439,7 @@ export function BjjTab({
       </Card>
 
       {logOpen && <LogBjjSheet knownPartners={knownPartners} onAdd={onAddLogs} onClose={() => setLogOpen(false)} />}
+      {libraryOpen && <BjjLibrary onClose={() => setLibraryOpen(false)} />}
     </div>
   );
 }
