@@ -155,6 +155,21 @@ export interface MemoryEntry {
   category: MemoryCategory;
 }
 
+/** A single technique attempted during a BJJ roll/session. */
+export type BjjCategory = 'submission' | 'position' | 'sweep' | 'escape' | 'takedown' | 'guard_pass';
+export type BjjOutcome = 'landed' | 'attempted';
+export type BjjContext = 'gi' | 'no-gi';
+
+export interface BjjLogEntry {
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  category: BjjCategory;
+  name: string; // technique name, e.g. "Rear Naked Choke"
+  outcome: BjjOutcome; // 'landed' = finished/secured, 'attempted' = went for it but didn't land
+  context: BjjContext; // gi or no-gi
+  notes?: string;
+}
+
 export interface JarvisStore {
   profile: Profile;
   plan: PlanDay[];
@@ -164,6 +179,7 @@ export interface JarvisStore {
   water: WaterEntry[];
   metrics: MetricEntry[];
   memories: MemoryEntry[];
+  bjjLogs: BjjLogEntry[];
   /** How the athlete has restyled the Home-tab avatar/apartment (Settings > Customize). */
   avatarCustomization: AvatarCustomization;
   roomCustomization: RoomCustomization;
@@ -189,6 +205,7 @@ export const DEFAULT_STORE: JarvisStore = {
   water: [],
   metrics: [],
   memories: [],
+  bjjLogs: [],
   avatarCustomization: DEFAULT_AVATAR_CUSTOMIZATION,
   roomCustomization: DEFAULT_ROOM_CUSTOMIZATION,
 };
@@ -295,6 +312,8 @@ function normalize(parsed: any): JarvisStore {
   }));
   // Backfill sessions (added after the first release).
   store.sessions = store.sessions ?? [];
+  // Backfill BJJ logs (added after the first release).
+  store.bjjLogs = store.bjjLogs ?? [];
   // Backfill fibre on meals logged before it was tracked.
   store.meals = (store.meals ?? []).map((m: any) => ({ ...m, fibreG: m.fibreG ?? 0 }));
   // Grandfather devices onboarded before tiers existed onto premium.

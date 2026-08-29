@@ -5,6 +5,7 @@ import { HomeTab } from '@/components/HomeTab';
 import { MoveTab } from '@/components/MoveTab';
 import { FuelTab } from '@/components/FuelTab';
 import { BodyTab } from '@/components/BodyTab';
+import { BjjTab } from '@/components/BjjTab';
 import { ProgressScreen } from '@/components/ProgressScreen';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { SettingsScreen, type Prefs } from '@/components/SettingsScreen';
@@ -20,6 +21,10 @@ import {
   todayStr,
   timeStr,
   type JarvisStore,
+  type BjjLogEntry,
+  type BjjCategory,
+  type BjjOutcome,
+  type BjjContext,
   type MealEntry,
   type MealSlot,
   type MemoryCategory,
@@ -31,7 +36,7 @@ import {
 } from '@/lib/store';
 import type { AvatarCustomization, RoomCustomization } from '@/lib/customization';
 
-type Tab = 'home' | 'move' | 'fuel' | 'body' | 'progress';
+type Tab = 'home' | 'move' | 'bjj' | 'fuel' | 'body' | 'progress';
 
 const PREFS_KEY = 'valoris.prefs.v1';
 
@@ -40,6 +45,12 @@ function NavIcon({ tab, className }: { tab: Tab; className?: string }) {
   const paths: Record<Tab, React.ReactNode> = {
     home: <path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />,
     move: <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />,
+    bjj: (
+      <>
+        <circle cx="12" cy="5.5" r="2.5" />
+        <path d="M12 8v6M8 20l4-6 4 6M6 12l6 2 6-2" />
+      </>
+    ),
     fuel: (
       <>
         <path d="M4 11h16a8 8 0 0 1-16 0z" />
@@ -306,6 +317,25 @@ export default function ValorisPage() {
     [commitStore]
   );
 
+  /* ---- BJJ ---- */
+
+  const handleAddBjjLog = useCallback(
+    (log: { category: BjjCategory; name: string; outcome: BjjOutcome; context: BjjContext; notes?: string }) => {
+      const cur = storeRef.current;
+      const now = new Date();
+      commitStore({ ...cur, bjjLogs: [...cur.bjjLogs, { date: todayStr(now), time: timeStr(now), ...log }] });
+    },
+    [commitStore]
+  );
+
+  const handleDeleteBjjLog = useCallback(
+    (log: BjjLogEntry) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, bjjLogs: cur.bjjLogs.filter((l) => l !== log) });
+    },
+    [commitStore]
+  );
+
   /* ---- Nutrition ---- */
 
   const handleAddMeal = useCallback(
@@ -413,6 +443,7 @@ export default function ValorisPage() {
   const NAV: { id: Tab; label: string }[] = [
     { id: 'home', label: 'Home' },
     { id: 'move', label: 'Move' },
+    { id: 'bjj', label: 'BJJ' },
     { id: 'fuel', label: 'Fuel' },
     { id: 'body', label: 'Body' },
     { id: 'progress', label: 'Progress' },
@@ -437,6 +468,7 @@ export default function ValorisPage() {
               onRemovePlanDay={handleRemovePlanDay}
             />
           )}
+          {tab === 'bjj' && <BjjTab store={store} onAddLog={handleAddBjjLog} onDeleteLog={handleDeleteBjjLog} />}
           {tab === 'fuel' && (
             <FuelTab store={store} onAddMeal={handleAddMeal} onEditMeal={handleEditMeal} onDeleteMeal={handleDeleteMeal} onSetWater={handleSetWater} />
           )}
@@ -450,8 +482,8 @@ export default function ValorisPage() {
         className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E4E0D4] bg-[rgba(245,244,238,.94)] [backdrop-filter:blur(10px)]"
         aria-label="Primary"
       >
-        <div className="mx-auto grid h-[90px] max-w-md grid-cols-6 items-start px-2 pt-2.5">
-          {NAV.slice(0, 2).map((item) => {
+        <div className="mx-auto grid h-[90px] max-w-md grid-cols-7 items-start px-2 pt-2.5">
+          {NAV.slice(0, 3).map((item) => {
             const active = tab === item.id;
             return (
               <button key={item.id} onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className="flex flex-col items-center gap-1 py-1">
@@ -471,7 +503,7 @@ export default function ValorisPage() {
               </svg>
             </button>
           </div>
-          {NAV.slice(2).map((item) => {
+          {NAV.slice(3).map((item) => {
             const active = tab === item.id;
             return (
               <button key={item.id} onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className="flex flex-col items-center gap-1 py-1">
@@ -549,6 +581,21 @@ export default function ValorisPage() {
               <span>
                 <span className="block text-[15px] font-bold text-ink">Log a set</span>
                 <span className="block text-[12px] text-faint">Jump into today&apos;s session</span>
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                setQuickAddOpen(false);
+                setTab('bjj');
+              }}
+              className="flex w-full items-center gap-4 rounded-2xl border border-line bg-card p-4 text-left"
+            >
+              <span className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-clay-soft text-clay">
+                <NavIcon tab="bjj" />
+              </span>
+              <span>
+                <span className="block text-[15px] font-bold text-ink">Log BJJ</span>
+                <span className="block text-[12px] text-faint">Track a roll or technique</span>
               </span>
             </button>
           </div>
