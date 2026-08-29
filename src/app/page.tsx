@@ -319,11 +319,19 @@ export default function ValorisPage() {
 
   /* ---- BJJ ---- */
 
-  const handleAddBjjLog = useCallback(
-    (log: { category: BjjCategory; name: string; outcome: BjjOutcome; context: BjjContext; notes?: string }) => {
+  const handleAddBjjLogs = useCallback(
+    (logs: { category: BjjCategory; name: string; outcome: BjjOutcome; context: BjjContext; partner?: string; notes?: string }[]) => {
+      if (logs.length === 0) return;
       const cur = storeRef.current;
       const now = new Date();
-      commitStore({ ...cur, bjjLogs: [...cur.bjjLogs, { date: todayStr(now), time: timeStr(now), ...log }] });
+      // Spread multi-technique sessions a minute apart so "recent sessions"
+      // sorts in the order they were added, not all tied at one timestamp.
+      const entries = logs.map((log, i) => ({
+        date: todayStr(now),
+        time: timeStr(new Date(now.getTime() + i * 60_000)),
+        ...log,
+      }));
+      commitStore({ ...cur, bjjLogs: [...cur.bjjLogs, ...entries] });
     },
     [commitStore]
   );
@@ -468,7 +476,7 @@ export default function ValorisPage() {
               onRemovePlanDay={handleRemovePlanDay}
             />
           )}
-          {tab === 'bjj' && <BjjTab store={store} onAddLog={handleAddBjjLog} onDeleteLog={handleDeleteBjjLog} />}
+          {tab === 'bjj' && <BjjTab store={store} onAddLogs={handleAddBjjLogs} onDeleteLog={handleDeleteBjjLog} />}
           {tab === 'fuel' && (
             <FuelTab store={store} onAddMeal={handleAddMeal} onEditMeal={handleEditMeal} onDeleteMeal={handleDeleteMeal} onSetWater={handleSetWater} />
           )}

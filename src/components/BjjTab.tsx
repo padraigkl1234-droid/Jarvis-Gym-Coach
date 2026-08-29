@@ -17,22 +17,113 @@ import {
 } from '@/lib/bjj';
 import { BjjInsight } from '@/components/BjjInsight';
 
-type NewBjjLog = { category: BjjCategory; name: string; outcome: BjjOutcome; context: BjjContext; notes?: string };
+export type NewBjjLog = { category: BjjCategory; name: string; outcome: BjjOutcome; context: BjjContext; partner?: string; notes?: string };
 
-function LogBjjSheet({ onAdd, onClose }: { onAdd: (log: NewBjjLog) => void; onClose: () => void }) {
+type DraftRow = { category: BjjCategory; name: string; outcome: BjjOutcome };
+
+/**
+ * Session builder: context/partner/notes are set once for the whole roll,
+ * then techniques are added one at a time to a running list before a single
+ * "Save session" commits them all together — so one roll with five
+ * exchanges is one sheet, not five.
+ */
+function LogBjjSheet({
+  knownPartners,
+  onAdd,
+  onClose,
+}: {
+  knownPartners: string[];
+  onAdd: (logs: NewBjjLog[]) => void;
+  onClose: () => void;
+}) {
+  const [context, setContext] = useState<BjjContext>('gi');
+  const [partner, setPartner] = useState('');
+  const [sessionNotes, setSessionNotes] = useState('');
+  const [rows, setRows] = useState<DraftRow[]>([]);
+
   const [category, setCategory] = useState<BjjCategory>('submission');
   const [name, setName] = useState('');
   const [outcome, setOutcome] = useState<BjjOutcome>('landed');
-  const [context, setContext] = useState<BjjContext>('gi');
-  const [notes, setNotes] = useState('');
 
   const libraryNames = useMemo(() => BJJ_LIBRARY.filter((t) => t.category === category).map((t) => t.name), [category]);
-  const valid = name.trim().length > 0;
+  const nameValid = name.trim().length > 0;
+
+  const addRow = () => {
+    if (!nameValid) return;
+    setRows((r) => [...r, { category, name: name.trim(), outcome }]);
+    setName('');
+  };
+
+  const save = () => {
+    if (rows.length === 0) return;
+    const logs: NewBjjLog[] = rows.map((r) => ({
+      ...r,
+      context,
+      partner: partner.trim() || undefined,
+      notes: sessionNotes.trim() || undefined,
+    }));
+    onAdd(logs);
+    onClose();
+  };
 
   return (
-    <Sheet onClose={onClose} label="Log a BJJ technique">
-      <h2 className="font-display text-[24px] text-ink">Log a technique</h2>
+    <Sheet onClose={onClose} label="Log a BJJ session">
+      <h2 className="font-display text-[24px] text-ink">Log a session</h2>
       <div className="mt-5 space-y-4">
+        <Field label="Context">
+          <div className="flex gap-1.5">
+            <Chip active={context === 'gi'} onClick={() => setContext('gi')}>
+              Gi
+            </Chip>
+            <Chip active={context === 'no-gi'} onClick={() => setContext('no-gi')}>
+              No-Gi
+            </Chip>
+          </div>
+        </Field>
+        <Field label="Training partner (optional)">
+          <input
+            list="bjj-partner-options"
+            value={partner}
+            onChange={(e) => setPartner(e.target.value)}
+            placeholder="Who'd you roll with?"
+            className={fieldCls}
+          />
+          <datalist id="bjj-partner-options">
+            {knownPartners.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
+        </Field>
+      </div>
+
+      {/* Added-so-far list */}
+      {rows.length > 0 && (
+        <div className="mt-5 space-y-1.5 rounded-2xl border border-line bg-card p-3">
+          <div className="eyebrow !text-[10px]">This session ({rows.length})</div>
+          <ul className="divide-y divide-divider">
+            {rows.map((r, i) => (
+              <li key={i} className="flex items-center justify-between gap-2 py-1.5">
+                <span className="text-[13px] text-ink">
+                  {BJJ_CATEGORY_META[r.category].glyph} {r.name}{' '}
+                  <span className={`text-[11px] font-bold ${r.outcome === 'landed' ? 'text-sage' : 'text-faint'}`}>
+                    {r.outcome === 'landed' ? 'Landed' : 'Attempted'}
+                  </span>
+                </span>
+                <button
+                  onClick={() => setRows((rr) => rr.filter((_, idx) => idx !== i))}
+                  aria-label={`Remove ${r.name}`}
+                  className="shrink-0 text-hairline transition-colors hover:text-clay"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Add-a-technique row */}
+      <div className="mt-5 space-y-3 border-t border-divider pt-4">
         <Field label="Category">
           <div className="flex flex-wrap gap-1.5">
             {BJJ_CATEGORIES.map((c) => (
@@ -44,10 +135,15 @@ function LogBjjSheet({ onAdd, onClose }: { onAdd: (log: NewBjjLog) => void; onCl
         </Field>
         <Field label="Technique">
           <input
-            autoFocus
             list="bjj-technique-options"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addRow();
+              }
+            }}
             placeholder="e.g. Rear Naked Choke"
             className={fieldCls}
           />
@@ -67,35 +163,29 @@ function LogBjjSheet({ onAdd, onClose }: { onAdd: (log: NewBjjLog) => void; onCl
             </Chip>
           </div>
         </Field>
-        <Field label="Context">
-          <div className="flex gap-1.5">
-            <Chip active={context === 'gi'} onClick={() => setContext('gi')}>
-              Gi
-            </Chip>
-            <Chip active={context === 'no-gi'} onClick={() => setContext('no-gi')}>
-              No-Gi
-            </Chip>
-          </div>
-        </Field>
-        <Field label="Notes (optional)">
+        <button
+          onClick={addRow}
+          disabled={!nameValid}
+          className="flex w-full items-center justify-center gap-1.5 rounded-full border border-clay-border bg-clay-soft py-2.5 text-[13px] font-bold text-clay transition-colors hover:bg-clay-border disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} /> Add to session
+        </button>
+      </div>
+
+      <div className="mt-4">
+        <Field label="Session notes (optional)">
           <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Who, what worked, what didn't…"
+            value={sessionNotes}
+            onChange={(e) => setSessionNotes(e.target.value)}
+            placeholder="How the round went, what worked, what didn't…"
             rows={2}
             className={`${fieldCls} resize-none`}
           />
         </Field>
       </div>
-      <CtaButton
-        className="mt-6 !py-3.5"
-        disabled={!valid}
-        onClick={() => {
-          onAdd({ category, name: name.trim(), outcome, context, notes: notes.trim() || undefined });
-          onClose();
-        }}
-      >
-        Log it
+
+      <CtaButton className="mt-6 !py-3.5" disabled={rows.length === 0} onClick={save}>
+        {rows.length > 0 ? `Save session (${rows.length})` : 'Save session'}
       </CtaButton>
     </Sheet>
   );
@@ -136,11 +226,11 @@ function TrendBars({ periods }: { periods: PeriodTrend[] }) {
 
 export function BjjTab({
   store,
-  onAddLog,
+  onAddLogs,
   onDeleteLog,
 }: {
   store: JarvisStore;
-  onAddLog: (log: NewBjjLog) => void;
+  onAddLogs: (logs: NewBjjLog[]) => void;
   onDeleteLog: (log: BjjLogEntry) => void;
 }) {
   const [logOpen, setLogOpen] = useState(false);
@@ -157,8 +247,12 @@ export function BjjTab({
   const monthly = useMemo(() => buildMonthlyTrend(logs, 6), [logs]);
   const categoryBreakdown = useMemo(() => buildCategoryBreakdown(logs), [logs]);
   const topTechniques = useMemo(() => buildTechniqueStats(logs).slice(0, 8), [logs]);
-  const suggestions = useMemo(() => generateBjjSuggestions(logs), [logs]);
+  const suggestions = useMemo(() => generateBjjSuggestions(logs, store.profile.experience), [logs, store.profile.experience]);
   const recent = useMemo(() => [...logs].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, historyOpen ? 200 : 6), [logs, historyOpen]);
+  const knownPartners = useMemo(
+    () => Array.from(new Set(logs.map((l) => l.partner).filter((p): p is string => !!p))).sort(),
+    [logs]
+  );
 
   return (
     <div>
@@ -311,6 +405,7 @@ export function BjjTab({
                   </div>
                   <div className="mt-0.5 text-[11px] text-faint">
                     {l.date} · {l.context === 'gi' ? 'Gi' : 'No-Gi'}
+                    {l.partner ? ` · with ${l.partner}` : ''}
                     {l.notes ? ` · ${l.notes}` : ''}
                   </div>
                 </div>
@@ -323,7 +418,7 @@ export function BjjTab({
         )}
       </Card>
 
-      {logOpen && <LogBjjSheet onAdd={onAddLog} onClose={() => setLogOpen(false)} />}
+      {logOpen && <LogBjjSheet knownPartners={knownPartners} onAdd={onAddLogs} onClose={() => setLogOpen(false)} />}
     </div>
   );
 }

@@ -167,6 +167,7 @@ export interface BjjLogEntry {
   name: string; // technique name, e.g. "Rear Naked Choke"
   outcome: BjjOutcome; // 'landed' = finished/secured, 'attempted' = went for it but didn't land
   context: BjjContext; // gi or no-gi
+  partner?: string; // who you rolled with
   notes?: string;
 }
 

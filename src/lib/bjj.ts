@@ -336,12 +336,32 @@ export interface BjjSuggestion {
   body: string;
 }
 
+type ExperienceTier = 'beginner' | 'advanced' | 'default';
+
+function tierOf(experience?: string): ExperienceTier {
+  const e = (experience ?? '').toLowerCase();
+  if (/beginner|new|novice|white belt/.test(e)) return 'beginner';
+  if (/advanced|expert|competitor|black belt|brown belt/.test(e)) return 'advanced';
+  return 'default';
+}
+
+// How forgiving a "struggling" call is, and how high a bar "strong" is, by
+// experience level — a beginner landing 40% of the time is doing great; the
+// same rate for an advanced athlete is a real gap.
+const TIER_THRESHOLDS: Record<ExperienceTier, { struggleMax: number; strongMin: number }> = {
+  beginner: { struggleMax: 0.45, strongMin: 0.5 },
+  default: { struggleMax: 0.35, strongMin: 0.6 },
+  advanced: { struggleMax: 0.3, strongMin: 0.7 },
+};
+
 /**
  * The rule-based "BJJ brain": scans recent logs for struggling techniques,
  * standout techniques worth expanding, and untrained category gaps, and
  * turns each into a concrete, named suggestion pulled from BJJ_LIBRARY.
+ * `experience` (Beginner/Intermediate/Advanced, from the athlete's profile)
+ * tunes both the land-rate thresholds and the coaching tone.
  */
-export function generateBjjSuggestions(logs: BjjLogEntry[]): BjjSuggestion[] {
+export function generateBjjSuggestions(logs: BjjLogEntry[], experience?: string): BjjSuggestion[] {
   if (logs.length === 0) {
     return [
       {
@@ -352,41 +372,66 @@ export function generateBjjSuggestions(logs: BjjLogEntry[]): BjjSuggestion[] {
     ];
   }
 
+  const tier = tierOf(experience);
+  const { struggleMax, strongMin } = TIER_THRESHOLDS[tier];
   const since = cutoffDate(60); // last ~2 months of rolling
   const stats = buildTechniqueStats(logs, since);
   const suggestions: BjjSuggestion[] = [];
 
   // 1) Struggling techniques: enough reps to mean something, but landing rarely.
-  const struggling = stats.filter((s) => s.attempted >= 3 && s.landRate < 0.35).sort((a, b) => a.landRate - b.landRate);
+  const struggling = stats.filter((s) => s.attempted >= 3 && s.landRate < struggleMax).sort((a, b) => a.landRate - b.landRate);
   for (const s of struggling.slice(0, 2)) {
     const ref = findTechniqueRef(s.name);
     const pct = Math.round(s.landRate * 100);
     const cueLine = ref?.cue ? ` Cue: ${ref.cue}` : '';
     const variant = ref?.variants?.[0];
     const variantLine = variant ? ` If it keeps stalling, try the ${variant} — a different entry can unstick it.` : '';
+    const opener =
+      tier === 'beginner'
+        ? `You've landed it ${pct}% of the time over ${s.attempted} attempts — that's completely normal while it's new.`
+        : `You've landed it ${pct}% of the time over ${s.attempted} attempts recently.`;
     suggestions.push({
       id: `struggle-${s.name}`,
       title: `Sharpen your ${s.name}`,
-      body: `You've landed it ${pct}% of the time over ${s.attempted} attempts recently.${cueLine}${variantLine}`,
+      body: `${opener}${cueLine}${variantLine}`,
     });
   }
 
-  // 2) Strong techniques: worth expanding into named variants.
-  const strong = stats.filter((s) => s.attempted >= 3 && s.landRate >= 0.6).sort((a, b) => b.landRate - a.landRate);
+  // 2) Strong techniques: worth expanding into named variants (or, for
+  // advanced athletes, chaining into a follow-up when it's defended).
+  const strong = stats.filter((s) => s.attempted >= 3 && s.landRate >= strongMin).sort((a, b) => b.landRate - a.landRate);
   for (const s of strong.slice(0, 2)) {
     const ref = findTechniqueRef(s.name);
     const pct = Math.round(s.landRate * 100);
     if (ref?.variants && ref.variants.length > 0) {
+      const body =
+        tier === 'advanced'
+          ? `Landing at ${pct}% — time to chain it: if they defend the ${s.name}, flow straight into the ${ref.variants[0]} rather than resetting.`
+          : `Landing at ${pct}% — it's a real weapon. Start layering in ${ref.variants.slice(0, 2).join(' or ')} so opponents can't just defend the one look.`;
       suggestions.push({
         id: `strong-${s.name}`,
-        title: `Expand your ${s.name}`,
-        body: `Landing at ${pct}% — it's a real weapon. Start layering in ${ref.variants.slice(0, 2).join(' or ')} so opponents can't just defend the one look.`,
+        title: tier === 'advanced' ? `Chain off your ${s.name}` : `Expand your ${s.name}`,
+        body,
       });
     }
   }
 
   // 3) Category gaps: things they should probably be logging/training but aren't.
   const breakdown = buildCategoryBreakdown(logs, since);
+
+  // 3a) Beginner-specific: submissions logged far more than positions/escapes
+  // is a common early mistake — control pays off more than hunting finishes.
+  if (tier === 'beginner') {
+    const posEscapeAttempts = breakdown.position.attempted + breakdown.escape.attempted;
+    const subAttempts = breakdown.submission.attempted;
+    if (subAttempts >= 5 && posEscapeAttempts < subAttempts * 0.4) {
+      suggestions.push({
+        id: 'beginner-fundamentals',
+        title: 'Build the position before the finish',
+        body: `You're logging a lot more submission attempts than positions or escapes. Early on, holding mount, back control, or side control — and escaping when you're underneath — pays off more than hunting finishes. Try a round focused purely on control.`,
+      });
+    }
+  }
   const totalLogs = Object.values(breakdown).reduce((a, c) => a + c.attempted, 0);
   if (totalLogs >= 5) {
     if (breakdown.guard_pass.attempted === 0 && (breakdown.submission.attempted > 0 || breakdown.position.attempted > 0)) {
