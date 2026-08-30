@@ -4,14 +4,15 @@ import React from 'react';
 import type { SceneId, Highlight } from '@/lib/bjj';
 
 /**
- * Animated, articulated side-view diagrams for the BJJ library — two
- * jointed figures (head, torso, upper/lower arms with elbows and hands,
- * upper/lower legs with knees and feet). The figure actually executing
- * each technique is drawn in clay (the other figure stays neutral/light),
- * and for submissions its finishing limb loops toward a pulsing highlight
- * ring at the target — so the diagram shows the move happening, not a
- * frozen pose. Still line-art, matching the app's icon language, not a
- * photo or a full pixel-grid illustration.
+ * A single reusable human-body rig, posed differently for every diagram.
+ * One figure = one skeleton (head, neck, shoulders, elbows, hands, hips,
+ * knees, feet) built from joint angles and fixed bone lengths, rendered as
+ * a real silhouette: a tapered torso, tapered limb segments with rounded
+ * joints, hands, and feet — not lines and blobs. The figure executing each
+ * technique is clay-colored; the other stays neutral/light. Every diagram
+ * loops through the actual motion, and for submissions the finishing limb
+ * swings toward a pulsing ring at the target, computed from its own hand
+ * or foot position so the two always line up exactly.
  */
 
 type Pt = [number, number];
@@ -19,10 +20,10 @@ type Pt = [number, number];
 const COLORS = {
   mat: '#EEEADF',
   matLine: '#E4DFD0',
-  defenderFill: '#F4F1E8',
-  defenderStroke: '#B0A99A',
+  defenderFill: '#F2EFE6',
+  defenderStroke: '#ADA695',
   attackerFill: '#C4633B',
-  attackerStroke: '#8F3F1F',
+  attackerStroke: '#8A3B1E',
   highlight: '#E8895C',
 };
 const D = COLORS.defenderFill;
@@ -30,80 +31,198 @@ const DS = COLORS.defenderStroke;
 const A = COLORS.attackerFill;
 const AS = COLORS.attackerStroke;
 
-function bend(a: Pt, b: Pt, amt: number, side: 1 | -1): Pt {
-  const mx = (a[0] + b[0]) / 2;
-  const my = (a[1] + b[1]) / 2;
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const len = Math.hypot(dx, dy) || 1;
-  const nx = -dy / len;
-  const ny = dx / len;
-  return [mx + nx * amt * side, my + ny * amt * side];
+/* ---------------------------- geometry helpers --------------------------- */
+
+function rad(deg: number) {
+  return (deg * Math.PI) / 180;
+}
+function polar(o: Pt, deg: number, len: number): Pt {
+  return [o[0] + Math.cos(rad(deg)) * len, o[1] + Math.sin(rad(deg)) * len];
+}
+function norm(v: Pt): Pt {
+  const len = Math.hypot(v[0], v[1]) || 1;
+  return [v[0] / len, v[1] / len];
 }
 
-/** Two-segment articulated limb (shoulder→elbow→hand, or hip→knee→foot) with visible joints. */
+/** Rounded-corner closed polygon (Catmull-style corner cut + quadratic curve). */
+function roundedPolygonPath(points: Pt[], r: number): string {
+  const n = points.length;
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const prev = points[(i - 1 + n) % n];
+    const curr = points[i];
+    const next = points[(i + 1) % n];
+    const toPrev = norm([prev[0] - curr[0], prev[1] - curr[1]]);
+    const toNext = norm([next[0] - curr[0], next[1] - curr[1]]);
+    const p1: Pt = [curr[0] + toPrev[0] * r, curr[1] + toPrev[1] * r];
+    const p2: Pt = [curr[0] + toNext[0] * r, curr[1] + toNext[1] * r];
+    d += (i === 0 ? `M${p1[0].toFixed(1)},${p1[1].toFixed(1)} ` : `L${p1[0].toFixed(1)},${p1[1].toFixed(1)} `) + `Q${curr[0].toFixed(1)},${curr[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)} `;
+  }
+  return d + 'Z';
+}
+
+/* -------------------------------- the rig --------------------------------- */
+
+interface LimbSpec {
+  angle: number; // absolute direction of the first bone (deg, 0=right, 90=down)
+  bend: number; // relative turn at the joint for the second bone
+  len1?: number;
+  len2?: number;
+}
+
+interface RigOpts {
+  hip: Pt;
+  torsoAngle: number; // direction from hip to shoulder line (spine vector)
+  torsoLen?: number;
+  shoulderW?: number;
+  hipW?: number;
+  neckLen?: number;
+  headR?: number;
+  armL: LimbSpec;
+  armR: LimbSpec;
+  legL: LimbSpec;
+  legR: LimbSpec;
+}
+
+interface Pose {
+  head: Pt;
+  headR: number;
+  neckBase: Pt;
+  shoulderC: Pt;
+  shoulderL: Pt;
+  shoulderR: Pt;
+  hip: Pt;
+  hipL: Pt;
+  hipR: Pt;
+  waistL: Pt;
+  waistR: Pt;
+  elbowL: Pt;
+  handL: Pt;
+  elbowR: Pt;
+  handR: Pt;
+  kneeL: Pt;
+  footL: Pt;
+  kneeR: Pt;
+  footR: Pt;
+}
+
+const BONE = { upperArm: 25, forearm: 22, thigh: 31, shin: 29 };
+
+function buildPose(o: RigOpts): Pose {
+  const torsoLen = o.torsoLen ?? 46;
+  // Default is narrow — right for a lying/horizontal spine, where the
+  // shoulder/hip offset runs perpendicular (i.e. vertically); scenes with a
+  // near-vertical torso (standing, seated, mounted) pass a wider explicit
+  // value since there the same offset runs naturally left-right.
+  const shoulderW = o.shoulderW ?? 21;
+  const hipW = o.hipW ?? 18;
+  const neckLen = o.neckLen ?? 9;
+  const headR = o.headR ?? 12.5;
+
+  const shoulderC = polar(o.hip, o.torsoAngle, torsoLen);
+  const neckBase = shoulderC;
+  const head = polar(shoulderC, o.torsoAngle, neckLen + headR * 0.9);
+  const shoulderL = polar(shoulderC, o.torsoAngle + 90, shoulderW / 2);
+  const shoulderR = polar(shoulderC, o.torsoAngle - 90, shoulderW / 2);
+  const hipL = polar(o.hip, o.torsoAngle + 90, hipW / 2);
+  const hipR = polar(o.hip, o.torsoAngle - 90, hipW / 2);
+  const waistC = polar(o.hip, o.torsoAngle, torsoLen * 0.48);
+  const waistL = polar(waistC, o.torsoAngle + 90, shoulderW * 0.36);
+  const waistR = polar(waistC, o.torsoAngle - 90, shoulderW * 0.36);
+
+  const armLen1 = o.armL.len1 ?? BONE.upperArm;
+  const armLen2 = o.armL.len2 ?? BONE.forearm;
+  const elbowL = polar(shoulderL, o.armL.angle, armLen1);
+  const handL = polar(elbowL, o.armL.angle + o.armL.bend, armLen2);
+
+  const armRen1 = o.armR.len1 ?? BONE.upperArm;
+  const armRen2 = o.armR.len2 ?? BONE.forearm;
+  const elbowR = polar(shoulderR, o.armR.angle, armRen1);
+  const handR = polar(elbowR, o.armR.angle + o.armR.bend, armRen2);
+
+  const legLen1 = o.legL.len1 ?? BONE.thigh;
+  const legLen2 = o.legL.len2 ?? BONE.shin;
+  const kneeL = polar(hipL, o.legL.angle, legLen1);
+  const footL = polar(kneeL, o.legL.angle + o.legL.bend, legLen2);
+
+  const legRen1 = o.legR.len1 ?? BONE.thigh;
+  const legRen2 = o.legR.len2 ?? BONE.shin;
+  const kneeR = polar(hipR, o.legR.angle, legRen1);
+  const footR = polar(kneeR, o.legR.angle + o.legR.bend, legRen2);
+
+  return { head, headR, neckBase, shoulderC, shoulderL, shoulderR, hip: o.hip, hipL, hipR, waistL, waistR, elbowL, handL, elbowR, handR, kneeL, footL, kneeR, footR };
+}
+
+/* ------------------------------- rendering -------------------------------- */
+
 function Limb({
   a,
+  mid,
   b,
-  bendAmt = 9,
-  side = 1,
-  stroke,
+  w1,
+  w2,
+  w3,
   fill,
-  w = 7,
+  stroke,
+  extremity,
   animate,
   origin,
 }: {
   a: Pt;
+  mid: Pt;
   b: Pt;
-  bendAmt?: number;
-  side?: 1 | -1;
-  stroke: string;
+  w1: number;
+  w2: number;
+  w3: number;
   fill: string;
-  w?: number;
-  animate?: 'sway-in';
+  stroke: string;
+  extremity: 'hand' | 'foot';
+  animate?: boolean;
   origin?: Pt;
 }) {
-  const mid = bend(a, b, bendAmt, side);
-  const o = origin ?? a;
+  const footAngle = (Math.atan2(b[1] - mid[1], b[0] - mid[0]) * 180) / Math.PI;
   return (
-    <g className={animate ? 'bjj-sway-in' : undefined} style={animate ? { transformOrigin: `${o[0]}px ${o[1]}px` } : undefined}>
-      <line x1={a[0]} y1={a[1]} x2={mid[0]} y2={mid[1]} stroke={stroke} strokeWidth={w} strokeLinecap="round" />
-      <line x1={mid[0]} y1={mid[1]} x2={b[0]} y2={b[1]} stroke={stroke} strokeWidth={Math.max(4.5, w - 1.5)} strokeLinecap="round" />
-      <circle cx={mid[0]} cy={mid[1]} r={2.8} fill={fill} stroke={stroke} strokeWidth={1.3} />
-      <circle cx={b[0]} cy={b[1]} r={3.6} fill={fill} stroke={stroke} strokeWidth={1.3} />
+    <g className={animate ? 'bjj-sway-in' : undefined} style={animate ? { transformOrigin: `${(origin ?? a)[0]}px ${(origin ?? a)[1]}px` } : undefined}>
+      {/* outline pass (wider, stroke color) then fill pass (narrower, body color) per segment */}
+      <line x1={a[0]} y1={a[1]} x2={mid[0]} y2={mid[1]} stroke={stroke} strokeWidth={w1 * 2 + 2.4} strokeLinecap="round" />
+      <line x1={mid[0]} y1={mid[1]} x2={b[0]} y2={b[1]} stroke={stroke} strokeWidth={w2 * 2 + 2.4} strokeLinecap="round" />
+      <line x1={a[0]} y1={a[1]} x2={mid[0]} y2={mid[1]} stroke={fill} strokeWidth={w1 * 2} strokeLinecap="round" />
+      <line x1={mid[0]} y1={mid[1]} x2={b[0]} y2={b[1]} stroke={fill} strokeWidth={w2 * 2} strokeLinecap="round" />
+      <circle cx={mid[0]} cy={mid[1]} r={Math.min(w1, w2) * 0.92} fill={fill} stroke={stroke} strokeWidth={1.4} />
+      {extremity === 'hand' ? (
+        <circle cx={b[0]} cy={b[1]} r={w3 * 0.95} fill={fill} stroke={stroke} strokeWidth={1.4} />
+      ) : (
+        <ellipse cx={b[0] + Math.cos(rad(footAngle)) * 3} cy={b[1] + Math.sin(rad(footAngle)) * 3} rx={7.5} ry={4.4} fill={fill} stroke={stroke} strokeWidth={1.4} transform={`rotate(${footAngle} ${b[0]} ${b[1]})`} />
+      )}
     </g>
   );
 }
 
-function Torso({ x, y, w = 60, h = 26, fill, stroke, rotate = 0 }: { x: number; y: number; w?: number; h?: number; fill: string; stroke: string; rotate?: number }) {
-  return (
-    <g transform={rotate ? `rotate(${rotate} ${x} ${y})` : undefined}>
-      <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={h / 2} fill={fill} stroke={stroke} strokeWidth={2} />
-      <line
-        x1={x - w / 2 + h / 2}
-        y1={y - h / 2 + 3}
-        x2={x + w / 2 - h / 2}
-        y2={y - h / 2 + 3}
-        stroke="#fff"
-        strokeOpacity={0.3}
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
-    </g>
-  );
-}
-
-function Head({ x, y, r = 11, fill, stroke }: { x: number; y: number; r?: number; fill: string; stroke: string }) {
+function HumanFigure({
+  pose,
+  fill,
+  stroke,
+  activeLimb,
+}: {
+  pose: Pose;
+  fill: string;
+  stroke: string;
+  activeLimb?: 'armL' | 'armR' | 'legL' | 'legR';
+}) {
+  const torso = roundedPolygonPath([pose.shoulderL, pose.waistL, pose.hipL, pose.hipR, pose.waistR, pose.shoulderR], 9);
   return (
     <g>
-      <circle cx={x} cy={y} r={r} fill={fill} stroke={stroke} strokeWidth={2} />
-      <circle cx={x - r * 0.32} cy={y - r * 0.35} r={r * 0.28} fill="#fff" fillOpacity={0.25} />
+      <Limb a={pose.hipL} mid={pose.kneeL} b={pose.footL} w1={11.5} w2={8} w3={5.5} fill={fill} stroke={stroke} extremity="foot" animate={activeLimb === 'legL'} origin={pose.hipL} />
+      <Limb a={pose.hipR} mid={pose.kneeR} b={pose.footR} w1={11.5} w2={8} w3={5.5} fill={fill} stroke={stroke} extremity="foot" animate={activeLimb === 'legR'} origin={pose.hipR} />
+      <path d={torso} fill={fill} stroke={stroke} strokeWidth={1.6} />
+      <line x1={pose.shoulderC[0]} y1={pose.shoulderC[1]} x2={pose.head[0]} y2={pose.head[1]} stroke={stroke} strokeWidth={16.4} strokeLinecap="round" />
+      <line x1={pose.shoulderC[0]} y1={pose.shoulderC[1]} x2={pose.head[0]} y2={pose.head[1]} stroke={fill} strokeWidth={14} strokeLinecap="round" />
+      <Limb a={pose.shoulderR} mid={pose.elbowR} b={pose.handR} w1={8.5} w2={6} w3={4.2} fill={fill} stroke={stroke} extremity="hand" animate={activeLimb === 'armR'} origin={pose.shoulderR} />
+      <Limb a={pose.shoulderL} mid={pose.elbowL} b={pose.handL} w1={8.5} w2={6} w3={4.2} fill={fill} stroke={stroke} extremity="hand" animate={activeLimb === 'armL'} origin={pose.shoulderL} />
+      <circle cx={pose.head[0]} cy={pose.head[1]} r={pose.headR} fill={fill} stroke={stroke} strokeWidth={1.6} />
+      <circle cx={pose.head[0] - pose.headR * 0.32} cy={pose.head[1] - pose.headR * 0.35} r={pose.headR * 0.26} fill="#fff" fillOpacity={0.25} />
     </g>
   );
-}
-
-function Neck({ a, b, stroke, w = 9 }: { a: Pt; b: Pt; stroke: string; w?: number }) {
-  return <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={stroke} strokeWidth={w} strokeLinecap="round" />;
 }
 
 function HighlightRing({ x, y, glyph }: { x: number; y: number; glyph?: string }) {
@@ -121,351 +240,527 @@ function HighlightRing({ x, y, glyph }: { x: number; y: number; glyph?: string }
 
 const HIGHLIGHT_GLYPH: Record<Highlight, string> = { neck: '◆', arm: '↝', leg: '↝', shoulder: '↝' };
 
-function Ground({ y = 156 }: { y?: number }) {
-  return <line x1={10} y1={y} x2={290} y2={y} stroke={COLORS.matLine} strokeWidth={2} />;
+function Ground({ y = 160 }: { y?: number }) {
+  return <line x1={8} y1={y} x2={292} y2={y} stroke={COLORS.matLine} strokeWidth={2} />;
 }
 
-function targetFor(map: Partial<Record<Highlight, Pt>>, highlight: Highlight | undefined, fallback: Pt): Pt {
-  if (!highlight) return fallback;
-  return map[highlight] ?? Object.values(map)[0] ?? fallback;
+/** Which of the active figure's four limbs its hand/foot lands on, keyed per scene. */
+function handOf(pose: Pose, limb: 'armL' | 'armR' | 'legL' | 'legR'): Pt {
+  return limb === 'armL' ? pose.handL : limb === 'armR' ? pose.handR : limb === 'legL' ? pose.footL : pose.footR;
 }
+
+/* --------------------------------- scenes --------------------------------- */
 
 function Scene({ id, highlight }: { id: SceneId; highlight?: Highlight }) {
+  const wrapClass = (kind: 'press' | 'arc', origin: Pt) => ({ className: `bjj-${kind}`, style: { transformOrigin: `${origin[0]}px ${origin[1]}px` } as React.CSSProperties });
+
   switch (id) {
     case 'mount': {
-      const targets: Partial<Record<Highlight, Pt>> = { neck: [80, 126], arm: [96, 118], shoulder: [94, 122] };
-      const t = targetFor(targets, highlight, [80, 126]);
+      const defender = buildPose({
+        hip: [130, 148],
+        torsoAngle: 180,
+        armL: { angle: 65, bend: 25 },
+        armR: { angle: 100, bend: -15 },
+        legL: { angle: 3, bend: 8 },
+        legR: { angle: -6, bend: 10 },
+      });
+      const active: 'armR' = 'armR';
+      const attacker = buildPose({
+        hip: [124, 122],
+        torsoAngle: -85,
+        torsoLen: 42,
+        shoulderW: 32,
+        hipW: 27,
+        armL: { angle: -35, bend: -55, len1: 22, len2: 20 },
+        armR: { angle: highlight ? 195 : 160, bend: highlight ? -35 : -10, len1: 23, len2: 21 },
+        legL: { angle: 145, bend: -25, len1: 26, len2: 22 },
+        legR: { angle: 55, bend: 30, len1: 26, len2: 22 },
+      });
+      const t = handOf(attacker, active);
       return (
         <>
           <Ground />
-          {/* defender flat on back */}
-          <Head x={42} y={144} fill={D} stroke={DS} />
-          <Neck a={[42, 144]} b={[64, 144]} stroke={DS} />
-          <Torso x={106} y={144} w={68} h={26} fill={D} stroke={DS} />
-          <Limb a={[140, 150]} b={[206, 152]} bendAmt={9} side={1} stroke={DS} fill={D} />
-          <Limb a={[78, 134]} b={[62, 122]} bendAmt={4} side={-1} stroke={DS} fill={D} w={5.5} />
-          {/* attacker mounted */}
-          <g className="bjj-press" style={{ transformOrigin: '112px 100px' }}>
-            <Limb a={[124, 136]} b={[104, 158]} bendAmt={8} side={-1} stroke={AS} fill={A} />
-            <Limb a={[150, 136]} b={[168, 158]} bendAmt={8} side={1} stroke={AS} fill={A} />
-            <Torso x={112} y={98} w={34} h={42} fill={A} stroke={AS} />
-            <Neck a={[112, 76]} b={[128, 64]} stroke={AS} />
-            <Head x={132} y={60} fill={A} stroke={AS} />
-            <Limb a={[142, 84]} b={[160, 68]} bendAmt={7} side={-1} stroke={AS} fill={A} w={5.5} />
-            <Limb a={[118, 88]} b={t} bendAmt={8} side={1} stroke={AS} fill={A} w={5.5} animate={highlight && 'sway-in'} origin={[118, 88]} />
+          <HumanFigure pose={defender} fill={D} stroke={DS} />
+          <g {...wrapClass('press', attacker.hip)}>
+            <HumanFigure pose={attacker} fill={A} stroke={AS} activeLimb={highlight ? active : undefined} />
           </g>
           {highlight && <HighlightRing x={t[0]} y={t[1]} glyph={HIGHLIGHT_GLYPH[highlight]} />}
         </>
       );
     }
     case 'back-control': {
-      const targets: Partial<Record<Highlight, Pt>> = { neck: [166, 66] };
-      const t = targetFor(targets, highlight, [166, 66]);
+      const defender = buildPose({
+        hip: [172, 132],
+        torsoAngle: -95,
+        torsoLen: 44,
+        shoulderW: 32,
+        hipW: 27,
+        armL: { angle: 40, bend: 20 },
+        armR: { angle: 150, bend: -20 },
+        legL: { angle: 95, bend: 15 },
+        legR: { angle: 75, bend: -10 },
+      });
+      const active: 'armL' = 'armL';
+      const attacker = buildPose({
+        hip: [116, 138],
+        torsoAngle: -100,
+        torsoLen: 40,
+        shoulderW: 32,
+        hipW: 27,
+        armR: { angle: 15, bend: 35, len1: 23, len2: 20 },
+        armL: { angle: highlight ? -100 : -70, bend: highlight ? 30 : 10, len1: 24, len2: 22 },
+        legL: { angle: 165, bend: -25, len1: 24, len2: 22 },
+        legR: { angle: 15, bend: 30, len1: 24, len2: 22 },
+      });
+      const t = handOf(attacker, active);
       return (
         <>
           <Ground />
-          {/* defender, upright, facing away */}
-          <Torso x={168} y={104} w={26} h={56} fill={D} stroke={DS} />
-          <Neck a={[168, 78]} b={[168, 64]} stroke={DS} />
-          <Head x={168} y={58} fill={D} stroke={DS} />
-          <Limb a={[166, 130]} b={[204, 144]} bendAmt={8} side={1} stroke={DS} fill={D} />
-          {/* attacker, behind and below, hooks + seatbelt + choking arm */}
-          <g className="bjj-press" style={{ transformOrigin: '112px 112px' }}>
-            <Limb a={[126, 128]} b={[142, 154]} bendAmt={6} side={1} stroke={AS} fill={A} />
-            <Limb a={[100, 128]} b={[86, 152]} bendAmt={6} side={-1} stroke={AS} fill={A} />
-            <Torso x={112} y={108} w={46} h={36} fill={A} stroke={AS} />
-            <Neck a={[128, 84]} b={[120, 74]} stroke={AS} />
-            <Head x={116} y={70} fill={A} stroke={AS} />
-            <Limb a={[132, 98]} b={[178, 92]} bendAmt={7} side={1} stroke={AS} fill={A} w={5.5} />
-            <Limb a={[128, 88]} b={t} bendAmt={7} side={-1} stroke={AS} fill={A} w={5.5} animate={highlight && 'sway-in'} origin={[128, 88]} />
+          <HumanFigure pose={defender} fill={D} stroke={DS} />
+          <g {...wrapClass('press', attacker.hip)}>
+            <HumanFigure pose={attacker} fill={A} stroke={AS} activeLimb={highlight ? active : undefined} />
           </g>
           {highlight && <HighlightRing x={t[0]} y={t[1]} glyph={HIGHLIGHT_GLYPH[highlight]} />}
         </>
       );
     }
     case 'side-control': {
-      const targets: Partial<Record<Highlight, Pt>> = { shoulder: [88, 130], neck: [78, 132] };
-      const t = targetFor(targets, highlight, [88, 130]);
+      const defender = buildPose({
+        hip: [110, 144],
+        torsoAngle: 180,
+        armL: { angle: 70, bend: 20 },
+        armR: { angle: 250, bend: -10 },
+        legL: { angle: 8, bend: 6 },
+        legR: { angle: -4, bend: 10 },
+      });
+      const active: 'armR' = 'armR';
+      const attacker = buildPose({
+        hip: [128, 96],
+        torsoAngle: 8,
+        torsoLen: 40,
+        armL: { angle: 150, bend: 10, len1: 22, len2: 20 },
+        armR: { angle: highlight ? 250 : 220, bend: highlight ? -55 : -25, len1: 23, len2: 20 },
+        legL: { angle: 110, bend: 10, len1: 27, len2: 24 },
+        legR: { angle: 135, bend: -20, len1: 27, len2: 24 },
+      });
+      const t = handOf(attacker, active);
       return (
         <>
           <Ground />
-          <Head x={46} y={142} fill={D} stroke={DS} />
-          <Neck a={[46, 142]} b={[66, 142]} stroke={DS} />
-          <Torso x={96} y={142} w={64} h={26} fill={D} stroke={DS} />
-          <Limb a={[128, 146]} b={[172, 152]} bendAmt={9} side={1} stroke={DS} fill={D} />
-          <g className="bjj-press" style={{ transformOrigin: '108px 94px' }}>
-            <Limb a={[90, 104]} b={[50, 150]} bendAmt={7} side={-1} stroke={AS} fill={A} w={6} />
-            <Limb a={[124, 104]} b={[186, 150]} bendAmt={7} side={1} stroke={AS} fill={A} w={6} />
-            <Torso x={108} y={94} w={58} h={22} fill={A} stroke={AS} />
-            <Neck a={[137, 94]} b={[148, 94]} stroke={AS} />
-            <Head x={156} y={94} fill={A} stroke={AS} />
-            <Limb a={[92, 100]} b={t} bendAmt={7} side={1} stroke={AS} fill={A} w={5.5} animate={highlight && 'sway-in'} origin={[92, 100]} />
+          <HumanFigure pose={defender} fill={D} stroke={DS} />
+          <g {...wrapClass('press', attacker.hip)}>
+            <HumanFigure pose={attacker} fill={A} stroke={AS} activeLimb={highlight ? active : undefined} />
           </g>
           {highlight && <HighlightRing x={t[0]} y={t[1]} glyph={HIGHLIGHT_GLYPH[highlight]} />}
         </>
       );
     }
-    case 'knee-on-belly':
+    case 'knee-on-belly': {
+      const defender = buildPose({
+        hip: [104, 146],
+        torsoAngle: 180,
+        armL: { angle: 70, bend: 15 },
+        armR: { angle: 250, bend: -10 },
+        legL: { angle: 6, bend: 8 },
+        legR: { angle: -6, bend: 10 },
+      });
+      const attacker = buildPose({
+        hip: [126, 92],
+        torsoAngle: -85,
+        torsoLen: 40,
+        shoulderW: 32,
+        hipW: 27,
+        armL: { angle: 150, bend: -10, len1: 22, len2: 20 },
+        armR: { angle: 210, bend: -25, len1: 22, len2: 20 },
+        legL: { angle: 145, bend: -35, len1: 20, len2: 30 },
+        legR: { angle: 60, bend: 30, len1: 27, len2: 24 },
+      });
       return (
         <>
           <Ground />
-          <Head x={48} y={140} fill={D} stroke={DS} />
-          <Neck a={[48, 140]} b={[66, 140]} stroke={DS} />
-          <Torso x={96} y={140} w={64} h={26} fill={D} stroke={DS} />
-          <Limb a={[128, 144]} b={[172, 150]} bendAmt={9} side={1} stroke={DS} fill={D} />
-          <g className="bjj-press" style={{ transformOrigin: '112px 100px' }}>
-            <Limb a={[104, 120]} b={[92, 144]} bendAmt={6} side={-1} stroke={AS} fill={A} w={8} />
-            <Limb a={[118, 124]} b={[168, 150]} bendAmt={9} side={1} stroke={AS} fill={A} />
-            <Torso x={112} y={96} w={30} h={42} fill={A} stroke={AS} />
-            <Neck a={[112, 78]} b={[122, 66]} stroke={AS} />
-            <Head x={126} y={62} fill={A} stroke={AS} />
-            <Limb a={[104, 84]} b={[82, 106]} bendAmt={7} side={-1} stroke={AS} fill={A} w={6} />
-            <Limb a={[128, 84]} b={[152, 96]} bendAmt={7} side={1} stroke={AS} fill={A} w={6} />
+          <HumanFigure pose={defender} fill={D} stroke={DS} />
+          <g {...wrapClass('press', attacker.hip)}>
+            <HumanFigure pose={attacker} fill={A} stroke={AS} />
           </g>
         </>
       );
+    }
     case 'north-south': {
-      const targets: Partial<Record<Highlight, Pt>> = { neck: [60, 138] };
-      const t = targetFor(targets, highlight, [60, 138]);
+      const defender = buildPose({
+        hip: [104, 144],
+        torsoAngle: 180,
+        armL: { angle: 70, bend: 15 },
+        armR: { angle: 250, bend: -10 },
+        legL: { angle: 6, bend: 8 },
+        legR: { angle: -6, bend: 10 },
+      });
+      const active: 'armL' = 'armL';
+      const attacker = buildPose({
+        hip: [128, 100],
+        torsoAngle: 0,
+        torsoLen: 38,
+        armR: { angle: 130, bend: 20, len1: 20, len2: 18 },
+        armL: { angle: highlight ? 195 : 170, bend: highlight ? -30 : -10, len1: 26, len2: 24 },
+        legL: { angle: 235, bend: -15, len1: 24, len2: 22 },
+        legR: { angle: 105, bend: 10, len1: 24, len2: 22 },
+      });
+      const t = handOf(attacker, active);
       return (
         <>
           <Ground />
-          <Head x={48} y={140} fill={D} stroke={DS} />
-          <Neck a={[48, 140]} b={[66, 140]} stroke={DS} />
-          <Torso x={96} y={140} w={64} h={26} fill={D} stroke={DS} />
-          <Limb a={[128, 144]} b={[172, 150]} bendAmt={9} side={1} stroke={DS} fill={D} />
-          <g className="bjj-press" style={{ transformOrigin: '100px 100px' }}>
-            <Limb a={[112, 110]} b={[122, 140]} bendAmt={6} side={1} stroke={AS} fill={A} w={6} />
-            <Torso x={100} y={100} w={56} h={22} fill={A} stroke={AS} />
-            <Neck a={[128, 100]} b={[138, 100]} stroke={AS} />
-            <Head x={146} y={100} fill={A} stroke={AS} />
-            <Limb a={[76, 106]} b={t} bendAmt={8} side={-1} stroke={AS} fill={A} w={6} animate={highlight && 'sway-in'} origin={[76, 106]} />
+          <HumanFigure pose={defender} fill={D} stroke={DS} />
+          <g {...wrapClass('press', attacker.hip)}>
+            <HumanFigure pose={attacker} fill={A} stroke={AS} activeLimb={highlight ? active : undefined} />
           </g>
           {highlight && <HighlightRing x={t[0]} y={t[1]} glyph={HIGHLIGHT_GLYPH[highlight]} />}
         </>
       );
     }
     case 'closed-guard': {
-      // The guard player (bottom) executes every submission mapped to this scene, so they're clay.
-      const targets: Partial<Record<Highlight, Pt>> = { neck: [190, 78], shoulder: [196, 86], leg: [176, 148] };
-      const t = targetFor(targets, highlight, [190, 78]);
+      // Guard player (clay) executes every submission mapped here.
+      const active: 'armL' = 'armL';
+      const guard = buildPose({
+        hip: [110, 140],
+        torsoAngle: 180,
+        armR: { angle: 90, bend: 10 },
+        armL: { angle: highlight ? 320 : 300, bend: highlight ? -45 : -20, len1: 26, len2: 24 },
+        legL: { angle: 320, bend: -70, len1: 32, len2: 30 },
+        legR: { angle: 20, bend: 70, len1: 32, len2: 30 },
+      });
+      const top = buildPose({
+        hip: [222, 128],
+        torsoAngle: -95,
+        torsoLen: 40,
+        shoulderW: 32,
+        hipW: 27,
+        armL: { angle: 200, bend: -20 },
+        armR: { angle: 300, bend: 30 },
+        legL: { angle: 130, bend: -20 },
+        legR: { angle: 70, bend: 25 },
+      });
+      const t = handOf(guard, active);
       return (
         <>
           <Ground />
-          <g className="bjj-press" style={{ transformOrigin: '100px 128px' }}>
-            <Head x={54} y={130} fill={A} stroke={AS} />
-            <Neck a={[54, 130]} b={[74, 130]} stroke={AS} />
-            <Torso x={100} y={130} w={56} h={26} fill={A} stroke={AS} />
-            <Limb a={[128, 122]} b={[182, 86]} bendAmt={12} side={1} stroke={AS} fill={A} />
-            <Limb a={[128, 138]} b={[186, 118]} bendAmt={10} side={-1} stroke={AS} fill={A} />
-            <Limb a={[70, 120]} b={t} bendAmt={8} side={-1} stroke={AS} fill={A} w={6} animate={highlight && 'sway-in'} origin={[70, 120]} />
+          <HumanFigure pose={top} fill={D} stroke={DS} />
+          <g {...wrapClass('press', guard.hip)}>
+            <HumanFigure pose={guard} fill={A} stroke={AS} activeLimb={highlight ? active : undefined} />
           </g>
-          <Torso x={200} y={96} w={30} h={40} fill={D} stroke={DS} />
-          <Neck a={[196, 78]} b={[206, 64]} stroke={DS} />
-          <Head x={210} y={60} fill={D} stroke={DS} />
-          <Limb a={[190, 116]} b={[184, 152]} bendAmt={7} side={-1} stroke={DS} fill={D} />
-          <Limb a={[210, 116]} b={[218, 152]} bendAmt={7} side={1} stroke={DS} fill={D} />
-          <Limb a={[196, 86]} b={[178, 68]} bendAmt={7} side={-1} stroke={DS} fill={D} w={6} />
           {highlight && <HighlightRing x={t[0]} y={t[1]} glyph={HIGHLIGHT_GLYPH[highlight]} />}
         </>
       );
     }
-    case 'half-guard':
+    case 'half-guard': {
+      const guard = buildPose({
+        hip: [108, 140],
+        torsoAngle: 180,
+        armR: { angle: 90, bend: 10 },
+        armL: { angle: 300, bend: 10, len1: 27, len2: 24 },
+        legL: { angle: 320, bend: -30, len1: 30, len2: 26 },
+        legR: { angle: 20, bend: 8 },
+      });
+      const top = buildPose({
+        hip: [212, 122],
+        torsoAngle: -95,
+        torsoLen: 40,
+        shoulderW: 32,
+        hipW: 27,
+        armL: { angle: 200, bend: -15 },
+        armR: { angle: 300, bend: 25 },
+        legL: { angle: 130, bend: -15 },
+        legR: { angle: 70, bend: 20 },
+      });
       return (
         <>
           <Ground />
-          <g className="bjj-press" style={{ transformOrigin: '100px 126px' }}>
-            <Head x={54} y={130} fill={A} stroke={AS} />
-            <Neck a={[54, 130]} b={[74, 130]} stroke={AS} />
-            <Torso x={100} y={130} w={56} h={26} fill={A} stroke={AS} />
-            <Limb a={[128, 138]} b={[172, 146]} bendAmt={8} side={1} stroke={AS} fill={A} />
-            <Limb a={[128, 122]} b={[168, 102]} bendAmt={9} side={-1} stroke={AS} fill={A} />
-            <Limb a={[70, 120]} b={[150, 90]} bendAmt={9} side={-1} stroke={AS} fill={A} w={6} />
+          <HumanFigure pose={top} fill={D} stroke={DS} />
+          <g {...wrapClass('press', guard.hip)}>
+            <HumanFigure pose={guard} fill={A} stroke={AS} />
           </g>
-          <Torso x={168} y={92} w={40} h={32} fill={D} stroke={DS} />
-          <Neck a={[168, 74]} b={[174, 62]} stroke={DS} />
-          <Head x={182} y={58} fill={D} stroke={DS} />
-          <Limb a={[158, 106]} b={[144, 148]} bendAmt={7} side={-1} stroke={DS} fill={D} />
-          <Limb a={[180, 106]} b={[196, 150]} bendAmt={7} side={1} stroke={DS} fill={D} />
         </>
       );
-    case 'butterfly-guard':
+    }
+    case 'butterfly-guard': {
+      const guard = buildPose({
+        hip: [92, 140],
+        torsoAngle: -100,
+        torsoLen: 38,
+        shoulderW: 30,
+        hipW: 25,
+        armL: { angle: 210, bend: -25 },
+        armR: { angle: 320, bend: 15 },
+        legL: { angle: 60, bend: -75, len1: 26, len2: 22 },
+        legR: { angle: 40, bend: -55, len1: 26, len2: 22 },
+      });
+      const top = buildPose({
+        hip: [206, 128],
+        torsoAngle: -95,
+        torsoLen: 38,
+        shoulderW: 32,
+        hipW: 27,
+        armL: { angle: 200, bend: -15 },
+        armR: { angle: 300, bend: 25 },
+        legL: { angle: 130, bend: -15 },
+        legR: { angle: 70, bend: 20 },
+      });
       return (
         <>
           <Ground />
-          <g className="bjj-press" style={{ transformOrigin: '76px 108px' }}>
-            <Torso x={76} y={110} w={26} h={42} fill={A} stroke={AS} />
-            <Neck a={[76, 90]} b={[86, 76]} stroke={AS} />
-            <Head x={92} y={70} fill={A} stroke={AS} />
-            <Limb a={[82, 128]} b={[140, 140]} bendAmt={9} side={1} stroke={AS} fill={A} />
-            <Limb a={[68, 128]} b={[64, 152]} bendAmt={7} side={-1} stroke={AS} fill={A} />
-            <Limb a={[60, 102]} b={[40, 120]} bendAmt={7} side={-1} stroke={AS} fill={A} w={6} />
+          <HumanFigure pose={top} fill={D} stroke={DS} />
+          <g {...wrapClass('press', guard.hip)}>
+            <HumanFigure pose={guard} fill={A} stroke={AS} />
           </g>
-          <Torso x={154} y={104} w={40} h={32} fill={D} stroke={DS} />
-          <Neck a={[154, 86]} b={[160, 74]} stroke={DS} />
-          <Head x={168} y={70} fill={D} stroke={DS} />
-          <Limb a={[144, 118]} b={[130, 150]} bendAmt={7} side={-1} stroke={DS} fill={D} />
-          <Limb a={[166, 118]} b={[176, 150]} bendAmt={7} side={1} stroke={DS} fill={D} />
         </>
       );
-    case 'delariva-guard':
+    }
+    case 'delariva-guard': {
+      const guard = buildPose({
+        hip: [98, 142],
+        torsoAngle: 180,
+        armR: { angle: 90, bend: 10 },
+        armL: { angle: 300, bend: 15, len1: 26, len2: 22 },
+        legL: { angle: 330, bend: -85, len1: 32, len2: 30 },
+        legR: { angle: 15, bend: 20, len1: 30, len2: 26 },
+      });
+      const top = buildPose({
+        hip: [220, 122],
+        torsoAngle: -95,
+        torsoLen: 40,
+        shoulderW: 32,
+        hipW: 27,
+        armL: { angle: 200, bend: -15 },
+        armR: { angle: 300, bend: 25 },
+        legL: { angle: 130, bend: -15 },
+        legR: { angle: 70, bend: 20 },
+      });
       return (
         <>
           <Ground />
-          <g className="bjj-press" style={{ transformOrigin: '96px 122px' }}>
-            <Head x={46} y={124} fill={A} stroke={AS} />
-            <Neck a={[46, 124]} b={[64, 124]} stroke={AS} />
-            <Torso x={96} y={124} w={58} h={26} fill={A} stroke={AS} />
-            <Limb a={[124, 132]} b={[176, 150]} bendAmt={9} side={1} stroke={AS} fill={A} />
-            <Limb a={[124, 116]} b={[166, 98]} bendAmt={9} side={-1} stroke={AS} fill={A} />
-            <Limb a={[70, 112]} b={[110, 90]} bendAmt={7} side={-1} stroke={AS} fill={A} w={6} />
+          <HumanFigure pose={top} fill={D} stroke={DS} />
+          <g {...wrapClass('press', guard.hip)}>
+            <HumanFigure pose={guard} fill={A} stroke={AS} />
           </g>
-          <Torso x={198} y={98} w={30} h={40} fill={D} stroke={DS} />
-          <Neck a={[198, 78]} b={[198, 66]} stroke={DS} />
-          <Head x={198} y={60} fill={D} stroke={DS} />
-          <Limb a={[188, 118]} b={[176, 152]} bendAmt={7} side={-1} stroke={DS} fill={D} />
-          <Limb a={[208, 118]} b={[218, 152]} bendAmt={7} side={1} stroke={DS} fill={D} />
         </>
       );
+    }
     case 'turtle': {
-      const targets: Partial<Record<Highlight, Pt>> = { neck: [50, 136] };
-      const t = targetFor(targets, highlight, [50, 136]);
+      const defender = buildPose({
+        hip: [96, 128],
+        torsoAngle: -160,
+        torsoLen: 34,
+        armL: { angle: 100, bend: 20, len1: 20, len2: 18 },
+        armR: { angle: 120, bend: -10, len1: 20, len2: 18 },
+        legL: { angle: 120, bend: -95, len1: 20, len2: 16 },
+        legR: { angle: 105, bend: -95, len1: 20, len2: 16 },
+      });
+      const active: 'armR' = 'armR';
+      const attacker = buildPose({
+        hip: [186, 118],
+        torsoAngle: -155,
+        torsoLen: 40,
+        armL: { angle: 155, bend: -15, len1: 22, len2: 20 },
+        armR: { angle: highlight ? 180 : 165, bend: highlight ? 50 : 20, len1: 30, len2: 26 },
+        legL: { angle: 100, bend: -20, len1: 26, len2: 24 },
+        legR: { angle: 75, bend: 20, len1: 26, len2: 24 },
+      });
+      const t = handOf(attacker, active);
       return (
         <>
           <Ground />
-          <Torso x={78} y={126} w={46} h={28} fill={D} stroke={DS} />
-          <Head x={48} y={140} r={10} fill={D} stroke={DS} />
-          <Neck a={[48, 140]} b={[62, 132]} stroke={DS} />
-          <Limb a={[92, 140]} b={[90, 152]} bendAmt={3} side={1} stroke={DS} fill={D} w={5.5} />
-          <Limb a={[104, 140]} b={[108, 152]} bendAmt={3} side={-1} stroke={DS} fill={D} w={5.5} />
-          <g className="bjj-press" style={{ transformOrigin: '140px 98px' }}>
-            <Limb a={[128, 112]} b={[112, 148]} bendAmt={7} side={-1} stroke={AS} fill={A} />
-            <Limb a={[152, 112]} b={[156, 150]} bendAmt={7} side={1} stroke={AS} fill={A} />
-            <Torso x={140} y={98} w={40} h={32} fill={A} stroke={AS} />
-            <Neck a={[156, 80]} b={[162, 68]} stroke={AS} />
-            <Head x={168} y={64} fill={A} stroke={AS} />
-            <Limb a={[122, 90]} b={t} bendAmt={7} side={1} stroke={AS} fill={A} w={5.5} animate={highlight && 'sway-in'} origin={[122, 90]} />
+          <HumanFigure pose={defender} fill={D} stroke={DS} />
+          <g {...wrapClass('press', attacker.hip)}>
+            <HumanFigure pose={attacker} fill={A} stroke={AS} activeLimb={highlight ? active : undefined} />
           </g>
           {highlight && <HighlightRing x={t[0]} y={t[1]} glyph={HIGHLIGHT_GLYPH[highlight]} />}
         </>
       );
     }
     case 'front-headlock': {
-      const targets: Partial<Record<Highlight, Pt>> = { neck: [98, 102] };
-      const t = targetFor(targets, highlight, [98, 102]);
+      const defender = buildPose({
+        hip: [58, 130],
+        torsoAngle: -30,
+        torsoLen: 38,
+        armL: { angle: 100, bend: 15 },
+        armR: { angle: 120, bend: -10 },
+        legL: { angle: 100, bend: -10 },
+        legR: { angle: 80, bend: 15 },
+      });
+      const active: 'armR' = 'armR';
+      const attacker = buildPose({
+        hip: [172, 118],
+        torsoAngle: -150,
+        torsoLen: 38,
+        armL: { angle: 140, bend: -10, len1: 22, len2: 20 },
+        armR: { angle: highlight ? 172 : 160, bend: highlight ? 30 : 10, len1: 24, len2: 22 },
+        legL: { angle: 95, bend: -15, len1: 26, len2: 24 },
+        legR: { angle: 70, bend: 20, len1: 26, len2: 24 },
+      });
+      const t = handOf(attacker, active);
       return (
         <>
           <Ground />
-          <Torso x={62} y={112} w={46} h={26} fill={D} stroke={DS} />
-          <Head x={96} y={104} r={10} fill={D} stroke={DS} />
-          <Neck a={[82, 108]} b={[96, 104]} stroke={DS} />
-          <Limb a={[52, 124]} b={[46, 152]} bendAmt={5} side={-1} stroke={DS} fill={D} w={5.5} />
-          <Limb a={[74, 124]} b={[80, 152]} bendAmt={5} side={1} stroke={DS} fill={D} w={5.5} />
-          <g className="bjj-press" style={{ transformOrigin: '148px 90px' }}>
-            <Torso x={148} y={92} w={42} h={30} fill={A} stroke={AS} />
-            <Neck a={[168, 78]} b={[176, 66]} stroke={AS} />
-            <Head x={182} y={60} fill={A} stroke={AS} />
-            <Limb a={[158, 78]} b={[168, 132]} bendAmt={7} side={-1} stroke={AS} fill={A} w={6} />
-            <Limb a={[132, 100]} b={t} bendAmt={5} side={1} stroke={AS} fill={A} w={7} animate={highlight && 'sway-in'} origin={[132, 100]} />
+          <HumanFigure pose={defender} fill={D} stroke={DS} />
+          <g {...wrapClass('press', attacker.hip)}>
+            <HumanFigure pose={attacker} fill={A} stroke={AS} activeLimb={highlight ? active : undefined} />
           </g>
           {highlight && <HighlightRing x={t[0]} y={t[1]} glyph={HIGHLIGHT_GLYPH[highlight]} />}
         </>
       );
     }
     case 'fifty-fifty': {
-      const legEnd: Pt = highlight ? [150, 134] : [168, 136];
+      const right = buildPose({
+        hip: [214, 132],
+        torsoAngle: 0,
+        armL: { angle: 90, bend: 10 },
+        armR: { angle: 300, bend: 10 },
+        legL: { angle: 195, bend: -20, len1: 28, len2: 24 },
+        legR: { angle: 200, bend: -10, len1: 24, len2: 20 },
+      });
+      const active: 'legL' = 'legL';
+      const left = buildPose({
+        hip: [86, 132],
+        torsoAngle: 180,
+        armR: { angle: 90, bend: 10 },
+        armL: { angle: 300, bend: 10 },
+        legR: { angle: highlight ? -15 : -8, bend: highlight ? 10 : 8, len1: 30, len2: 26 },
+        legL: { angle: highlight ? 20 : 12, bend: highlight ? -35 : -10, len1: 30, len2: 26 },
+      });
+      const t = handOf(left, active);
       return (
         <>
           <Ground />
-          <g className="bjj-press" style={{ transformOrigin: '92px 128px' }}>
-            <Head x={46} y={128} r={10.5} fill={A} stroke={AS} />
-            <Neck a={[46, 128]} b={[64, 128]} stroke={AS} />
-            <Torso x={92} y={128} w={52} h={26} fill={A} stroke={AS} />
-            <Limb a={[118, 132]} b={legEnd} bendAmt={9} side={1} stroke={AS} fill={A} animate={highlight && 'sway-in'} origin={[118, 132]} />
+          <HumanFigure pose={right} fill={D} stroke={DS} />
+          <g {...wrapClass('press', left.hip)}>
+            <HumanFigure pose={left} fill={A} stroke={AS} activeLimb={highlight ? active : undefined} />
           </g>
-          <Head x={254} y={128} r={10.5} fill={D} stroke={DS} />
-          <Neck a={[254, 128]} b={[236, 128]} stroke={DS} />
-          <Torso x={208} y={128} w={52} h={26} fill={D} stroke={DS} />
-          <Limb a={[182, 132]} b={[132, 136]} bendAmt={9} side={-1} stroke={DS} fill={D} />
-          {highlight && <HighlightRing x={150} y={134} glyph={HIGHLIGHT_GLYPH[highlight]} />}
+          {highlight && <HighlightRing x={t[0]} y={t[1]} glyph={HIGHLIGHT_GLYPH[highlight]} />}
         </>
       );
     }
-    case 'standing':
+    case 'standing': {
+      const defender = buildPose({
+        hip: [206, 108],
+        torsoAngle: -90,
+        shoulderW: 32,
+        hipW: 27,
+        armL: { angle: 220, bend: -15 },
+        armR: { angle: 320, bend: 15 },
+        legL: { angle: 100, bend: -10 },
+        legR: { angle: 80, bend: 10 },
+      });
+      const attacker = buildPose({
+        hip: [92, 112],
+        torsoAngle: -100,
+        shoulderW: 32,
+        hipW: 27,
+        armL: { angle: 240, bend: -20 },
+        armR: { angle: 10, bend: 30 },
+        legL: { angle: 105, bend: -15 },
+        legR: { angle: 75, bend: 20 },
+      });
       return (
         <>
           <Ground />
-          <g className="bjj-arc" style={{ transformOrigin: '74px 110px' }}>
-            <Torso x={74} y={98} w={22} h={46} fill={A} stroke={AS} rotate={-6} />
-            <Neck a={[74, 74]} b={[80, 64]} stroke={AS} />
-            <Head x={84} y={58} r={10.5} fill={A} stroke={AS} />
-            <Limb a={[70, 120]} b={[62, 154]} bendAmt={5} side={-1} stroke={AS} fill={A} w={6} />
-            <Limb a={[80, 120]} b={[90, 154]} bendAmt={5} side={1} stroke={AS} fill={A} w={6} />
-            <Limb a={[82, 90]} b={[112, 102]} bendAmt={6} side={1} stroke={AS} fill={A} w={6} />
+          <HumanFigure pose={defender} fill={D} stroke={DS} />
+          <g {...wrapClass('arc', attacker.hip)}>
+            <HumanFigure pose={attacker} fill={A} stroke={AS} />
           </g>
-          <Torso x={188} y={96} w={22} h={48} fill={D} stroke={DS} />
-          <Neck a={[188, 72]} b={[188, 62]} stroke={DS} />
-          <Head x={188} y={56} r={10.5} fill={D} stroke={DS} />
-          <Limb a={[184, 118]} b={[176, 154]} bendAmt={5} side={-1} stroke={DS} fill={D} w={6} />
-          <Limb a={[192, 118]} b={[200, 154]} bendAmt={5} side={1} stroke={DS} fill={D} w={6} />
-          <Limb a={[184, 88]} b={[158, 100]} bendAmt={6} side={-1} stroke={DS} fill={D} w={6} />
         </>
       );
-    case 'guard-pass':
+    }
+    case 'guard-pass': {
+      const defender = buildPose({
+        hip: [100, 142],
+        torsoAngle: 180,
+        armR: { angle: 90, bend: 10 },
+        armL: { angle: 300, bend: 10 },
+        legL: { angle: 330, bend: -65, len1: 30, len2: 26 },
+        legR: { angle: 15, bend: 55, len1: 30, len2: 26 },
+      });
+      const attacker = buildPose({
+        hip: [206, 118],
+        torsoAngle: -110,
+        torsoLen: 40,
+        shoulderW: 30,
+        hipW: 25,
+        armL: { angle: 230, bend: -20 },
+        armR: { angle: 320, bend: 20 },
+        legL: { angle: 140, bend: -15 },
+        legR: { angle: 60, bend: 20 },
+      });
       return (
         <>
           <Ground />
-          <Head x={48} y={132} fill={D} stroke={DS} />
-          <Neck a={[48, 132]} b={[68, 132]} stroke={DS} />
-          <Torso x={100} y={132} w={64} h={26} fill={D} stroke={DS} />
-          <Limb a={[132, 124]} b={[168, 100]} bendAmt={9} side={1} stroke={DS} fill={D} />
-          <Limb a={[132, 140]} b={[172, 146]} bendAmt={8} side={-1} stroke={DS} fill={D} />
-          <g className="bjj-arc" style={{ transformOrigin: '192px 120px' }}>
-            <Limb a={[180, 122]} b={[168, 152]} bendAmt={7} side={-1} stroke={AS} fill={A} />
-            <Limb a={[204, 122]} b={[214, 152]} bendAmt={7} side={1} stroke={AS} fill={A} />
-            <Torso x={192} y={108} w={44} h={30} fill={A} stroke={AS} />
-            <Neck a={[210, 90]} b={[216, 78]} stroke={AS} />
-            <Head x={222} y={74} fill={A} stroke={AS} />
+          <HumanFigure pose={defender} fill={D} stroke={DS} />
+          <g {...wrapClass('arc', attacker.hip)}>
+            <HumanFigure pose={attacker} fill={A} stroke={AS} />
           </g>
         </>
       );
-    case 'sweep':
+    }
+    case 'sweep': {
+      const top = buildPose({
+        hip: [214, 84],
+        torsoAngle: -70,
+        torsoLen: 40,
+        shoulderW: 28,
+        hipW: 23,
+        armL: { angle: 210, bend: -15 },
+        armR: { angle: 260, bend: -25 },
+        legL: { angle: 130, bend: -10 },
+        legR: { angle: 110, bend: -20 },
+      });
+      const bottom = buildPose({
+        hip: [96, 130],
+        torsoAngle: -155,
+        torsoLen: 42,
+        armL: { angle: 100, bend: 15 },
+        armR: { angle: 120, bend: -10 },
+        legL: { angle: 40, bend: -60, len1: 30, len2: 26 },
+        legR: { angle: 25, bend: -35, len1: 30, len2: 26 },
+      });
       return (
         <>
           <Ground />
-          <g className="bjj-press" style={{ transformOrigin: '110px 112px' }}>
-            <Head x={58} y={120} fill={A} stroke={AS} />
-            <Neck a={[58, 120]} b={[76, 116]} stroke={AS} />
-            <Torso x={110} y={110} w={64} h={26} fill={A} stroke={AS} rotate={-8} />
-            <Limb a={[140, 118]} b={[190, 90]} bendAmt={10} side={1} stroke={AS} fill={A} />
+          <g {...wrapClass('arc', top.hip)}>
+            <HumanFigure pose={top} fill={D} stroke={DS} />
           </g>
-          <g className="bjj-arc" style={{ transformOrigin: '200px 80px' }}>
-            <Torso x={200} y={70} w={26} h={44} fill={D} stroke={DS} rotate={20} />
-            <Neck a={[212, 50]} b={[218, 38]} stroke={DS} />
-            <Head x={222} y={32} r={10.5} fill={D} stroke={DS} />
-            <Limb a={[196, 90]} b={[178, 120]} bendAmt={7} side={-1} stroke={DS} fill={D} />
+          <g {...wrapClass('press', bottom.hip)}>
+            <HumanFigure pose={bottom} fill={A} stroke={AS} />
           </g>
         </>
       );
-    case 'takedown-shot':
+    }
+    case 'takedown-shot': {
+      const defender = buildPose({
+        hip: [216, 108],
+        torsoAngle: -90,
+        shoulderW: 32,
+        hipW: 27,
+        armL: { angle: 220, bend: -15 },
+        armR: { angle: 320, bend: 15 },
+        legL: { angle: 100, bend: -10 },
+        legR: { angle: 80, bend: 10 },
+      });
+      const attacker = buildPose({
+        hip: [100, 138],
+        torsoAngle: 165,
+        torsoLen: 40,
+        armL: { angle: 15, bend: 25, len1: 26, len2: 24 },
+        armR: { angle: 40, bend: 15, len1: 26, len2: 24 },
+        legL: { angle: 235, bend: -20, len1: 26, len2: 24 },
+        legR: { angle: 100, bend: 15, len1: 26, len2: 24 },
+      });
       return (
         <>
           <Ground />
-          <Torso x={210} y={94} w={22} h={48} fill={D} stroke={DS} />
-          <Neck a={[210, 70]} b={[210, 60]} stroke={DS} />
-          <Head x={210} y={54} r={10.5} fill={D} stroke={DS} />
-          <Limb a={[206, 116]} b={[198, 154]} bendAmt={5} side={-1} stroke={DS} fill={D} w={6} />
-          <Limb a={[214, 116]} b={[222, 154]} bendAmt={5} side={1} stroke={DS} fill={D} w={6} />
-          <g className="bjj-arc" style={{ transformOrigin: '100px 132px' }}>
-            <Torso x={100} y={130} w={62} h={26} fill={A} stroke={AS} rotate={-4} />
-            <Neck a={[66, 128]} b={[46, 138]} stroke={AS} />
-            <Head x={40} y={142} r={10.5} fill={A} stroke={AS} />
-            <Limb a={[130, 138]} b={[158, 152]} bendAmt={8} side={1} stroke={AS} fill={A} />
-            <Limb a={[118, 138]} b={[112, 156]} bendAmt={6} side={-1} stroke={AS} fill={A} w={6} />
-            <Limb a={[86, 120]} b={[168, 132]} bendAmt={9} side={1} stroke={AS} fill={A} w={6} />
+          <HumanFigure pose={defender} fill={D} stroke={DS} />
+          <g {...wrapClass('arc', attacker.hip)}>
+            <HumanFigure pose={attacker} fill={A} stroke={AS} />
           </g>
         </>
       );
+    }
     default:
       return <Ground />;
   }
@@ -478,7 +773,7 @@ export function TechniqueDiagram({ scene, highlight, className = '' }: { scene: 
         @keyframes bjj-press { 0%,100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
         @keyframes bjj-sway-in { 0%,100% { transform: rotate(-3deg); } 55% { transform: rotate(11deg); } }
         @keyframes bjj-pulse { 0%,100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.12); } }
-        @keyframes bjj-arc { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(9px,-4px) rotate(5deg); } }
+        @keyframes bjj-arc { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(8px,-4px) rotate(4deg); } }
         .bjj-press { animation: bjj-press 2.6s ease-in-out infinite; }
         .bjj-sway-in { animation: bjj-sway-in 2.1s ease-in-out infinite; }
         .bjj-pulse { animation: bjj-pulse 1.7s ease-in-out infinite; }
