@@ -20,6 +20,7 @@ export const BJJ_CATEGORY_META: Record<BjjCategory, { label: string; plural: str
 };
 
 export type SceneId =
+  // positions
   | 'mount'
   | 'back-control'
   | 'side-control'
@@ -30,12 +31,48 @@ export type SceneId =
   | 'butterfly-guard'
   | 'delariva-guard'
   | 'turtle'
-  | 'front-headlock'
   | 'fifty-fifty'
   | 'standing'
-  | 'guard-pass'
-  | 'sweep'
-  | 'takedown-shot';
+  // submissions — each drawn as the actual finishing mechanics
+  | 'rnc'
+  | 'rear-triangle'
+  | 'bow-arrow'
+  | 'triangle'
+  | 'armbar'
+  | 'kimura'
+  | 'americana'
+  | 'guillotine'
+  | 'darce'
+  | 'ezekiel'
+  | 'omoplata'
+  | 'heel-hook'
+  | 'ankle-lock'
+  | 'kneebar'
+  | 'arm-triangle'
+  | 'collar-choke'
+  | 'ns-choke'
+  | 'peruvian'
+  // sweeps
+  | 'scissor-sweep'
+  | 'hip-bump'
+  | 'butterfly-sweep'
+  | 'x-guard'
+  | 'berimbolo-inv'
+  // escapes
+  | 'upa'
+  | 'shrimp-escape'
+  | 'frames'
+  // takedowns
+  | 'double-leg'
+  | 'single-leg'
+  | 'reap'
+  | 'foot-sweep'
+  | 'arm-drag'
+  // guard passes
+  | 'toreando'
+  | 'knee-cut'
+  | 'stack'
+  | 'leg-drag';
 
 export type Highlight = 'neck' | 'arm' | 'leg' | 'shoulder';
 
@@ -61,7 +98,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Chin strap first to kill the frame, then float the choking arm in — don’t rush the seatbelt.',
     description:
       'A blood choke applied from the back, sliding one arm under the chin while the other hand supports behind the head — the single most reliable finish in the sport once the back is secured.',
-    scene: 'back-control',
+    scene: 'rnc',
     highlight: 'neck',
   },
   {
@@ -72,7 +109,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Angle off to 45° before locking the legs — a flat triangle almost never finishes.',
     description:
       'The legs form a triangle around the neck and one arm, using the opponent’s own shoulder to cut off blood flow on one side while your leg does the other.',
-    scene: 'closed-guard',
+    scene: 'triangle',
     highlight: 'neck',
   },
   {
@@ -83,7 +120,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Control the far-side wrist and hip-escape perpendicular before extending — thumb up on the finish.',
     description:
       'Hyperextends the elbow by trapping the arm between your legs and driving the hips up, with your knees pinching together so it can’t rotate free.',
-    scene: 'mount',
+    scene: 'armbar',
     highlight: 'arm',
   },
   {
@@ -94,7 +131,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Figure-four the grip before you try to move the arm — the lock does the work, not your strength.',
     description:
       'A figure-four shoulder lock on a bent arm — one of the most transferable holds in the sport since it works from top and bottom, standing and on the ground.',
-    scene: 'side-control',
+    scene: 'kimura',
     highlight: 'shoulder',
   },
   {
@@ -105,7 +142,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Pin the wrist to the mat and paint the arm down toward their hip in an S-shape.',
     description:
       'A bent-arm shoulder lock, usually caught when an opponent pushes on your chest from underneath — pin the wrist and paint the arm down in an S-shape.',
-    scene: 'side-control',
+    scene: 'americana',
     highlight: 'shoulder',
   },
   {
@@ -116,7 +153,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'High-elbow grip and drop your hips — a low elbow lets them posture out.',
     description:
       'A front choke applied when the head gets trapped under the arm, using the forearm (or collar in gi) across the throat while the legs stop them posturing away.',
-    scene: 'front-headlock',
+    scene: 'guillotine',
     highlight: 'neck',
   },
   {
@@ -127,7 +164,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Sleeve grip under the chin, sit up slightly for angle rather than pulling straight back.',
     description:
       'A sleeve-and-fist choke that needs no gi grip on the opponent — useful when your legs and torso already have them pinned but your hands are otherwise occupied.',
-    scene: 'mount',
+    scene: 'ezekiel',
     highlight: 'neck',
   },
   {
@@ -138,7 +175,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Control the far hip before you spin under — without it they just roll through.',
     description:
       'A shoulder lock that uses the legs instead of the arms, spinning the trapped arm behind the opponent’s back while your leg pins their head and shoulder to the mat.',
-    scene: 'closed-guard',
+    scene: 'omoplata',
     highlight: 'shoulder',
   },
   {
@@ -149,7 +186,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Get the far shoulder deep before you finish the grip — a shallow darce just squeezes shoulder.',
     description:
       'A blood choke from a front headlock or turtle, threading one arm under the far armpit and the other around the neck to form a figure-four.',
-    scene: 'front-headlock',
+    scene: 'darce',
     highlight: 'neck',
   },
   {
@@ -160,7 +197,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Commit to the roll through once locked — hesitating loses the finish.',
     description:
       'A close cousin of the darce set up from the opposite side, finished by rolling all the way through onto your back or into mount.',
-    scene: 'front-headlock',
+    scene: 'darce',
     highlight: 'neck',
   },
   {
@@ -171,7 +208,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Use it when they defend the RNC hand-fight — the choking arm becomes redundant with a locked leg.',
     description:
       'A leg-triangle finish from the back, caught when the hand-fight successfully defends the classic RNC — the same mechanism as the guard triangle, applied from behind.',
-    scene: 'back-control',
+    scene: 'rear-triangle',
     highlight: 'neck',
   },
   {
@@ -182,7 +219,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Break the knee line and control the hip before you crank — control first, torque second.',
     description:
       'A leg lock that twists the ankle to torque the knee — extremely fast and often not felt until real damage is done, so secure control before you ever apply torque.',
-    scene: 'fifty-fifty',
+    scene: 'heel-hook',
     highlight: 'leg',
   },
   {
@@ -193,7 +230,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Trap the foot against your hip/armpit so they can’t rotate the ankle away from the pressure.',
     description:
       'Hyperextends the ankle by trapping the foot against your hip and arching your own hips — usually the first leg lock most athletes ever learn.',
-    scene: 'closed-guard',
+    scene: 'ankle-lock',
     highlight: 'leg',
   },
   {
@@ -204,7 +241,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Get hip-to-hip with your leg over theirs before extending — chasing it from distance telegraphs the escape.',
     description:
       'Hyperextends the knee joint like an inverted armbar for the leg — get hip-to-hip with your leg over theirs before extending, or the escape is easy.',
-    scene: 'closed-guard',
+    scene: 'kneebar',
     highlight: 'leg',
   },
   {
@@ -215,7 +252,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Trap the far leg with yours before you pull — without the leg trap they just sit up.',
     description:
       'A powerful collar choke from the back that traps one of the opponent’s legs with yours before pulling, turning your whole body into the lever.',
-    scene: 'back-control',
+    scene: 'bow-arrow',
     highlight: 'neck',
   },
   {
@@ -226,7 +263,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Walk your hips around 90° before you squeeze — most failed arm triangles are just missing the angle.',
     description:
       'Squeezes the opponent’s own shoulder against their neck using your arm and body weight — needs the correct head angle far more than raw strength.',
-    scene: 'side-control',
+    scene: 'arm-triangle',
     highlight: 'neck',
   },
   {
@@ -236,7 +273,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Cross Collar from Back'],
     cue: 'Deep first grip to the far collar, second hand goes in palm-up for max depth.',
     description: 'A gi choke using deep opposite-side collar grips, palms up, that closes around the neck like scissors.',
-    scene: 'mount',
+    scene: 'collar-choke',
     highlight: 'neck',
   },
   {
@@ -247,7 +284,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Drive your shoulder into their far cheek to stop them turning into you as you lock the choke.',
     description:
       'An unusual but effective choke from north-south position, driving your shoulder into the far cheek and locking the arms around the neck.',
-    scene: 'north-south',
+    scene: 'ns-choke',
     highlight: 'neck',
   },
   {
@@ -258,7 +295,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Sit through hard to the opposite side to load the choke rather than just pulling on the neck.',
     description:
       'A guillotine variant applied from turtle or a scramble, sitting through hard to the far side to load the choke rather than pulling straight back on the neck.',
-    scene: 'turtle',
+    scene: 'peruvian',
     highlight: 'neck',
   },
 
@@ -370,7 +407,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Break their posture and pull the sleeve as you scissor — timing beats strength here.',
     description: 'A closed-guard classic — one leg scissors across the opponent’s base as you pull their sleeve, timing beating strength.',
-    scene: 'closed-guard',
+    scene: 'scissor-sweep',
   },
   {
     name: 'Flower Sweep (Pendulum)',
@@ -379,7 +416,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Trap the arm and swing the leg through a wide arc, not a short kick.',
     description: 'Traps one arm and swings a leg through a wide pendulum arc to tip the opponent forward and over.',
-    scene: 'closed-guard',
+    scene: 'scissor-sweep',
   },
   {
     name: 'Hip Bump Sweep',
@@ -388,7 +425,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Hip Bump to Armbar'],
     cue: 'Post the hand near their hip and sit up fast — hesitation lets them base out.',
     description: 'A fast sit-up sweep off a failed armbar attempt — post a hand near the hip and sit up before they can base out.',
-    scene: 'closed-guard',
+    scene: 'hip-bump',
   },
   {
     name: 'Butterfly Sweep',
@@ -397,7 +434,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Butterfly to Back Take'],
     cue: 'Get the underhook and elevate off the near hook while pulling the same-side shoulder.',
     description: 'Elevates the opponent off a butterfly hook while pulling the same-side shoulder — a staple of the seated open-guard game.',
-    scene: 'butterfly-guard',
+    scene: 'butterfly-sweep',
   },
   {
     name: 'X-Guard Sweep',
@@ -406,7 +443,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Single-Leg X Sweep'],
     cue: 'Off-balance them backward before lifting the leg — lifting alone rarely tips a base.',
     description: 'From underneath the opponent’s base leg, off-balances them backward before lifting — a high-percentage finish to many leg entries.',
-    scene: 'sweep',
+    scene: 'x-guard',
   },
   {
     name: 'Berimbolo',
@@ -416,7 +453,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     cue: 'Commit the roll through fully to the far hip or you just get passed mid-roll.',
     description:
       'A rolling back-take/sweep from De La Riva guard that inverts underneath the opponent to attack their back from below — technical, but a big weapon once drilled.',
-    scene: 'delariva-guard',
+    scene: 'berimbolo-inv',
   },
   {
     name: 'Elevator Sweep',
@@ -425,7 +462,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Hook deep behind the far knee and combine with an upper-body pull for one clean motion.',
     description: 'Hooks deep behind the far knee and combines it with an upper-body pull to lift and roll the opponent over in one motion.',
-    scene: 'closed-guard',
+    scene: 'butterfly-sweep',
   },
   {
     name: 'Waiter Sweep',
@@ -434,7 +471,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Underhook first, then lift through their base leg like a tray — don’t muscle it flat.',
     description: 'From half guard, an underhook plus a lift through the opponent’s base leg tips them over like a waiter losing a tray.',
-    scene: 'half-guard',
+    scene: 'butterfly-sweep',
   },
 
   // ---- Escapes ----
@@ -445,7 +482,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Upa to Single Leg'],
     cue: 'Trap an arm and a same-side leg before bridging — bridging without the trap just resets them.',
     description: 'A bridging escape from bottom mount — trap an arm and same-side leg, then bridge explosively to roll the opponent over.',
-    scene: 'mount',
+    scene: 'upa',
   },
   {
     name: 'Elbow-Knee Escape',
@@ -454,7 +491,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Frame on the hip first, then shrimp — the frame is what creates the space, not the shrimp.',
     description: 'Frames on the hip to create space, then shrimps the hips out to rebuild guard — the fundamental way out of bottom mount.',
-    scene: 'mount',
+    scene: 'shrimp-escape',
   },
   {
     name: 'Side Control Escape',
@@ -463,7 +500,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Underhook Escape to Guard', 'Turn-In Escape to Turtle'],
     cue: 'Get both forearm frames in before moving your hips — frames stop the crush that traps you.',
     description: 'Uses forearm frames on the hip and neck to create space before shrimping back to guard or turning in to turtle.',
-    scene: 'side-control',
+    scene: 'frames',
   },
   {
     name: 'Back Escape',
@@ -481,7 +518,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Shrimp to create the angle before pulling guard back — a flat recovery attempt gets smashed.',
     description: 'Shrimps to create an angle and pulls guard back after a pass attempt — half guard and knee-on-belly are the most common places to need it.',
-    scene: 'half-guard',
+    scene: 'shrimp-escape',
   },
   {
     name: 'Kimura Escape',
@@ -490,7 +527,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Rolling Kimura Escape'],
     cue: 'Rotate your trapped elbow toward your own hip immediately — don’t let the figure-four fully lock.',
     description: 'Rotates the trapped elbow toward your own hip the instant the figure-four grip starts to lock, before the lever fully forms.',
-    scene: 'side-control',
+    scene: 'kimura',
   },
   {
     name: 'Triangle Escape',
@@ -499,7 +536,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Stack Pass Escape'],
     cue: 'Posture up and stack their hips over their own head before they finish the angle.',
     description: 'Postures up and stacks the opponent’s hips over their own head before the triangle angle is finished.',
-    scene: 'closed-guard',
+    scene: 'stack',
   },
 
   // ---- Takedowns ----
@@ -510,7 +547,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Double Leg to Back'],
     cue: 'Penetration step deep with a low level change — a shallow shot gets sprawled.',
     description: 'A deep penetration step and a low level change to drive through both of the opponent’s legs — the bread-and-butter wrestling takedown.',
-    scene: 'takedown-shot',
+    scene: 'double-leg',
   },
   {
     name: 'Single Leg',
@@ -519,7 +556,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Running the Pipe', 'Single Leg to Sweep'],
     cue: 'Get the outside angle and control the hip, not just the ankle.',
     description: 'Attacks one leg from an outside angle, controlling the hip rather than just the ankle before finishing the takedown.',
-    scene: 'takedown-shot',
+    scene: 'single-leg',
   },
   {
     name: 'Osoto Gari',
@@ -528,7 +565,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Break their balance to the rear corner before you reap — timing off a push/pull, not the leg alone.',
     description: 'A judo throw that off-balances the opponent to their rear corner with a push-pull before reaping the leg out from under them.',
-    scene: 'standing',
+    scene: 'reap',
   },
   {
     name: 'Uchi Mata',
@@ -537,7 +574,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Load their weight onto your supporting leg fully before you turn in.',
     description: 'Loads the opponent’s weight onto your supporting leg, then turns in and lifts with the inner thigh to throw them off their base.',
-    scene: 'standing',
+    scene: 'reap',
   },
   {
     name: 'Arm Drag to Back Take',
@@ -546,7 +583,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Angle off after the drag rather than staying square — the angle is what gets you the back.',
     description: 'Pulls the opponent’s arm across their body to create an angle, stepping around to their back before they can square back up.',
-    scene: 'standing',
+    scene: 'arm-drag',
   },
   {
     name: 'Foot Sweep (De Ashi Barai)',
@@ -555,7 +592,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Time it to their weightless step — sweeping a weighted foot just costs you the grip fight.',
     description: 'Times a sweep to the exact moment the opponent’s foot is weightless mid-step — sweeping a weighted foot just burns your grip.',
-    scene: 'standing',
+    scene: 'foot-sweep',
   },
   {
     name: 'Ankle Pick',
@@ -564,7 +601,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Combine with a collar-tie to break posture as you drop for the ankle.',
     description: 'Combines a collar-tie to break posture with a drop for the near ankle, taking the base out from underneath.',
-    scene: 'standing',
+    scene: 'foot-sweep',
   },
 
   // ---- Guard Passes ----
@@ -575,7 +612,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Toreando to Knee Slice'],
     cue: 'Control both pant cuffs and step around fast — a slow toreando lets them recover to butterfly.',
     description: 'Controls both pant cuffs (or shins) and steps around the legs like a matador’s cape — fast, but needs speed or it invites a recovery.',
-    scene: 'guard-pass',
+    scene: 'toreando',
   },
   {
     name: 'Knee Cut (Knee Slice)',
@@ -584,7 +621,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Knee Cut to Leg Drag'],
     cue: 'Cross-face and underhook before sliding the knee — no upper body control means they roll you.',
     description: 'Cross-faces and underhooks before sliding a knee through the opponent’s half guard, converting straight to side control.',
-    scene: 'guard-pass',
+    scene: 'knee-cut',
   },
   {
     name: 'Over-Under Pass',
@@ -593,7 +630,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Over-Under to Stack'],
     cue: 'Stand your near-side leg up to load pressure before driving through.',
     description: 'One arm over a leg, one arm under the other — a heavy pressure pass that stands a leg up before driving through.',
-    scene: 'guard-pass',
+    scene: 'stack',
   },
   {
     name: 'Leg Drag Pass',
@@ -602,7 +639,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Pin the dragged leg to the mat with your own leg before advancing — a floating drag gets re-guarded.',
     description: 'Drags one of the opponent’s legs across your own body and pins it to the mat, taking away half of their guard retention at once.',
-    scene: 'guard-pass',
+    scene: 'leg-drag',
   },
   {
     name: 'Stack Pass',
@@ -611,7 +648,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Get both grips on the same side before stacking, or they’ll just recover half guard.',
     description: 'Folds the opponent’s hips up and over toward their own head, using gravity and same-side grips to flatten the guard out.',
-    scene: 'guard-pass',
+    scene: 'stack',
   },
   {
     name: 'X-Pass',
@@ -620,7 +657,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Post your head-side hand and swing the far leg through — keep your base wide as you land.',
     description: 'Posts a head-side hand on the mat and swings the far leg through in an X-shaped step, landing with a wide, stable base.',
-    scene: 'guard-pass',
+    scene: 'toreando',
   },
   {
     name: 'Double Under Pass',
@@ -629,7 +666,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: ['Double Under to Mount'],
     cue: 'Stand up with both underhooks before committing to the drop, or you get swept on the way up.',
     description: 'Both arms underhook the opponent’s legs before standing up with them — a strength-forward pass into a stacked mount or knee cut.',
-    scene: 'guard-pass',
+    scene: 'stack',
   },
   {
     name: 'Long Step Pass',
@@ -638,7 +675,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Take the far knee to the mat before stepping — a short step lets the knee shield reset.',
     description: 'Takes the far knee all the way to the mat in one long step before advancing, denying the knee-shield reset a shorter step would allow.',
-    scene: 'guard-pass',
+    scene: 'knee-cut',
   },
   {
     name: 'Smash Pass',
@@ -647,7 +684,7 @@ export const BJJ_LIBRARY: BjjTechniqueRef[] = [
     variants: [],
     cue: 'Chest pressure into the near-side shoulder before flattening the far hip.',
     description: 'Drives chest pressure into the near shoulder before flattening the far hip, smothering the guard rather than out-maneuvering it.',
-    scene: 'guard-pass',
+    scene: 'knee-cut',
   },
 ];
 
