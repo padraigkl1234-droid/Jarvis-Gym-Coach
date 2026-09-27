@@ -38,7 +38,7 @@ export function ExercisePicker({
         {limited ? `Filtered to your equipment: ${equipment!.join(', ')}` : 'Showing everything — set your equipment in Settings to filter this.'}
       </p>
       <div className="relative mt-4">
-        <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-hairline" />
+        <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
         <input
           autoFocus
           value={q}
@@ -54,7 +54,7 @@ export function ExercisePicker({
           grouped.map(({ group, exercises }) => (
             <div key={group} className="mb-4">
               <Eyebrow className="!text-[10px]">{group}</Eyebrow>
-              <ul className="mt-1 divide-y divide-divider">
+              <ul className="mt-1 divide-y divide-line">
                 {exercises.map((ex) => (
                   <li key={ex.name}>
                     <button

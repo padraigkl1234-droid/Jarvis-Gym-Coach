@@ -6,7 +6,7 @@ import { AuthProvider } from '@/components/AuthProvider';
 
 export const metadata: Metadata = {
   title: 'VALORIS',
-  description: 'Your personal coach for training, nutrition, and body tracking',
+  description: 'Your training plan and calorie tracker',
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'VALORIS' },
   icons: {
@@ -21,10 +21,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#F5F4EE',
+  themeColor: '#FFFFFF',
 };
 
-// Calm Cream type pairing: an elegant serif for display, a clean grotesque for UI.
+// A serif for page titles, a clean grotesque for everything else.
 const serif = Newsreader({ subsets: ['latin'], variable: '--font-display', display: 'swap', style: ['normal', 'italic'] });
 const sans = Hanken_Grotesk({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
 

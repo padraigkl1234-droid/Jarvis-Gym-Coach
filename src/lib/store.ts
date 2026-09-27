@@ -1,23 +1,13 @@
 /**
- * All of the athlete's data lives client-side (localStorage on their device).
- * The full store is sent with each chat request; the server's tools mutate a
- * copy and return it, and the client persists whatever comes back.
+ * All data lives client-side, in localStorage on this device. Four things are
+ * tracked: the weekly plan, the meals eaten, the sets performed, and the
+ * workout sessions those sets belong to. Nothing else.
  */
-
-import {
-  DEFAULT_AVATAR_CUSTOMIZATION,
-  DEFAULT_ROOM_CUSTOMIZATION,
-  type AvatarCustomization,
-  type RoomCustomization,
-} from './customization';
-
-export type SubscriptionTier = 'free' | 'premium';
 
 export interface Profile {
   name: string;
   goal: string;
   onboarded: boolean;
-  subscriptionTier?: SubscriptionTier; // gates premium features (proactive coaching, vision logging)
   experience?: string; // Beginner | Intermediate | Advanced
   daysPerWeek?: number;
   equipment?: string[];
@@ -25,20 +15,12 @@ export interface Profile {
   heightCm?: number;
   age?: number;
   sex?: string; // Male | Female | Other
-  trainingTimePref?: string; // when they prefer to train, e.g. "Evening"
-  dietaryStyle?: string; // e.g. "High protein", "Vegetarian"
-  interests?: string; // sports & activities they enjoy
-  coachNotes?: string; // anything else VALORIS should know about them
   calorieTarget: number;
   proteinTargetG: number;
   carbsTargetG: number;
   fatTargetG: number;
   fibreTargetG: number;
-  hydrationTargetMl: number;
-  // When true (the default), targets recalculate automatically whenever
-  // stats/goal/schedule change. Set false the moment the athlete manually
-  // types their own numbers in Goals & daily targets, so we never silently
-  // overwrite a deliberate override.
+  /** False once the athlete types their own targets, so we never overwrite them. */
   targetsAuto?: boolean;
 }
 
@@ -49,8 +31,8 @@ export interface PlannedExercise {
   type?: ExerciseType; // defaults to 'strength' when absent
   sets?: number;
   reps?: string;
-  durationMin?: number; // cardio target duration
-  distanceKm?: number; // cardio target distance
+  durationMin?: number;
+  distanceKm?: number;
   notes?: string;
 }
 
@@ -72,7 +54,7 @@ export interface MealEntry {
   carbsG: number;
   fatG: number;
   fibreG: number;
-  slot?: MealSlot; // explicit meal section; derived from time when absent
+  slot?: MealSlot;
 }
 
 export interface SetEntry {
@@ -83,91 +65,21 @@ export interface SetEntry {
   reps: number | null;
   weightKg: number | null;
   rpe: number | null;
-  durationMin?: number | null; // cardio: minutes performed
-  distanceKm?: number | null; // cardio: distance covered
-  sessionId?: string; // links this set to a WorkoutSession
+  durationMin?: number | null;
+  distanceKm?: number | null;
+  sessionId?: string;
 }
 
-/**
- * A workout instance for a given day — the "completed_sessions" record.
- * Sets performed during the session link back to it via SetEntry.sessionId.
- */
+/** A workout instance. Sets link back to it via SetEntry.sessionId. */
 export interface WorkoutSession {
   id: string;
-  date: string; // YYYY-MM-DD
-  weekday: number; // 0 = Sunday ... 6 = Saturday
-  label: string; // e.g. "Pull" — from the plan day, or ad-hoc
+  date: string;
+  weekday: number;
+  label: string;
   focus?: string;
-  startedAt: string; // HH:MM
-  completedAt: string | null; // HH:MM once finished
+  startedAt: string;
+  completedAt: string | null;
   status: 'in_progress' | 'completed';
-  notes?: string;
-}
-
-export interface WaterEntry {
-  date: string;
-  ml: number;
-}
-
-export interface MetricEntry {
-  date: string;
-  weightKg?: number;
-  bodyFatPct?: number;
-  restingHr?: number;
-  sleepHours?: number;
-}
-
-export type MemoryCategory =
-  | 'injury'
-  | 'preference'
-  | 'equipment'
-  | 'record'
-  | 'schedule'
-  | 'nutrition'
-  | 'goal'
-  | 'general';
-
-export const MEMORY_CATEGORIES: MemoryCategory[] = [
-  'injury',
-  'record',
-  'preference',
-  'nutrition',
-  'equipment',
-  'schedule',
-  'goal',
-  'general',
-];
-
-export const MEMORY_META: Record<MemoryCategory, { label: string; glyph: string }> = {
-  injury: { label: 'Injury / Limitation', glyph: '⚠' },
-  record: { label: 'Personal Record', glyph: '★' },
-  preference: { label: 'Preference', glyph: '◈' },
-  nutrition: { label: 'Nutrition', glyph: '◍' },
-  equipment: { label: 'Equipment', glyph: '⬡' },
-  schedule: { label: 'Schedule', glyph: '◷' },
-  goal: { label: 'Goal', glyph: '◎' },
-  general: { label: 'General', glyph: '•' },
-};
-
-export interface MemoryEntry {
-  date: string; // when it was noted
-  note: string; // a durable fact JARVIS should remember about the athlete
-  category: MemoryCategory;
-}
-
-/** A single technique attempted during a BJJ roll/session. */
-export type BjjCategory = 'submission' | 'position' | 'sweep' | 'escape' | 'takedown' | 'guard_pass';
-export type BjjOutcome = 'landed' | 'attempted';
-export type BjjContext = 'gi' | 'no-gi';
-
-export interface BjjLogEntry {
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
-  category: BjjCategory;
-  name: string; // technique name, e.g. "Rear Naked Choke"
-  outcome: BjjOutcome; // 'landed' = finished/secured, 'attempted' = went for it but didn't land
-  context: BjjContext; // gi or no-gi
-  partner?: string; // who you rolled with
   notes?: string;
 }
 
@@ -177,13 +89,6 @@ export interface JarvisStore {
   meals: MealEntry[];
   sets: SetEntry[];
   sessions: WorkoutSession[];
-  water: WaterEntry[];
-  metrics: MetricEntry[];
-  memories: MemoryEntry[];
-  bjjLogs: BjjLogEntry[];
-  /** How the athlete has restyled the Home-tab avatar/apartment (Settings > Customize). */
-  avatarCustomization: AvatarCustomization;
-  roomCustomization: RoomCustomization;
 }
 
 export const DEFAULT_STORE: JarvisStore = {
@@ -191,38 +96,28 @@ export const DEFAULT_STORE: JarvisStore = {
     name: 'Athlete',
     goal: '',
     onboarded: false,
-    subscriptionTier: 'free',
     calorieTarget: 2500,
     proteinTargetG: 160,
     carbsTargetG: 280,
     fatTargetG: 80,
     fibreTargetG: 35,
-    hydrationTargetMl: 3000,
+    targetsAuto: true,
   },
   plan: [],
   meals: [],
   sets: [],
   sessions: [],
-  water: [],
-  metrics: [],
-  memories: [],
-  bjjLogs: [],
-  avatarCustomization: DEFAULT_AVATAR_CUSTOMIZATION,
-  roomCustomization: DEFAULT_ROOM_CUSTOMIZATION,
 };
 
-/** Compact unique id for sessions (works in browser and Node runtimes). */
+/** Compact unique id (works in browser and Node runtimes). */
 export function newId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
   return `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export interface OnboardingInput {
-  name: string;
+export interface TargetInput {
   goal: string;
-  experience?: string;
   daysPerWeek?: number;
-  equipment?: string[];
   bodyweightKg?: number;
   heightCm?: number;
   age?: number;
@@ -230,24 +125,14 @@ export interface OnboardingInput {
 }
 
 /**
- * Derives calorie, macro, and hydration targets from onboarding inputs.
- * Uses Mifflin-St Jeor when body stats are available, otherwise sensible
- * goal-based defaults. These are only starting points — JARVIS can refine
- * them later via updateProfile.
+ * Derives calorie and macro targets. Mifflin-St Jeor when body stats are
+ * available, otherwise sensible goal-based defaults.
  */
-export function computeTargets(input: OnboardingInput): Pick<
-  Profile,
-  'calorieTarget' | 'proteinTargetG' | 'carbsTargetG' | 'fatTargetG' | 'fibreTargetG' | 'hydrationTargetMl'
-> {
+export function computeTargets(input: TargetInput): Pick<Profile, 'calorieTarget' | 'proteinTargetG' | 'carbsTargetG' | 'fatTargetG' | 'fibreTargetG'> {
   const goal = input.goal.toLowerCase();
   const kg = input.bodyweightKg;
 
-  // Protein per kg by goal (fat loss & muscle gain run higher).
-  const proteinPerKg = /fat|lean|cut|lose/.test(goal)
-    ? 2.0
-    : /muscle|strong|gain|bulk/.test(goal)
-    ? 1.8
-    : 1.6;
+  const proteinPerKg = /fat|lean|cut|lose/.test(goal) ? 2.0 : /muscle|strong|gain|bulk/.test(goal) ? 1.8 : 1.6;
 
   let calories: number;
   if (kg && input.heightCm && input.age) {
@@ -255,30 +140,19 @@ export function computeTargets(input: OnboardingInput): Pick<
     const bmr = 10 * kg + 6.25 * input.heightCm - 5 * input.age + sexAdj;
     const activity = (input.daysPerWeek ?? 3) >= 5 ? 1.725 : (input.daysPerWeek ?? 3) >= 3 ? 1.55 : 1.375;
     const tdee = bmr * activity;
-    const goalAdj = /fat|lean|cut|lose/.test(goal)
-      ? -400
-      : /muscle|gain|bulk/.test(goal)
-      ? 250
-      : /strong/.test(goal)
-      ? 150
-      : 0;
+    const goalAdj = /fat|lean|cut|lose/.test(goal) ? -400 : /muscle|gain|bulk/.test(goal) ? 250 : /strong/.test(goal) ? 150 : 0;
     calories = Math.round((tdee + goalAdj) / 10) * 10;
   } else {
-    calories = /fat|lean|cut|lose/.test(goal)
-      ? 2100
-      : /muscle|gain|bulk/.test(goal)
-      ? 2800
-      : 2500;
+    calories = /fat|lean|cut|lose/.test(goal) ? 2100 : /muscle|gain|bulk/.test(goal) ? 2800 : 2500;
   }
 
   const proteinTargetG = kg ? Math.round(proteinPerKg * kg) : Math.round((calories * 0.3) / 4);
   const fatTargetG = Math.round((calories * 0.25) / 9);
   const carbsTargetG = Math.max(0, Math.round((calories - proteinTargetG * 4 - fatTargetG * 9) / 4));
-  // ~14g fibre per 1000 kcal (the standard US/EU dietary guideline).
+  // ~14g fibre per 1000 kcal — the standard dietary guideline.
   const fibreTargetG = Math.round((calories / 1000) * 14);
-  const hydrationTargetMl = kg ? Math.round((kg * 35) / 100) * 100 : 3000;
 
-  return { calorieTarget: calories, proteinTargetG, carbsTargetG, fatTargetG, fibreTargetG, hydrationTargetMl };
+  return { calorieTarget: calories, proteinTargetG, carbsTargetG, fatTargetG, fibreTargetG };
 }
 
 export function todayStr(d: Date = new Date()): string {
@@ -294,34 +168,39 @@ export function timeStr(d: Date = new Date()): string {
 
 const STORAGE_KEY = 'jarvis.store.v1';
 
-/** Merge a raw parsed object over defaults and backfill any newer fields. */
+/**
+ * Rebuilds a clean store from whatever is on disk. Only the fields this app
+ * still uses are carried over — anything saved by an older version (avatar
+ * styling, trophies, BJJ logs, measurements, coach notes) is simply dropped,
+ * while plan / meals / sets / sessions survive untouched.
+ */
 function normalize(parsed: any): JarvisStore {
-  const store: JarvisStore = {
-    ...structuredClone(DEFAULT_STORE),
-    ...parsed,
-    profile: { ...DEFAULT_STORE.profile, ...(parsed?.profile ?? {}) },
-    // Backfill customization (added after the first release) — merge over
-    // defaults so a partially-saved object from an older shape still works.
-    avatarCustomization: { ...DEFAULT_AVATAR_CUSTOMIZATION, ...(parsed?.avatarCustomization ?? {}) },
-    roomCustomization: { ...DEFAULT_ROOM_CUSTOMIZATION, ...(parsed?.roomCustomization ?? {}) },
+  const d = DEFAULT_STORE;
+  const p = parsed?.profile ?? {};
+  return {
+    profile: {
+      name: typeof p.name === 'string' ? p.name : d.profile.name,
+      goal: typeof p.goal === 'string' ? p.goal : d.profile.goal,
+      onboarded: !!p.onboarded,
+      experience: typeof p.experience === 'string' ? p.experience : undefined,
+      daysPerWeek: typeof p.daysPerWeek === 'number' ? p.daysPerWeek : undefined,
+      equipment: Array.isArray(p.equipment) ? p.equipment.filter((e: unknown) => typeof e === 'string') : undefined,
+      bodyweightKg: typeof p.bodyweightKg === 'number' ? p.bodyweightKg : undefined,
+      heightCm: typeof p.heightCm === 'number' ? p.heightCm : undefined,
+      age: typeof p.age === 'number' ? p.age : undefined,
+      sex: typeof p.sex === 'string' ? p.sex : undefined,
+      calorieTarget: typeof p.calorieTarget === 'number' ? p.calorieTarget : d.profile.calorieTarget,
+      proteinTargetG: typeof p.proteinTargetG === 'number' ? p.proteinTargetG : d.profile.proteinTargetG,
+      carbsTargetG: typeof p.carbsTargetG === 'number' ? p.carbsTargetG : d.profile.carbsTargetG,
+      fatTargetG: typeof p.fatTargetG === 'number' ? p.fatTargetG : d.profile.fatTargetG,
+      fibreTargetG: typeof p.fibreTargetG === 'number' ? p.fibreTargetG : d.profile.fibreTargetG,
+      targetsAuto: p.targetsAuto !== false,
+    },
+    plan: Array.isArray(parsed?.plan) ? parsed.plan : [],
+    meals: Array.isArray(parsed?.meals) ? parsed.meals.map((m: any) => ({ ...m, fibreG: typeof m?.fibreG === 'number' ? m.fibreG : 0 })) : [],
+    sets: Array.isArray(parsed?.sets) ? parsed.sets : [],
+    sessions: Array.isArray(parsed?.sessions) ? parsed.sessions : [],
   };
-  // Backfill category on memories saved before categories existed.
-  store.memories = (store.memories ?? []).map((m: any) => ({
-    date: m.date ?? todayStr(),
-    note: m.note ?? '',
-    category: (m.category as MemoryCategory) ?? 'general',
-  }));
-  // Backfill sessions (added after the first release).
-  store.sessions = store.sessions ?? [];
-  // Backfill BJJ logs (added after the first release).
-  store.bjjLogs = store.bjjLogs ?? [];
-  // Backfill fibre on meals logged before it was tracked.
-  store.meals = (store.meals ?? []).map((m: any) => ({ ...m, fibreG: m.fibreG ?? 0 }));
-  // Grandfather devices onboarded before tiers existed onto premium.
-  if (parsed?.profile?.onboarded && parsed.profile.subscriptionTier === undefined) {
-    store.profile.subscriptionTier = 'premium';
-  }
-  return store;
 }
 
 export function loadStore(): JarvisStore {
@@ -344,30 +223,29 @@ export function saveStore(store: JarvisStore): void {
   }
 }
 
-/** Triggers a browser download of the full store as a timestamped JSON backup. */
+/** Downloads the full store as a timestamped JSON backup. */
 export function downloadStore(store: JarvisStore): void {
   if (typeof window === 'undefined') return;
   const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `jarvis-backup-${todayStr()}.json`;
+  a.download = `backup-${todayStr()}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
 }
 
-/** Parses and normalises an imported backup file, merging over defaults. */
+/** Parses an imported backup file, merging over defaults. */
 export function parseImportedStore(raw: string): JarvisStore {
   return normalize(JSON.parse(raw));
 }
 
 /**
  * Decodes a shareable plan payload (base64url of { v, plan }) into a validated
- * PlanDay[]. Used by the ?plan= import link so a whole weekly plan can be
- * applied in one tap without touching any logged data. Returns null if the
- * payload is missing, malformed, or not a plan.
+ * PlanDay[], so a whole weekly plan can be applied in one tap from a link
+ * without touching any logged data.
  */
 export function decodePlanParam(param: string): PlanDay[] | null {
   try {

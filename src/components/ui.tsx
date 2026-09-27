@@ -2,14 +2,14 @@
 
 import React, { useEffect } from 'react';
 
-/* Calm Cream shared primitives. */
+/* Shared primitives. Monochrome, flat, no decoration beyond a hairline border. */
 
-export function Eyebrow({ children, clay = false, className = '' }: { children: React.ReactNode; clay?: boolean; className?: string }) {
-  return <div className={`eyebrow ${clay ? '!text-clay' : ''} ${className}`}>{children}</div>;
+export function Eyebrow({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <div className={`eyebrow ${className}`}>{children}</div>;
 }
 
 export function Card({ children, className = '', onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) {
-  const cls = `rounded-2xl border border-line bg-card ${className}`;
+  const cls = `rounded-xl border border-line bg-card ${className}`;
   if (onClick)
     return (
       <button type="button" onClick={onClick} className={`block w-full text-left ${cls}`}>
@@ -19,39 +19,12 @@ export function Card({ children, className = '', onClick }: { children: React.Re
   return <div className={cls}>{children}</div>;
 }
 
-/** Horizontal progress bar. Heights and colors come from the caller. */
-export function Bar({
-  pct,
-  fill,
-  track = 'bg-track',
-  h = 'h-[7px]',
-}: {
-  pct: number;
-  fill: string;
-  track?: string;
-  h?: string;
-}) {
+/** Horizontal progress bar. Black fill on a light track. */
+export function Bar({ pct, h = 'h-1.5' }: { pct: number; h?: string }) {
   return (
-    <div className={`${h} w-full overflow-hidden rounded-full ${track}`}>
-      <div className={`bar-fill h-full rounded-full ${fill}`} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+    <div className={`${h} w-full overflow-hidden rounded-full bg-track`}>
+      <div className="bar-fill h-full rounded-full bg-fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
     </div>
-  );
-}
-
-export function Toggle({ on, onChange, label }: { on: boolean; onChange: () => void; label?: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={onChange}
-      className={`relative h-[26px] w-[46px] shrink-0 rounded-full transition-colors duration-200 ${on ? 'bg-clay' : 'bg-track'}`}
-    >
-      <span
-        className={`absolute top-[3px] h-5 w-5 rounded-full bg-white shadow-sm transition-all duration-200 ${on ? 'left-[23px]' : 'left-[3px]'}`}
-      />
-    </button>
   );
 }
 
@@ -66,8 +39,8 @@ export function Chip({
   onClick?: () => void;
   className?: string;
 }) {
-  const base = 'rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors duration-150';
-  const look = active ? 'bg-clay-soft text-clay border border-clay-border' : 'bg-tint text-muted border border-transparent';
+  const base = 'rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors';
+  const look = active ? 'border-ink bg-ink text-white' : 'border-line bg-card text-muted';
   if (!onClick) return <span className={`${base} ${look} ${className}`}>{children}</span>;
   return (
     <button type="button" onClick={onClick} className={`${base} ${look} ${className}`}>
@@ -77,7 +50,7 @@ export function Chip({
 }
 
 export const fieldCls =
-  'w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-[15px] font-medium text-ink placeholder:text-hairline focus:border-clay focus:outline-none';
+  'w-full rounded-lg border border-line bg-card px-3.5 py-2.5 text-[15px] text-ink placeholder:text-faint focus:border-ink focus:outline-none';
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -97,97 +70,45 @@ export function Sheet({ onClose, children, label }: { onClose: () => void; child
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label={label}>
-      <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/30" />
-      <div className="sheet-in relative w-full max-w-md rounded-t-3xl bg-canvas px-6 pb-8 pt-3 shadow-2xl">
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-track" />
+      <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/40" />
+      <div className="sheet-in relative w-full max-w-md rounded-t-2xl border-t border-line bg-canvas px-6 pb-8 pt-3">
+        <div className="mx-auto mb-4 h-1 w-9 rounded-full bg-line" />
         <div className="max-h-[78dvh] overflow-y-auto overscroll-contain pb-2">{children}</div>
       </div>
     </div>
   );
 }
 
-/** Date-indexed line chart with a soft gradient fill, month labels on the x-axis. */
-export function TrendChart({
-  points,
-  color = '#B4552F',
-  emptyLabel = 'Not enough data yet',
-}: {
-  points: { date: string; value: number }[];
-  color?: string;
-  emptyLabel?: string;
-}) {
-  const W = 300;
-  const H = 110;
-  const PAD = { l: 6, r: 6, t: 10, b: 20 };
-  if (points.length < 2) {
-    return (
-      <div className="flex h-[110px] items-center justify-center rounded-xl bg-canvas text-[12px] font-semibold text-hairline">{emptyLabel}</div>
-    );
-  }
-  const vals = points.map((p) => p.value);
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const span = max - min || 1;
-  const lo = min - span * 0.2;
-  const hi = max + span * 0.2;
-  const t0 = new Date(points[0].date).getTime();
-  const t1 = new Date(points[points.length - 1].date).getTime() || t0 + 1;
-  const x = (d: string) => PAD.l + ((new Date(d).getTime() - t0) / (t1 - t0 || 1)) * (W - PAD.l - PAD.r);
-  const y = (v: number) => PAD.t + (1 - (v - lo) / (hi - lo)) * (H - PAD.t - PAD.b);
-  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.date).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
-  const area = `${line} L${x(points[points.length - 1].date).toFixed(1)},${H - PAD.b} L${x(points[0].date).toFixed(1)},${H - PAD.b} Z`;
-  const gradId = `trend-${color.replace('#', '')}`;
-
-  // Month labels across the visible range.
-  const months: { label: string; xPos: number }[] = [];
-  const cursor = new Date(points[0].date);
-  cursor.setDate(1);
-  while (cursor.getTime() <= t1) {
-    if (cursor.getTime() >= t0) {
-      const iso = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
-      months.push({ label: cursor.toLocaleDateString('en-GB', { month: 'short' }), xPos: x(iso) });
-    }
-    cursor.setMonth(cursor.getMonth() + 1);
-  }
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Trend chart">
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${gradId})`} />
-      <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {months.map((m, i) => (
-        <text key={i} x={m.xPos} y={H - 6} textAnchor="middle" fontSize="11" fill="#A8A296" fontWeight="600">
-          {m.label}
-        </text>
-      ))}
-    </svg>
-  );
-}
-
-/** Full-width clay call-to-action pill. */
+/** Full-width primary action. */
 export function CtaButton({
   children,
   onClick,
   disabled,
   className = '',
+  type = 'button',
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
+  type?: 'button' | 'submit';
 }) {
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`w-full rounded-full bg-clay py-4 text-[15px] font-bold text-white transition-colors duration-150 hover:bg-clay-dark disabled:cursor-not-allowed disabled:bg-track disabled:text-hairline ${className}`}
+      className={`w-full rounded-full bg-ink py-3.5 text-[15px] font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:bg-track disabled:text-faint ${className}`}
     >
+      {children}
+    </button>
+  );
+}
+
+/** Secondary action — outlined rather than filled. */
+export function GhostButton({ children, onClick, className = '' }: { children: React.ReactNode; onClick?: () => void; className?: string }) {
+  return (
+    <button type="button" onClick={onClick} className={`w-full rounded-full border border-line py-3.5 text-[15px] font-semibold text-ink ${className}`}>
       {children}
     </button>
   );

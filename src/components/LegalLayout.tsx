@@ -23,10 +23,10 @@ export function LegalLayout({
       <header className="border-b border-line px-4 py-4 sm:px-8">
         <div className="mx-auto flex max-w-2xl items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-[3px] bg-clay" />
+            <span className="h-2.5 w-2.5 rounded-[3px] bg-ink" />
             <span className="text-[13px] font-extrabold tracking-[0.16em] text-ink">VALORIS</span>
           </Link>
-          <Link href="/" className="text-[12px] font-bold text-faint hover:text-clay">
+          <Link href="/" className="text-[12px] font-bold text-faint hover:text-ink">
             Back to app
           </Link>
         </div>

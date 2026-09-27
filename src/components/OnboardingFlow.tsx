@@ -1,47 +1,21 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Dumbbell, Flame, Trophy, HeartPulse, Check } from 'lucide-react';
 import { computeTargets, parseImportedStore, type JarvisStore, type Profile } from '@/lib/store';
 import { Chip, CtaButton, Field, fieldCls } from '@/components/ui';
 
-const GOALS = [
-  { id: 'Build muscle', icon: Dumbbell, blurb: 'Add lean size with structured hypertrophy work.' },
-  { id: 'Lose fat', icon: Flame, blurb: 'Drop body fat while holding on to strength.' },
-  { id: 'Get stronger', icon: Trophy, blurb: 'Chase bigger numbers on the main lifts.' },
-  { id: 'General fitness', icon: HeartPulse, blurb: 'Feel better, move better, live better.' },
-];
-
+const GOALS = ['Build muscle', 'Lose fat', 'Get stronger', 'General fitness'];
 const EXPERIENCE = ['Beginner', 'Intermediate', 'Advanced'];
 const DAYS = [2, 3, 4, 5, 6];
 const EQUIPMENT = ['Full gym', 'Dumbbells', 'Barbell', 'Machines', 'Bands', 'Bodyweight'];
 const SEXES = ['Male', 'Female', 'Other'];
 
-export function OnboardingFlow({
-  onComplete,
-  onRestore,
-}: {
-  onComplete: (profile: Partial<Profile>) => void;
-  onRestore: (store: JarvisStore) => void;
-}) {
+/** Three short steps: who you are, what you want, how you train. */
+export function OnboardingFlow({ onComplete, onRestore }: { onComplete: (profile: Partial<Profile>) => void; onRestore: (store: JarvisStore) => void }) {
   const [step, setStep] = useState(0);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        onRestore(parseImportedStore(String(reader.result)));
-      } catch {
-        setRestoreError("That file couldn't be read as a VALORIS backup.");
-      }
-    };
-    reader.onerror = () => setRestoreError("That file couldn't be read.");
-    reader.readAsText(file);
-  };
+
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [sex, setSex] = useState('');
@@ -57,204 +31,172 @@ export function OnboardingFlow({
     return Number.isFinite(n) && n > 0 ? n : undefined;
   };
 
-  const buildProfile = (): Partial<Profile> => {
-    const input = {
-      name: name.trim() || 'Athlete',
-      goal: goal || 'General fitness',
-      experience: experience || undefined,
+  const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        onRestore(parseImportedStore(String(reader.result)));
+      } catch {
+        setRestoreError("That file couldn't be read as a backup.");
+      }
+    };
+    reader.onerror = () => setRestoreError("That file couldn't be read.");
+    reader.readAsText(file);
+  };
+
+  const finish = () => {
+    const targets = computeTargets({
+      goal,
       daysPerWeek: days ?? undefined,
-      equipment: equipment.length ? equipment : undefined,
       bodyweightKg: num(weight),
       heightCm: num(height),
       age: num(age),
       sex: sex || undefined,
-    };
-    return { ...input, ...computeTargets(input), onboarded: true, targetsAuto: true };
+    });
+    onComplete({
+      name: name.trim() || 'Athlete',
+      goal,
+      onboarded: true,
+      experience: experience || undefined,
+      daysPerWeek: days ?? undefined,
+      equipment,
+      bodyweightKg: num(weight),
+      heightCm: num(height),
+      age: num(age),
+      sex: sex || undefined,
+      targetsAuto: true,
+      ...targets,
+    });
   };
 
-  const finish = () => onComplete(buildProfile());
-  const canContinue = [name.trim().length > 0, goal !== '', experience !== '' && days != null, true][step];
-
-  const targets = computeTargets({
-    name: name.trim() || 'Athlete',
-    goal: goal || 'General fitness',
-    daysPerWeek: days ?? undefined,
-    bodyweightKg: num(weight),
-    heightCm: num(height),
-    age: num(age),
-    sex: sex || undefined,
-  });
-
-  const titles: [string, string, string?][] = [
-    ['Let’s get you\nset up.', 'A few basics so your coaching is tuned to you, not a template.'],
-    ['What are you\ntraining for?', 'Pick the goal that matters most right now — you can change it any time.'],
-    ['How do you\nlike to train?', 'This shapes how your week is structured.'],
-    ['Your daily\ntargets.', 'Calculated from your stats and goal. Adjust them later in Settings.'],
-  ];
-  const [title, subtitle] = titles[step];
+  const canContinue = step === 0 ? name.trim().length > 0 : step === 1 ? goal.length > 0 : true;
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col px-7 pb-10 pt-6">
-      {/* Progress */}
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] font-semibold text-faint">Step {step + 1} of 4</span>
-        <button onClick={finish} className="text-[12px] font-semibold text-hairline">
-          Skip
-        </button>
-      </div>
-      <div className="mt-3 flex gap-1.5">
-        {[0, 1, 2, 3].map((i) => (
-          <span key={i} className={`h-1 flex-1 rounded-full ${i <= step ? 'bg-clay' : 'bg-track'}`} />
-        ))}
-      </div>
+    <div className="min-h-[100dvh] bg-canvas text-ink">
+      <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col px-6 pb-10 pt-12">
+        {/* Step indicator */}
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={`h-[3px] flex-1 rounded-full ${i <= step ? 'bg-ink' : 'bg-track'}`} />
+          ))}
+        </div>
 
-      {/* Title */}
-      <h1 className="mt-9 whitespace-pre-line font-display text-[30px] leading-[1.15] text-ink">{title}</h1>
-      <p className="mt-2.5 text-[14px] leading-relaxed text-muted">{subtitle}</p>
-
-      <div className="view-in mt-7 flex-1" key={step}>
-        {step === 0 && (
-          <div className="space-y-4">
-            <Field label="Your name">
-              <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="First name is fine" className={fieldCls} />
-            </Field>
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Age">
-                <input value={age} onChange={(e) => setAge(e.target.value)} inputMode="numeric" placeholder="—" className={`${fieldCls} text-center`} />
-              </Field>
-              <Field label="Height cm">
-                <input value={height} onChange={(e) => setHeight(e.target.value)} inputMode="numeric" placeholder="—" className={`${fieldCls} text-center`} />
-              </Field>
-              <Field label="Weight kg">
-                <input value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" placeholder="—" className={`${fieldCls} text-center`} />
-              </Field>
-            </div>
-            <Field label="Sex">
-              <div className="flex gap-2">
-                {SEXES.map((s) => (
-                  <Chip key={s} active={sex === s} onClick={() => setSex(sex === s ? '' : s)}>
-                    {s}
-                  </Chip>
-                ))}
-              </div>
-            </Field>
-          </div>
-        )}
-
-        {step === 1 && (
-          <div className="space-y-3">
-            {GOALS.map(({ id, icon: Icon, blurb }) => {
-              const selected = goal === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setGoal(id)}
-                  className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-colors duration-150 ${
-                    selected ? 'border-ink bg-ink' : 'border-line bg-card'
-                  }`}
-                >
-                  <span
-                    className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] ${
-                      selected ? 'bg-clay text-white' : 'bg-clay-soft text-clay'
-                    }`}
-                  >
-                    <Icon className="h-4.5 w-4.5" size={18} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className={`block text-[15px] font-bold ${selected ? 'text-white' : 'text-ink'}`}>{id}</span>
-                    <span className={`block text-[12px] leading-snug ${selected ? 'text-ondark-sub' : 'text-faint'}`}>{blurb}</span>
-                  </span>
-                  <span
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                      selected ? 'bg-clay text-white' : 'border-[1.5px] border-[#D8D2C4] text-transparent'
-                    }`}
-                  >
-                    <Check className="h-3 w-3" strokeWidth={3.5} />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-5">
-            <Field label="Experience">
-              <div className="flex flex-wrap gap-2">
-                {EXPERIENCE.map((e) => (
-                  <Chip key={e} active={experience === e} onClick={() => setExperience(e)}>
-                    {e}
-                  </Chip>
-                ))}
-              </div>
-            </Field>
-            <Field label="Days per week">
-              <div className="flex flex-wrap gap-2">
-                {DAYS.map((d) => (
-                  <Chip key={d} active={days === d} onClick={() => setDays(d)}>
-                    {d} days
-                  </Chip>
-                ))}
-              </div>
-            </Field>
-            <Field label="Equipment">
-              <div className="flex flex-wrap gap-2">
-                {EQUIPMENT.map((eq) => (
-                  <Chip
-                    key={eq}
-                    active={equipment.includes(eq)}
-                    onClick={() => setEquipment((cur) => (cur.includes(eq) ? cur.filter((x) => x !== eq) : [...cur, eq]))}
-                  >
-                    {eq}
-                  </Chip>
-                ))}
-              </div>
-            </Field>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="grid grid-cols-2 gap-3">
-            {(
-              [
-                ['Calories', `${targets.calorieTarget.toLocaleString()}`, 'kcal / day'],
-                ['Protein', `${targets.proteinTargetG}`, 'g / day'],
-                ['Fibre', `${targets.fibreTargetG}`, 'g / day'],
-                ['Carbs', `${targets.carbsTargetG}`, 'g / day'],
-                ['Fat', `${targets.fatTargetG}`, 'g / day'],
-                ['Water', `${(targets.hydrationTargetMl / 1000).toFixed(1)}`, 'L / day'],
-              ] as const
-            ).map(([label, value, unit]) => (
-              <div key={label} className="rounded-[18px] border border-line bg-card p-4">
-                <div className="eyebrow !text-[10px]">{label}</div>
-                <div className="mt-2 flex items-baseline gap-1.5">
-                  <span className="font-display text-[26px] leading-none text-ink">{value}</span>
-                  <span className="text-[12px] text-faint">{unit}</span>
+        <div className="mt-10 flex-1">
+          {step === 0 && (
+            <>
+              <h1 className="font-display text-[30px] leading-tight text-ink">Let&apos;s set you up</h1>
+              <p className="mt-2 text-[14px] leading-relaxed text-muted">Used to work out your calorie and macro targets.</p>
+              <div className="mt-7 space-y-4">
+                <Field label="Name">
+                  <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" className={fieldCls} />
+                </Field>
+                <div className="grid grid-cols-3 gap-3">
+                  <Field label="Age">
+                    <input value={age} onChange={(e) => setAge(e.target.value)} inputMode="numeric" className={`${fieldCls} text-center`} />
+                  </Field>
+                  <Field label="Height cm">
+                    <input value={height} onChange={(e) => setHeight(e.target.value)} inputMode="numeric" className={`${fieldCls} text-center`} />
+                  </Field>
+                  <Field label="Weight kg">
+                    <input value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" className={`${fieldCls} text-center`} />
+                  </Field>
                 </div>
+                <Field label="Sex">
+                  <div className="flex flex-wrap gap-1.5">
+                    {SEXES.map((s) => (
+                      <Chip key={s} active={sex === s} onClick={() => setSex(s)}>
+                        {s}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </>
+          )}
 
-      <div className="mt-8">
-        <CtaButton onClick={() => (step === 3 ? finish() : setStep(step + 1))} disabled={!canContinue}>
-          {step === 3 ? 'Start training →' : 'Continue →'}
-        </CtaButton>
-        {step > 0 ? (
-          <button onClick={() => setStep(step - 1)} className="mt-3 w-full text-center text-[13px] font-semibold text-faint">
-            Back
-          </button>
-        ) : (
-          <>
-            <button onClick={() => fileRef.current?.click()} className="mt-4 w-full text-center text-[13px] font-semibold text-faint">
-              Reinstalling? <span className="text-clay">Restore from a backup</span>
+          {step === 1 && (
+            <>
+              <h1 className="font-display text-[30px] leading-tight text-ink">What are you after?</h1>
+              <p className="mt-2 text-[14px] leading-relaxed text-muted">This sets your starting calorie target.</p>
+              <div className="mt-7 space-y-2">
+                {GOALS.map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setGoal(g)}
+                    className={`w-full rounded-xl border px-4 py-3.5 text-left text-[15px] font-medium ${
+                      goal === g ? 'border-ink bg-ink text-white' : 'border-line text-ink'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <h1 className="font-display text-[30px] leading-tight text-ink">How do you train?</h1>
+              <p className="mt-2 text-[14px] leading-relaxed text-muted">Optional — helps when suggesting a plan.</p>
+              <div className="mt-7 space-y-4">
+                <Field label="Experience">
+                  <div className="flex flex-wrap gap-1.5">
+                    {EXPERIENCE.map((e) => (
+                      <Chip key={e} active={experience === e} onClick={() => setExperience(e)}>
+                        {e}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="Days per week">
+                  <div className="flex flex-wrap gap-1.5">
+                    {DAYS.map((d) => (
+                      <Chip key={d} active={days === d} onClick={() => setDays(d)}>
+                        {d}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="Equipment">
+                  <div className="flex flex-wrap gap-1.5">
+                    {EQUIPMENT.map((e) => (
+                      <Chip
+                        key={e}
+                        active={equipment.includes(e)}
+                        onClick={() => setEquipment((cur) => (cur.includes(e) ? cur.filter((x) => x !== e) : [...cur, e]))}
+                      >
+                        {e}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="mt-8 space-y-3">
+          <CtaButton disabled={!canContinue} onClick={() => (step < 2 ? setStep(step + 1) : finish())}>
+            {step < 2 ? 'Continue' : 'Start'}
+          </CtaButton>
+          {step > 0 ? (
+            <button onClick={() => setStep(step - 1)} className="w-full py-1 text-center text-[13px] font-semibold text-faint">
+              Back
             </button>
-            {restoreError && <p className="mt-1 text-center text-[12px] font-semibold text-clay">{restoreError}</p>}
-          </>
-        )}
+          ) : (
+            <>
+              <button onClick={() => fileRef.current?.click()} className="w-full py-1 text-center text-[13px] font-semibold text-faint underline">
+                Restore from a backup
+              </button>
+              {restoreError && <p className="text-center text-[12px] font-semibold text-ink">{restoreError}</p>}
+              <input ref={fileRef} type="file" accept="application/json,.json" onChange={onFilePicked} className="hidden" />
+            </>
+          )}
+        </div>
       </div>
-      <input ref={fileRef} type="file" accept="application/json,.json" onChange={onFilePicked} className="hidden" />
     </div>
   );
 }

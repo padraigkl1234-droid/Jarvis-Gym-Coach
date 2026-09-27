@@ -5,101 +5,49 @@
 html,
 body {
   height: 100%;
-  background: #f5f4ee;
-  color: #26241f;
+  background: #ffffff;
+  color: #000000;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* The serif display face sits at medium weight by default — it reads elegant,
-   not heavy. Numerals and headlines can override per-use. */
-.font-display {
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-
-/* Eyebrow section labels — the one non-serif signature of the system. */
+/* Small uppercase section label — the only decorative type treatment. */
 .eyebrow {
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #8a857a;
+  color: #8a8a8a;
 }
 
-/* Tab/page content entrance — calm, subtle. */
-.view-in {
-  animation: view-in 0.22s ease-out;
-}
-@keyframes view-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Bottom sheets rise gently. */
-.sheet-in {
-  animation: sheet-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-@keyframes sheet-in {
-  from { opacity: 0.4; transform: translateY(36px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Progress and macro bars animate width on value change. */
+/* Progress bars animate width on value change. */
 .bar-fill {
   transition: width 0.25s ease;
 }
 
 /* Gentle tactile press on every button. */
 button:not(:disabled):active {
-  transform: translateY(1px) scale(0.99);
+  opacity: 0.6;
 }
 
-/* Pet room: a light vertical bob while walking — the real stride comes from
-   the avatar's own leg-swap frames, so this just adds a touch of body weight.
-   Applied to an inner element, kept separate from the outer positioning
-   transform so the two never fight each other. */
-.pet-walking {
-  animation: pet-bob 0.52s ease-in-out infinite;
+/* Bottom sheets rise gently. */
+.sheet-in {
+  animation: sheet-in 0.2s ease-out;
 }
-@keyframes pet-bob {
-  0%, 100% { transform: translateY(0); }
-  25% { transform: translateY(-1px); }
-  50% { transform: translateY(0); }
-  75% { transform: translateY(-1px); }
-}
-
-/* TV screen content flickers on a staggered per-cell delay (set inline) so
-   the picture reads as something actually playing, not a static glow. */
-.tv-content {
-  animation-name: tv-flicker;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-}
-@keyframes tv-flicker {
-  0%, 100% { opacity: 1; }
-  20% { opacity: 0.5; }
-  45% { opacity: 0.85; }
-  70% { opacity: 0.6; }
-}
-
-/* The TV "ball": a few dots on the pitch that take turns fading in (delay
-   staggered per dot, inline) so it reads as one ball moving around. */
-.tv-ball {
-  opacity: 0;
-  animation: tv-ball-fade 3s ease-in-out infinite;
-}
-@keyframes tv-ball-fade {
-  0%, 100% { opacity: 0; }
-  8% { opacity: 1; }
-  22% { opacity: 1; }
-  32% { opacity: 0; }
+@keyframes sheet-in {
+  from {
+    opacity: 0.5;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  .sheet-in,
+  .bar-fill {
+    animation: none;
+    transition: none;
   }
 }
