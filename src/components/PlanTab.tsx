@@ -19,9 +19,10 @@ interface Draft {
   reps: string;
   durationMin: string;
   distanceKm: string;
+  notes: string;
 }
 
-const emptyRow = (): Draft => ({ name: '', type: 'strength', sets: '3', reps: '8-10', durationMin: '', distanceKm: '' });
+const emptyRow = (): Draft => ({ name: '', type: 'strength', sets: '3', reps: '8-10', durationMin: '', distanceKm: '', notes: '' });
 
 /** Inline editor for one weekday of the recurring plan. */
 function DayEditor({
@@ -50,6 +51,7 @@ function DayEditor({
           reps: e.reps ?? '',
           durationMin: e.durationMin?.toString() ?? '',
           distanceKm: e.distanceKm?.toString() ?? '',
+          notes: e.notes ?? '',
         }))
       : [emptyRow()]
   );
@@ -73,6 +75,7 @@ function DayEditor({
               type: 'cardio' as const,
               durationMin: Number.isFinite(durationMin) && durationMin > 0 ? durationMin : undefined,
               distanceKm: Number.isFinite(distanceKm) && distanceKm > 0 ? distanceKm : undefined,
+              notes: r.notes.trim() || undefined,
             };
           }
           const sets = parseInt(r.sets, 10);
@@ -81,6 +84,7 @@ function DayEditor({
             type: 'strength' as const,
             sets: Number.isFinite(sets) && sets > 0 ? sets : undefined,
             reps: r.reps.trim() || undefined,
+            notes: r.notes.trim() || undefined,
           };
         }),
     });
@@ -157,6 +161,12 @@ function DayEditor({
                 </>
               )}
             </div>
+            <input
+              value={r.notes}
+              onChange={(e) => setRow(i, { notes: e.target.value })}
+              placeholder="Note (optional)"
+              className={`${fieldCls} mt-2 !text-[13px]`}
+            />
           </Card>
         ))}
       </div>
@@ -322,9 +332,10 @@ export function PlanTab({
 
       {/* Session header */}
       <div className="mt-7 flex items-end justify-between border-b border-line pb-4">
-        <div>
+        <div className="min-w-0 pr-3">
           <Eyebrow>{isToday ? 'Today' : DAY_NAMES[selectedWd]}</Eyebrow>
           <h2 className="mt-1 text-[22px] font-semibold text-ink">{dayPlan && dayPlan.exercises.length > 0 ? dayPlan.label : 'Rest day'}</h2>
+          {dayPlan?.focus && dayPlan.exercises.length > 0 && <p className="mt-1 text-[12px] leading-snug text-faint">{dayPlan.focus}</p>}
         </div>
         {isToday &&
           dayPlan &&
@@ -422,6 +433,7 @@ export function PlanTab({
                               .map((s) => [s.durationMin ? `${s.durationMin} min` : null, s.distanceKm ? `${s.distanceKm} km` : null].filter(Boolean).join(' / '))
                               .join(', ')}`}
                         </div>
+                        {ex.notes && <div className="mt-1 text-[12px] leading-snug text-faint">{ex.notes}</div>}
                       </div>
                       {isToday && (
                         <button
@@ -488,6 +500,7 @@ export function PlanTab({
                         {targetSets} × {ex.reps ?? '—'}
                         {last != null && ` · last ${last}kg${lastReps != null ? ` × ${lastReps}` : ''}`}
                       </div>
+                      {ex.notes && <div className="mt-1 text-[12px] leading-snug text-faint">{ex.notes}</div>}
                     </button>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {Array.from({ length: targetSets }, (_, k) => {
