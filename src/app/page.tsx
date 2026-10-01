@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { HomeTab } from '@/components/HomeTab';
 import { PlanTab } from '@/components/PlanTab';
 import { FoodTab } from '@/components/FoodTab';
 import { ProfileScreen } from '@/components/ProfileScreen';
@@ -24,9 +25,10 @@ import {
   type WorkoutSession,
 } from '@/lib/store';
 
-type Tab = 'plan' | 'food' | 'profile';
+type Tab = 'home' | 'plan' | 'food' | 'profile';
 
 const NAV: { id: Tab; label: string }[] = [
+  { id: 'home', label: 'Home' },
   { id: 'plan', label: 'Plan' },
   { id: 'food', label: 'Food' },
   { id: 'profile', label: 'Profile' },
@@ -34,6 +36,12 @@ const NAV: { id: Tab; label: string }[] = [
 
 function NavIcon({ tab }: { tab: Tab }) {
   const paths: Record<Tab, React.ReactNode> = {
+    home: (
+      <>
+        <path d="M4 10.5 12 4l8 6.5" />
+        <path d="M6 9.5V20h12V9.5" />
+      </>
+    ),
     plan: <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />,
     food: (
       <>
@@ -58,7 +66,7 @@ function NavIcon({ tab }: { tab: Tab }) {
 export default function Page() {
   const [store, setStore] = useState<JarvisStore>(DEFAULT_STORE);
   const [hydrated, setHydrated] = useState(false);
-  const [tab, setTab] = useState<Tab>('plan');
+  const [tab, setTab] = useState<Tab>('home');
   const [pendingPlan, setPendingPlan] = useState<PlanDay[] | null>(null);
 
   const storeRef = useRef(store);
@@ -296,7 +304,7 @@ export default function Page() {
 
   const handleResetAll = useCallback(() => {
     commitStore(structuredClone(DEFAULT_STORE));
-    setTab('plan');
+    setTab('home');
   }, [commitStore]);
 
   /* ---- Render ---- */
@@ -310,6 +318,7 @@ export default function Page() {
   return (
     <div className="min-h-[100dvh] bg-canvas text-ink">
       <main className="mx-auto max-w-md px-6 pb-[92px] pt-5">
+        {tab === 'home' && <HomeTab store={store} onGoToPlan={() => setTab('plan')} onGoToFood={() => setTab('food')} />}
         {tab === 'plan' && (
           <PlanTab
             store={store}
@@ -331,7 +340,7 @@ export default function Page() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-canvas" aria-label="Primary">
-        <div className="mx-auto grid h-[72px] max-w-md grid-cols-3 items-start px-2 pt-3">
+        <div className="mx-auto grid h-[72px] max-w-md grid-cols-4 items-start px-2 pt-3">
           {NAV.map((item) => {
             const active = tab === item.id;
             return (

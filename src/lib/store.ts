@@ -22,6 +22,9 @@ export interface Profile {
   fibreTargetG: number;
   /** False once the athlete types their own targets, so we never overwrite them. */
   targetsAuto?: boolean;
+  /** Optional next event, shown as a countdown on Home. */
+  raceName?: string;
+  raceDate?: string; // YYYY-MM-DD
 }
 
 export type ExerciseType = 'strength' | 'cardio';
@@ -208,6 +211,8 @@ function normalize(parsed: any): JarvisStore {
       fatTargetG: typeof p.fatTargetG === 'number' ? p.fatTargetG : d.profile.fatTargetG,
       fibreTargetG: typeof p.fibreTargetG === 'number' ? p.fibreTargetG : d.profile.fibreTargetG,
       targetsAuto: p.targetsAuto !== false,
+      raceName: typeof p.raceName === 'string' ? p.raceName : undefined,
+      raceDate: typeof p.raceDate === 'string' ? p.raceDate : undefined,
     },
     plan: Array.isArray(parsed?.plan) ? parsed.plan : [],
     extras: Array.isArray(parsed?.extras) ? parsed.extras.filter((e: any) => typeof e?.date === 'string' && Array.isArray(e?.exercises)) : [],

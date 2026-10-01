@@ -268,6 +268,47 @@ function TrainingSheet({ profile, onSave, onClose }: { profile: Profile; onSave:
   );
 }
 
+/** The next event to aim at. Drives the countdown on the Home screen. */
+function RaceSheet({ profile, onSave, onClose }: { profile: Profile; onSave: (p: Partial<Profile>) => void; onClose: () => void }) {
+  const [raceName, setRaceName] = useState(profile.raceName ?? '');
+  const [raceDate, setRaceDate] = useState(profile.raceDate ?? '');
+
+  return (
+    <Sheet onClose={onClose} label="Next race">
+      <h2 className="font-display text-[22px] text-ink">Next race</h2>
+      <p className="mt-2 text-[13px] leading-relaxed text-muted">Counts down on your home screen, then disappears once the day has passed.</p>
+      <div className="mt-5 space-y-4">
+        <Field label="Event">
+          <input value={raceName} onChange={(e) => setRaceName(e.target.value)} placeholder="Wembley 10K" className={fieldCls} />
+        </Field>
+        <Field label="Date">
+          <input value={raceDate} onChange={(e) => setRaceDate(e.target.value)} type="date" className={fieldCls} />
+        </Field>
+      </div>
+      <CtaButton
+        className="mt-6"
+        onClick={() => {
+          onSave({ raceName: raceName.trim() || undefined, raceDate: raceDate || undefined });
+          onClose();
+        }}
+      >
+        Save
+      </CtaButton>
+      {(profile.raceName || profile.raceDate) && (
+        <button
+          onClick={() => {
+            onSave({ raceName: undefined, raceDate: undefined });
+            onClose();
+          }}
+          className="mt-3 w-full py-1 text-center text-[13px] font-semibold text-faint"
+        >
+          Clear
+        </button>
+      )}
+    </Sheet>
+  );
+}
+
 export function ProfileScreen({
   store,
   onProfileSave,
@@ -281,7 +322,7 @@ export function ProfileScreen({
 }) {
   const { data: session } = useSession();
   const [googleReady, setGoogleReady] = useState(false);
-  const [sheet, setSheet] = useState<'details' | 'targets' | 'training' | null>(null);
+  const [sheet, setSheet] = useState<'details' | 'targets' | 'training' | 'race' | null>(null);
   const [armDelete, setArmDelete] = useState(false);
   const [restorePreview, setRestorePreview] = useState<JarvisStore | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
@@ -318,6 +359,12 @@ export function ProfileScreen({
     () => [p.age ? `${p.age}` : null, p.heightCm ? `${p.heightCm}cm` : null, p.bodyweightKg ? `${p.bodyweightKg}kg` : null].filter(Boolean).join(' · '),
     [p.age, p.heightCm, p.bodyweightKg]
   );
+  const raceLabel = useMemo(() => {
+    if (!p.raceDate) return 'Add';
+    const d = new Date(`${p.raceDate}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return 'Add';
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  }, [p.raceDate]);
 
   return (
     <div>
@@ -339,6 +386,7 @@ export function ProfileScreen({
         <Row label="Your details" value={stats || 'Add'} onClick={() => setSheet('details')} />
         <Row label="Goal & targets" value={`${p.calorieTarget} kcal`} onClick={() => setSheet('targets')} />
         <Row label="Training setup" value={p.daysPerWeek ? `${p.daysPerWeek} days` : 'Add'} onClick={() => setSheet('training')} />
+        <Row label="Next race" value={raceLabel} onClick={() => setSheet('race')} />
       </div>
 
       <Eyebrow className="mt-7">Data</Eyebrow>
@@ -386,6 +434,7 @@ export function ProfileScreen({
       {sheet === 'details' && <DetailsSheet profile={p} onSave={onProfileSave} onClose={() => setSheet(null)} />}
       {sheet === 'targets' && <TargetsSheet profile={p} onSave={onProfileSave} onClose={() => setSheet(null)} />}
       {sheet === 'training' && <TrainingSheet profile={p} onSave={onProfileSave} onClose={() => setSheet(null)} />}
+      {sheet === 'race' && <RaceSheet profile={p} onSave={onProfileSave} onClose={() => setSheet(null)} />}
 
       {restorePreview && (
         <Sheet onClose={() => setRestorePreview(null)} label="Restore backup">
