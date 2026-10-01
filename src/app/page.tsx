@@ -18,6 +18,7 @@ import {
   type JarvisStore,
   type MealEntry,
   type MealSlot,
+  type PlannedExercise,
   type PlanDay,
   type Profile,
   type WorkoutSession,
@@ -100,19 +101,18 @@ export default function Page() {
 
   /* ---- Training ---- */
 
-  const ensureSession = useCallback((cur: JarvisStore): { sessions: WorkoutSession[]; session: WorkoutSession } => {
+  const ensureSession = useCallback((cur: JarvisStore, date: string): { sessions: WorkoutSession[]; session: WorkoutSession } => {
     const now = new Date();
-    const date = todayStr(now);
     let sessions = cur.sessions;
     let session = sessions.find((s) => s.date === date && s.status === 'in_progress') ?? sessions.find((s) => s.date === date);
     if (!session) {
-      const weekday = now.getDay();
+      const weekday = new Date(`${date}T00:00:00`).getDay();
       const planDay = cur.plan.find((x) => x.weekday === weekday);
       const fresh: WorkoutSession = {
         id: newId(),
         date,
         weekday,
-        label: planDay?.label ?? 'Workout',
+        label: planDay?.label ?? cur.extras.find((e) => e.date === date)?.label ?? 'Workout',
         focus: planDay?.focus,
         startedAt: timeStr(now),
         completedAt: null,
@@ -125,11 +125,10 @@ export default function Page() {
   }, []);
 
   const handleLogSet = useCallback(
-    (exercise: string, weightKg?: number, reps?: number) => {
+    (exercise: string, weightKg: number | undefined, reps: number | undefined, date: string) => {
       const cur = storeRef.current;
       const now = new Date();
-      const date = todayStr(now);
-      const { sessions, session } = ensureSession(cur);
+      const { sessions, session } = ensureSession(cur, date);
       const setNumber = cur.sets.filter((s) => s.date === date && s.exercise.toLowerCase() === exercise.toLowerCase()).length + 1;
       commitStore({
         ...cur,
@@ -144,9 +143,8 @@ export default function Page() {
   );
 
   const handleUnlogSet = useCallback(
-    (exercise: string) => {
+    (exercise: string, date: string) => {
       const cur = storeRef.current;
-      const date = todayStr();
       let target = -1;
       for (let i = 0; i < cur.sets.length; i++) {
         const s = cur.sets[i];
@@ -159,11 +157,10 @@ export default function Page() {
   );
 
   const handleLogCardio = useCallback(
-    (exercise: string, durationMin?: number, distanceKm?: number) => {
+    (exercise: string, durationMin: number | undefined, distanceKm: number | undefined, date: string) => {
       const cur = storeRef.current;
       const now = new Date();
-      const date = todayStr(now);
-      const { sessions, session } = ensureSession(cur);
+      const { sessions, session } = ensureSession(cur, date);
       const setNumber = cur.sets.filter((s) => s.date === date && s.exercise.toLowerCase() === exercise.toLowerCase()).length + 1;
       commitStore({
         ...cur,
@@ -190,7 +187,7 @@ export default function Page() {
 
   const handleStartSession = useCallback(() => {
     const cur = storeRef.current;
-    const { sessions } = ensureSession(cur);
+    const { sessions } = ensureSession(cur, todayStr());
     if (sessions !== cur.sessions) commitStore({ ...cur, sessions });
   }, [commitStore, ensureSession]);
 
@@ -220,6 +217,42 @@ export default function Page() {
     (weekday: number) => {
       const cur = storeRef.current;
       commitStore({ ...cur, plan: cur.plan.filter((p) => p.weekday !== weekday) });
+    },
+    [commitStore]
+  );
+
+  /* ---- One-off workouts ---- */
+
+  const handleSaveExtra = useCallback(
+    (date: string, exercises: PlannedExercise[]) => {
+      const cur = storeRef.current;
+      const rest = cur.extras.filter((e) => e.date !== date);
+      const label = cur.extras.find((e) => e.date === date)?.label ?? 'Extra';
+      commitStore({ ...cur, extras: exercises.length ? [...rest, { date, label, exercises }] : rest });
+    },
+    [commitStore]
+  );
+
+  const handleRemoveExtra = useCallback(
+    (date: string) => {
+      const cur = storeRef.current;
+      commitStore({ ...cur, extras: cur.extras.filter((e) => e.date !== date) });
+    },
+    [commitStore]
+  );
+
+  /** Copies a one-off into the recurring plan for that weekday, then clears it. */
+  const handlePromoteExtra = useCallback(
+    (date: string, weekday: number) => {
+      const cur = storeRef.current;
+      const found = cur.extras.find((e) => e.date === date);
+      if (!found) return;
+      const existing = cur.plan.find((p) => p.weekday === weekday);
+      const day: PlanDay = existing
+        ? { ...existing, exercises: [...existing.exercises, ...found.exercises] }
+        : { weekday, label: found.label, focus: '', exercises: found.exercises };
+      const plan = [...cur.plan.filter((p) => p.weekday !== weekday), day].sort((a, b) => a.weekday - b.weekday);
+      commitStore({ ...cur, plan, extras: cur.extras.filter((e) => e.date !== date) });
     },
     [commitStore]
   );
@@ -288,6 +321,9 @@ export default function Page() {
             onSavePlanDay={handleSavePlanDay}
             onRemovePlanDay={handleRemovePlanDay}
             onSuggestPlan={handleSuggestPlan}
+            onSaveExtra={handleSaveExtra}
+            onRemoveExtra={handleRemoveExtra}
+            onPromoteExtra={handlePromoteExtra}
           />
         )}
         {tab === 'food' && <FoodTab store={store} onAddMeal={handleAddMeal} onEditMeal={handleEditMeal} onDeleteMeal={handleDeleteMeal} />}

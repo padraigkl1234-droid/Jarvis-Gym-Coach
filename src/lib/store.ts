@@ -43,6 +43,16 @@ export interface PlanDay {
   exercises: PlannedExercise[];
 }
 
+/**
+ * A spontaneous workout tied to one specific date. Unlike PlanDay it is keyed
+ * by date, not weekday, so it shows up once and never repeats.
+ */
+export interface ExtraDay {
+  date: string; // YYYY-MM-DD
+  label: string;
+  exercises: PlannedExercise[];
+}
+
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export interface MealEntry {
@@ -86,6 +96,8 @@ export interface WorkoutSession {
 export interface JarvisStore {
   profile: Profile;
   plan: PlanDay[];
+  /** One-off workouts, each pinned to a single date. */
+  extras: ExtraDay[];
   meals: MealEntry[];
   sets: SetEntry[];
   sessions: WorkoutSession[];
@@ -104,6 +116,7 @@ export const DEFAULT_STORE: JarvisStore = {
     targetsAuto: true,
   },
   plan: [],
+  extras: [],
   meals: [],
   sets: [],
   sessions: [],
@@ -197,6 +210,7 @@ function normalize(parsed: any): JarvisStore {
       targetsAuto: p.targetsAuto !== false,
     },
     plan: Array.isArray(parsed?.plan) ? parsed.plan : [],
+    extras: Array.isArray(parsed?.extras) ? parsed.extras.filter((e: any) => typeof e?.date === 'string' && Array.isArray(e?.exercises)) : [],
     meals: Array.isArray(parsed?.meals) ? parsed.meals.map((m: any) => ({ ...m, fibreG: typeof m?.fibreG === 'number' ? m.fibreG : 0 })) : [],
     sets: Array.isArray(parsed?.sets) ? parsed.sets : [],
     sessions: Array.isArray(parsed?.sessions) ? parsed.sessions : [],
